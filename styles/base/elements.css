@@ -1,0 +1,6 @@
+body {
+  background: var(--color-canvas);
+  color: var(--color-foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}

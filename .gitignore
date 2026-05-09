@@ -32,6 +32,21 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
+
+# local vault password (dev only)
+.vault-password
+
+# local secrets (never commit)
+.env
+.env.local
+.env.*.local
+
+# docs / media (stealth + large binaries)
+docs/**/*.pdf
+
+# Only app/favicon.ico is committed as a static browser asset; keep public/ local/private.
+/public/**
 
 # vercel
 .vercel

@@ -1,0 +1,127 @@
+/* Driver.js — Muhr dark theme (compound selector beats default .driver-popover white card).
+   Uses @theme tokens from styles/theme/colors.css — load after Tailwind + theme imports. */
+.driver-popover.muhr-driver-popover {
+  box-sizing: border-box !important;
+  min-width: 280px !important;
+  max-width: min(360px, calc(100vw - 2rem)) !important;
+  margin: 0 !important;
+  padding: 1.125rem 1.25rem !important;
+  font-family: var(--font-geist-sans), system-ui, sans-serif !important;
+  color: var(--color-text-bright) !important;
+  background: var(--color-bg-elevated) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 0.75rem !important;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 24px 48px rgba(0, 0, 0, 0.65) !important;
+  -webkit-font-smoothing: antialiased !important;
+}
+
+.driver-popover.muhr-driver-popover *,
+.driver-popover.muhr-driver-popover *::before,
+.driver-popover.muhr-driver-popover *::after {
+  box-sizing: border-box !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-title {
+  display: block !important;
+  margin: 0 0 0.5rem 0 !important;
+  padding-right: 1.75rem !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--color-text-bright) !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-description {
+  display: block !important;
+  margin: 0 !important;
+  font-size: 0.875rem !important;
+  font-weight: 400 !important;
+  line-height: 1.55 !important;
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-close-btn {
+  color: rgba(255, 255, 255, 0.45) !important;
+  font-size: 1.25rem !important;
+  line-height: 1 !important;
+  opacity: 1 !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-close-btn:hover {
+  color: var(--color-text-bright) !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-footer {
+  margin-top: 1.125rem !important;
+  padding-top: 0.875rem !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-progress-text {
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-navigation-btns {
+  display: flex !important;
+  gap: 0.5rem !important;
+  align-items: center !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-prev-btn,
+.driver-popover.muhr-driver-popover .driver-popover-next-btn {
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 2.25rem !important;
+  padding: 0.375rem 0.875rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  border-radius: 0.5rem !important;
+  cursor: pointer !important;
+  appearance: none !important;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-prev-btn {
+  color: rgba(255, 255, 255, 0.85) !important;
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-prev-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.28) !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-next-btn {
+  color: var(--color-canvas) !important;
+  background: var(--color-text-bright) !important;
+  border: 1px solid transparent !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-next-btn:hover:not(:disabled) {
+  background: var(--color-foreground) !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-btn-disabled {
+  opacity: 0.35 !important;
+  cursor: not-allowed !important;
+}
+
+.driver-popover.muhr-driver-popover .driver-popover-arrow {
+  color: var(--color-bg-elevated) !important;
+  border-color: var(--color-bg-elevated) transparent !important;
+}
+
+.driver-active .driver-overlay {
+  fill: var(--color-canvas) !important;
+}

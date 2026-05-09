@@ -1,22 +1,40 @@
 {
-  "name": "vawlt",
+  "name": "Muhr",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
+    "dev": "PATH=/usr/local/bin:$PATH next dev",
+    "build": "PATH=/usr/local/bin:$PATH next build",
+    "start": "PATH=/usr/local/bin:$PATH next start",
+    "lint": "PATH=/usr/local/bin:$PATH eslint .",
+    "db:print-license-contract-sql": "node -e \"process.stdout.write(require('fs').readFileSync('supabase/migrations/005_license_contract.sql','utf8'))\""
   },
   "dependencies": {
+    "@radix-ui/react-tooltip": "^1.2.8",
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.103.2",
+    "@tiptap/core": "^3.22.5",
+    "@tiptap/pm": "^3.22.5",
+    "@tiptap/react": "^3.22.5",
+    "@tiptap/starter-kit": "^3.22.5",
+    "class-variance-authority": "^0.7.1",
+    "date-fns": "^4.1.0",
+    "docx": "^9.6.1",
+    "driver.js": "^1.4.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "next": "16.2.4",
+    "persona": "^5.8.0",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^20.9.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.4",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

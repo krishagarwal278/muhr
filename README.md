@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Muhr
 
-## Getting Started
+Private Next.js application (stealth mode).
 
-First, run the development server:
+This repository contains the core app + API routes. Public-facing descriptions are intentionally minimal to avoid misrepresentation and to reduce accidental disclosure while the project is private.
+
+## Development
+
+Install deps and run:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Configuration
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy `.env.example` to `.env.local` and fill in values:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (server-only)
+- `NEXT_PUBLIC_APP_URL`
+- `PERSONA_API_KEY` (server-only)
+- `PERSONA_WEBHOOK_SECRET` (server-only)
+- `NEXT_PUBLIC_PERSONA_TEMPLATE_ID`
+- `NEXT_PUBLIC_PERSONA_ENVIRONMENT_ID`
+- `RESEND_API_KEY` (server-only)
+- `RESEND_FROM_EMAIL`
+- `SUPPORT_EMAIL`
+- `MUHR_FACE_EMBEDDING_URL` (server-only)
+- `DEV_AUTH_BYPASS` (local dev only; keep unset elsewhere)
 
-## Learn More
+## Notes
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Vault passwords are **never committed** and **never injected into client bundles**. Users provide them locally to encrypt/decrypt vault assets.
+- Do not commit secrets, private customer data, or large media/legal docs to this repo.
+- Files under `public/` are **gitignored** (logos, social icons, video, etc. stay local). The only committed static icon in-repo is `app/favicon.ico`.

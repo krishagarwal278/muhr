@@ -1,0 +1,115 @@
+/* TipTap / ProseMirror — license contract (light shell, readable prose) */
+.tiptap-editor-shell .tiptap.ProseMirror {
+  min-height: 280px;
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  padding: 1rem 1.125rem;
+  outline: none;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: rgba(23, 23, 23, 0.92);
+}
+
+.tiptap-editor-shell .tiptap.ProseMirror:focus {
+  outline: none;
+}
+
+.tiptap-editor-shell .tiptap p {
+  margin: 0.45em 0;
+}
+
+.tiptap-editor-shell .tiptap h1,
+.tiptap-editor-shell .tiptap h2,
+.tiptap-editor-shell .tiptap h3 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #0a0a0a;
+  margin: 1em 0 0.4em;
+}
+
+.tiptap-editor-shell .tiptap h1 {
+  font-size: 1.35rem;
+}
+
+.tiptap-editor-shell .tiptap h2 {
+  font-size: 1.15rem;
+}
+
+.tiptap-editor-shell .tiptap h3 {
+  font-size: 1.05rem;
+}
+
+.tiptap-editor-shell .tiptap ul,
+.tiptap-editor-shell .tiptap ol {
+  margin: 0.4em 0;
+  padding-left: 1.35rem;
+}
+
+.tiptap-editor-shell .tiptap li {
+  margin: 0.2em 0;
+}
+
+.tiptap-editor-shell .tiptap code {
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.tiptap-editor-shell .tiptap blockquote {
+  margin: 0.6em 0;
+  padding-left: 0.9rem;
+  border-left: 3px solid rgba(0, 0, 0, 0.12);
+  color: rgba(23, 23, 23, 0.72);
+}
+
+.tiptap-editor-shell .tiptap hr {
+  margin: 1.25em 0;
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* PDF / print capture — light page */
+.contract-export-capture {
+  box-sizing: border-box;
+  width: 720px;
+  max-width: 100%;
+  padding: 28px 32px;
+  background: #ffffff;
+  color: #111111;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 11pt;
+  line-height: 1.55;
+}
+
+.contract-export-capture h1,
+.contract-export-capture h2,
+.contract-export-capture h3 {
+  color: #0a0a0a;
+}
+
+.contract-export-capture p {
+  margin: 0.45em 0;
+}
+
+.contract-export-capture ul,
+.contract-export-capture ol {
+  margin: 0.4em 0;
+  padding-left: 1.25rem;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .contract-print-root,
+  .contract-print-root * {
+    visibility: visible;
+  }
+  .contract-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}

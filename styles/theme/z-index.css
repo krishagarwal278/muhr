@@ -1,0 +1,7 @@
+/* Named stacking contexts — utilities: z-header, z-nav-strip, z-sidebar, z-overlay */
+@theme inline {
+  --z-header: 10;
+  --z-nav-strip: 19;
+  --z-sidebar: 20;
+  --z-overlay: 50;
+}

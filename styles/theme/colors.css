@@ -1,0 +1,13 @@
+/* Semantic colors — Tailwind v4 @theme exposes utilities (bg-canvas, text-foreground, text-bright, etc.). */
+@theme inline {
+  --color-canvas: #0a0a0a;
+  --color-foreground: #ffffff;
+  --color-text-bright: #fafafa;
+  --color-bg-elevated: #141414;
+
+  /* Bridge names used by Tailwind defaults */
+  --color-background: var(--color-canvas);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}

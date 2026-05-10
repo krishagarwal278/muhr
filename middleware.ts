@@ -14,6 +14,19 @@ const protectedPaths = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Supabase often redirects failed magic links / OAuth to your Site URL (`/`).
+  // Forward those query params to `/login` so users see an explanation (and we can strip them client-side).
+  if (pathname === "/") {
+    const sp = request.nextUrl.searchParams;
+    if (sp.has("error") || sp.has("error_code")) {
+      const loginUrl = new URL("/login", request.url);
+      sp.forEach((value, key) => {
+        loginUrl.searchParams.set(key, value);
+      });
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
   const isProtected = protectedPaths.some(
     (p) => pathname === p || pathname.startsWith(p + "/")
   );
@@ -72,6 +85,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/dashboard/:path*",
     "/vault/:path*",
     "/consent/:path*",

@@ -248,15 +248,9 @@ export default function MuhrLanding() {
             </a>
             <Link
               href="/login"
-              className="rounded-full px-4 py-2 text-sm font-medium text-neutral-900/70 transition hover:bg-black/5 hover:text-neutral-950"
-            >
-              Log in
-            </Link>
-            <Link
-              href="/signup"
               className="rounded-full bg-neutral-950 px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
             >
-              Sign up
+              Sign in
             </Link>
           </nav>
         </header>

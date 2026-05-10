@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient } from "../../../lib/supabase/server";
-import { WaitlistRequest, WaitlistResponse } from "../../../types";
+import { logger } from "@/lib/logger";
+import { createAdminClient } from "@/lib/supabase/server";
+import { WaitlistRequest, WaitlistResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
       .insert({ email: email.toLowerCase().trim(), user_type });
 
     if (error) {
-      console.error("Supabase insert error:", JSON.stringify(error));
+      logger.error("waitlist_insert", { code: error.code, message: error.message });
       if (error.code === "23505") {
         return NextResponse.json<WaitlistResponse>(
           { success: false, message: "This email is already on the waitlist." },
@@ -43,7 +44,10 @@ export async function POST(request: NextRequest) {
       message: "You're on the list. We'll be in touch.",
     });
   } catch (err) {
-    console.error("Waitlist error:", err);
+    logger.error("waitlist_error", {
+      name: err instanceof Error ? err.name : "unknown",
+      message: err instanceof Error ? err.message : "unknown",
+    });
     return NextResponse.json<WaitlistResponse>(
       { success: false, message: "Something went wrong. Please try again." },
       { status: 500 }

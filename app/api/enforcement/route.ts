@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { logger } from "@/lib/logger";
+
 export async function GET() {
   const cookieStore = await cookies();
   const supabase = createServerClient(
@@ -38,7 +40,7 @@ export async function GET() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching cases:", error);
+    logger.error("enforcement_cases_fetch", { code: error.code, message: error.message });
     return NextResponse.json({ error: "Failed to fetch cases" }, { status: 500 });
   }
 
@@ -103,30 +105,27 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    console.error("Error creating case:", error);
+    logger.error("enforcement_case_create", { code: error.code, message: error.message });
     return NextResponse.json({ error: "Failed to create case" }, { status: 500 });
   }
 
-  // Send email notification using Resend (or log for now)
   const userName = user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
   const caseId = newCase.id.substring(0, 8).toUpperCase();
-  
-  // Try to send email via Resend
+
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  const NOTIFICATION_EMAIL = "krishagarwal278@gmail.com";
-  
-  if (RESEND_API_KEY) {
+  const notifyTo = process.env.SUPPORT_EMAIL ?? process.env.NOTIFICATION_EMAIL;
+
+  if (RESEND_API_KEY && notifyTo) {
     try {
-      console.log("Attempting to send email notification...");
       const emailResponse = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${RESEND_API_KEY}`,
+          Authorization: `Bearer ${RESEND_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           from: "Muhr <onboarding@resend.dev>",
-          to: [NOTIFICATION_EMAIL],
+          to: [notifyTo],
           subject: `[Muhr] New Enforcement Case #${caseId}`,
           html: `
             <h2>New Enforcement Case Reported</h2>
@@ -142,25 +141,23 @@ export async function POST(request: Request) {
         }),
       });
 
-      const emailResult = await emailResponse.json();
-      
+      const emailResult = (await emailResponse.json()) as { id?: string; message?: string };
+
       if (!emailResponse.ok) {
-        console.error("Resend API error:", emailResult);
+        logger.error("enforcement_notify_resend", {
+          status: emailResponse.status,
+          message: emailResult.message ?? "send_failed",
+        });
       } else {
-        console.log("Email sent successfully:", emailResult);
+        logger.warn("enforcement_notify_sent", { id: emailResult.id });
       }
     } catch (emailError) {
-      console.error("Failed to send email notification:", emailError);
+      logger.error("enforcement_notify_error", {
+        name: emailError instanceof Error ? emailError.name : "unknown",
+      });
     }
-  } else {
-    console.log("Email notification (RESEND_API_KEY not set):", {
-      to: NOTIFICATION_EMAIL,
-      subject: `New Enforcement Case #${caseId}`,
-      userName,
-      platform,
-      url,
-      description,
-    });
+  } else if (!notifyTo) {
+    logger.warn("enforcement_notify_skipped", { reason: "no_support_email" });
   }
 
   return NextResponse.json({

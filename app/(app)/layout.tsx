@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { displayNameFromAuthUser } from "@/lib/auth/displayName";
 import { createClient } from "@/lib/supabase/client";
 import { muidFromUserId } from "@/lib/profile/muid";
@@ -62,9 +62,25 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
   return <>{icons[name]}</>;
 }
 
+function LogoutIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75"
+      />
+    </svg>
+  );
+}
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const logoutCancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +139,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!logoutDialogOpen) return;
+    logoutCancelRef.current?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setLogoutDialogOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [logoutDialogOpen]);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {
+      // e.g. missing env or dev-only client
+    }
+    router.push("/login");
+    router.refresh();
+  }
+
+  async function confirmLogout() {
+    setLogoutDialogOpen(false);
+    await handleLogout();
+  }
 
   return (
     <div className="flex min-h-screen bg-[#f5f5f7] text-neutral-950">
@@ -183,17 +226,74 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="border-t border-neutral-200/80 bg-neutral-50/50 p-4">
-          <Link href="/settings" className="flex items-center gap-3 rounded-lg p-2 -m-2 transition hover:bg-black/5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-semibold">
-              {user?.name?.charAt(0).toUpperCase() || "U"}
-            </div>
-            <div className="flex-1 truncate">
-              <p className="truncate text-sm font-medium text-neutral-950">{user?.name || "Loading..."}</p>
-              <p className="truncate text-[11px] font-mono font-medium text-neutral-700">{user?.shortId || "..."}</p>
-            </div>
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link
+              href="/settings"
+              className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 -m-2 transition hover:bg-black/5"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-semibold text-white">
+                {user?.name?.charAt(0).toUpperCase() || "U"}
+              </div>
+              <div className="min-w-0 flex-1 truncate">
+                <p className="truncate text-sm font-medium text-neutral-950">{user?.name || "Loading..."}</p>
+                <p className="truncate text-[11px] font-mono font-medium text-neutral-700">{user?.shortId || "..."}</p>
+              </div>
+            </Link>
+            <button
+              type="button"
+              onClick={() => setLogoutDialogOpen(true)}
+              disabled={loggingOut}
+              aria-label="Log out"
+              title="Log out"
+              className="shrink-0 rounded-lg p-2 text-neutral-600 transition hover:bg-black/5 hover:text-neutral-950 disabled:opacity-50"
+            >
+              <LogoutIcon className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </aside>
+
+      {logoutDialogOpen ? (
+        <div className="fixed inset-0 z-overlay flex items-center justify-center p-4" role="presentation">
+          <button
+            type="button"
+            aria-label="Dismiss"
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            onClick={() => setLogoutDialogOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="logout-dialog-title"
+            className="relative w-full max-w-sm rounded-xl border border-neutral-200 bg-white p-5 shadow-lg"
+          >
+            <h2 id="logout-dialog-title" className="text-base font-semibold text-neutral-950">
+              Log out?
+            </h2>
+            <p className="mt-2 text-sm text-neutral-600">
+              You will need to sign in again to access your account.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                ref={logoutCancelRef}
+                type="button"
+                onClick={() => setLogoutDialogOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 transition hover:bg-black/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={loggingOut}
+                onClick={() => void confirmLogout()}
+                className="rounded-lg bg-neutral-950 px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+              >
+                {loggingOut ? "Signing out…" : "Log out"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Mobile header */}
       <header className="fixed inset-x-0 top-0 z-header flex h-14 items-center justify-between border-b border-black/10 bg-[#f5f5f7]/95 px-4 backdrop-blur-sm lg:hidden">

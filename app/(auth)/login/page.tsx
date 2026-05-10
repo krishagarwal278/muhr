@@ -1,16 +1,33 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { formatAuthCallbackError } from "@/lib/auth/authCallbackMessages";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = searchParams.get("next");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [callbackMessage, setCallbackMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const err = searchParams.get("error");
+    const code = searchParams.get("error_code");
+    const desc = searchParams.get("error_description");
+    if (!err && !code && !desc) return;
+
+    setCallbackMessage(formatAuthCallbackError(err, code));
+
+    const clean = new URL(window.location.href);
+    ["error", "error_code", "error_description"].forEach((k) => clean.searchParams.delete(k));
+    const qs = clean.searchParams.toString();
+    router.replace(`${clean.pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [searchParams, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,16 +43,26 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    const dest = nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard";
+    router.push(dest);
     router.refresh();
   }
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 sm:p-8">
       <div className="mb-6 text-center">
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Welcome back</h1>
-        <p className="mt-1.5 text-sm text-zinc-300">Sign in to your account</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+          Access only for beta testers
+        </p>
+        <h1 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">Sign in</h1>
+        <p className="mt-1.5 text-sm text-zinc-300">Welcome back</p>
       </div>
+
+      {callbackMessage ? (
+        <p className="mb-4 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+          {callbackMessage}
+        </p>
+      ) : null}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -80,13 +107,27 @@ export default function LoginPage() {
           {loading ? "Signing in..." : "Sign in"}
         </button>
       </form>
-
-      <p className="mt-6 text-center text-sm text-zinc-400">
-        Don&apos;t have an account?{" "}
-        <Link href="/signup" className="text-zinc-100 underline underline-offset-2 hover:text-white hover:no-underline">
-          Sign up
-        </Link>
-      </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 sm:p-8">
+          <div className="mb-6 text-center">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+              Access only for beta testers
+            </p>
+            <h1 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">Sign in</h1>
+            <p className="mt-1.5 text-sm text-zinc-300">Welcome back</p>
+          </div>
+          <div className="h-40 animate-pulse rounded-lg bg-white/5" />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

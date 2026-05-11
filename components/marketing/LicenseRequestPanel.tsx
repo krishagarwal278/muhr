@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useState } from "react";
 
 const CHANNELS = [
   "Instagram",
@@ -22,9 +23,17 @@ type Props = {
   creatorHandle: string;
   creatorDisplayName: string;
   acceptingRequests: boolean;
+  licensingNotes: string | null;
+  publicProfileUrl: string;
 };
 
-export function LicenseRequestPanel({ creatorHandle, creatorDisplayName, acceptingRequests }: Props) {
+export function LicenseRequestPanel({
+  creatorHandle,
+  creatorDisplayName,
+  acceptingRequests,
+  licensingNotes,
+  publicProfileUrl,
+}: Props) {
   const [brandName, setBrandName] = useState("");
   const [brandEmail, setBrandEmail] = useState("");
   const [brandCompany, setBrandCompany] = useState("");
@@ -34,17 +43,10 @@ export function LicenseRequestPanel({ creatorHandle, creatorDisplayName, accepti
   const [territories, setTerritories] = useState<string[]>([]);
   const [durationDays, setDurationDays] = useState<number>(30);
   const [budgetInr, setBudgetInr] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ token: string } | null>(null);
-
-  const appOrigin = useMemo(
-    () =>
-      typeof window !== "undefined"
-        ? window.location.origin
-        : process.env.NEXT_PUBLIC_APP_URL || "",
-    []
-  );
+  const [success, setSuccess] = useState(false);
 
   function toggle(list: string[], v: string, set: (n: string[]) => void) {
     if (list.includes(v)) set(list.filter((x) => x !== v));
@@ -54,6 +56,10 @@ export function LicenseRequestPanel({ creatorHandle, creatorDisplayName, accepti
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!acceptTerms) {
+      setError("Confirm the legal checkboxes below before submitting.");
+      return;
+    }
     setSubmitting(true);
     try {
       const budget_inr =
@@ -72,6 +78,7 @@ export function LicenseRequestPanel({ creatorHandle, creatorDisplayName, accepti
           territories,
           duration_days: durationDays,
           budget_inr: Number.isFinite(budget_inr) ? budget_inr : undefined,
+          accept_terms: true,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -79,7 +86,7 @@ export function LicenseRequestPanel({ creatorHandle, creatorDisplayName, accepti
         setError(typeof data.error === "string" ? data.error : "Request failed");
         return;
       }
-      setDone({ token: data.request_token });
+      setSuccess(true);
     } catch {
       setError("Network error");
     } finally {
@@ -95,25 +102,16 @@ export function LicenseRequestPanel({ creatorHandle, creatorDisplayName, accepti
     );
   }
 
-  if (done) {
-    const trackUrl = `${appOrigin}/r/${done.token}`;
+  if (success) {
     return (
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-950">
         <p className="font-medium">
           Request sent to {creatorDisplayName}. They&apos;ll see it in their Muhr dashboard.
         </p>
         <p className="mt-2 text-neutral-900/75">
-          {/* TODO: brand tracking page */}
-          Track (coming soon):{" "}
-          <span className="break-all font-mono text-xs text-neutral-950">{trackUrl}</span>
+          Brand-side request tracking will be available soon. The creator may reply to you at the email address you
+          entered above.
         </p>
-        <button
-          type="button"
-          onClick={() => void navigator.clipboard.writeText(trackUrl)}
-          className="mt-3 rounded-lg bg-white px-4 py-2 text-xs font-medium text-black hover:opacity-90"
-        >
-          Copy tracking link
-        </button>
       </div>
     );
   }
@@ -126,10 +124,45 @@ export function LicenseRequestPanel({ creatorHandle, creatorDisplayName, accepti
       <h2 className="text-lg font-medium">Request a license</h2>
       <p className="text-sm text-neutral-900/60">No account required. The creator will respond by email.</p>
 
+      <div className="rounded-lg border border-black/10 bg-neutral-50 p-4 text-sm text-neutral-800">
+        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900/55">Before you apply</p>
+        <ul className="mt-2 list-inside list-disc space-y-1 text-neutral-800">
+          <li>
+            Read Muhr&apos;s{" "}
+            <Link href="/terms" className="font-medium text-neutral-950 underline underline-offset-2" target="_blank" rel="noopener noreferrer">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="font-medium text-neutral-950 underline underline-offset-2" target="_blank" rel="noopener noreferrer">
+              Privacy Policy
+            </Link>
+            .
+          </li>
+          <li>
+            This page is the creator&apos;s public profile:{" "}
+            <a href={publicProfileUrl} className="font-medium text-neutral-950 underline underline-offset-2">
+              {publicProfileUrl}
+            </a>
+            .
+          </li>
+        </ul>
+        {licensingNotes ? (
+          <div className="mt-3 border-t border-black/10 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900/55">
+              Notes from @{creatorHandle}
+            </p>
+            <p className="mt-2 whitespace-pre-wrap text-neutral-900">{licensingNotes}</p>
+          </div>
+        ) : (
+          <p className="mt-3 border-t border-black/10 pt-3 text-xs text-neutral-700">
+            This creator has not added custom licensing notes. Standard Muhr marketplace terms apply; you can still
+            negotiate details with them after they respond.
+          </p>
+        )}
+      </div>
+
       {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
-          {error}
-        </p>
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">{error}</p>
       )}
 
       <div>
@@ -256,9 +289,30 @@ export function LicenseRequestPanel({ creatorHandle, creatorDisplayName, accepti
         />
       </div>
 
+      <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-black/10 bg-neutral-50 p-3 text-sm text-neutral-900">
+        <input
+          type="checkbox"
+          checked={acceptTerms}
+          onChange={(e) => setAcceptTerms(e.target.checked)}
+          className="accent-neutral-950 mt-0.5"
+        />
+        <span>
+          I have read the Muhr{" "}
+          <Link href="/terms" className="font-medium underline underline-offset-2" target="_blank" rel="noopener noreferrer">
+            Terms
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="font-medium underline underline-offset-2" target="_blank" rel="noopener noreferrer">
+            Privacy Policy
+          </Link>
+          , any licensing notes from this creator on this page, and I confirm the information I enter is accurate. I
+          understand this request will be shared with the creator and Muhr operations so the request can be processed.
+        </span>
+      </label>
+
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || !acceptTerms}
         className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
       >
         {submitting ? "Sending…" : "Send request"}

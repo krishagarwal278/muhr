@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { sendLicenseRequestAdminNotification } from "@/lib/email/sendLicenseRequestAdminNotification";
+import { logger } from "@/lib/logger";
 
 const CHANNEL_OPTIONS = [
   "Instagram",
@@ -65,6 +67,14 @@ export async function POST(request: Request) {
       : typeof body.budget_inr === "number"
         ? body.budget_inr
         : parseInt(String(body.budget_inr), 10);
+  const accept_terms = body.accept_terms === true;
+
+  if (!accept_terms) {
+    return NextResponse.json(
+      { error: "You must confirm Muhr terms and privacy policy before submitting." },
+      { status: 400 }
+    );
+  }
 
   if (!creator_handle || creator_handle.length > 50) {
     return NextResponse.json({ error: "Invalid creator_handle" }, { status: 400 });
@@ -120,7 +130,7 @@ export async function POST(request: Request) {
   const handleNorm = creator_handle.trim().toLowerCase();
   const { data: profile, error: pErr } = await admin
     .from("profiles")
-    .select("id, accepting_requests")
+    .select("id, accepting_requests, display_name, handle, licensing_notes")
     .eq("handle", handleNorm)
     .maybeSingle();
 
@@ -144,6 +154,7 @@ export async function POST(request: Request) {
       territories,
       duration_days,
       budget_inr,
+      brand_accepted_muhr_terms: true,
     })
     .select("id, request_token, created_at")
     .single();
@@ -153,7 +164,44 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Could not create request" }, { status: 500 });
   }
 
-  // TODO: Resend email to creator (non-blocking)
+  const creatorDisplayName =
+    (typeof profile.display_name === "string" && profile.display_name.trim()) ||
+    (typeof profile.handle === "string" && profile.handle) ||
+    creator_handle;
+  const creatorLicensingNotes =
+    typeof profile.licensing_notes === "string" && profile.licensing_notes.trim()
+      ? profile.licensing_notes.trim()
+      : null;
+  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://muhr.app";
+
+  try {
+    await sendLicenseRequestAdminNotification(
+      {
+        requestId: row.id,
+        requestToken: row.request_token,
+        createdAtIso: row.created_at,
+        creatorHandle: handleNorm,
+        creatorDisplayName,
+        creatorLicensingNotes,
+        brandEmail: brand_email,
+        brandName: brand_name,
+        brandCompany: brand_company,
+        brandWebsite: brand_website,
+        intendedUse: intended_use,
+        channels: [...channels],
+        territories: [...territories],
+        durationDays: duration_days,
+        budgetInr: budget_inr,
+      },
+      appBaseUrl
+    );
+  } catch (e) {
+    logger.error("license_request_admin_email_failed", {
+      message: e instanceof Error ? e.message : String(e),
+      requestId: row.id,
+    });
+  }
+
   return NextResponse.json({
     success: true,
     request_id: row.id,

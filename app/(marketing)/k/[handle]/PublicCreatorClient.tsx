@@ -12,6 +12,7 @@ type PublicRow = {
   handle: string;
   displayName: string;
   acceptingRequests: boolean;
+  licensingNotes: string | null;
 };
 
 export function PublicCreatorClient({
@@ -140,11 +141,13 @@ export function PublicCreatorClient({
         </div>
 
         {showAsBrand ? (
-          <div className="border-t border-white/10 p-4 sm:p-5">
+          <div id="license-request" className="border-t border-white/10 p-4 sm:p-5">
             <LicenseRequestPanel
               creatorHandle={profile.handle}
               creatorDisplayName={profile.displayName}
               acceptingRequests={profile.acceptingRequests}
+              licensingNotes={profile.licensingNotes}
+              publicProfileUrl={publicProfileUrl}
             />
           </div>
         ) : null}

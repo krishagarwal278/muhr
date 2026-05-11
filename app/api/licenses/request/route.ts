@@ -15,8 +15,19 @@ const CHANNEL_OPTIONS = [
 
 const TERRITORY_OPTIONS = ["India", "United States", "United Kingdom", "UAE", "Global"] as const;
 
+/** Linear-time shape check (avoids ReDoS from overlapping quantifiers in regex). */
 function isEmail(s: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) && s.length <= 255;
+  if (s.length === 0 || s.length > 255) return false;
+  const at = s.indexOf("@");
+  if (at <= 0) return false;
+  if (s.indexOf("@", at + 1) !== -1) return false;
+  const local = s.slice(0, at);
+  const domain = s.slice(at + 1);
+  if (local.length === 0 || domain.length === 0) return false;
+  if (local.includes(" ") || domain.includes(" ") || local.includes("\t") || domain.includes("\t")) return false;
+  const lastDot = domain.lastIndexOf(".");
+  if (lastDot <= 0 || lastDot === domain.length - 1) return false;
+  return true;
 }
 
 export async function POST(request: Request) {

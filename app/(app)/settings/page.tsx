@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { KycStatusBadge } from "@/components/KycStatusBadge";
 import type { KycStatus } from "@/types";
+import { createClient } from "@/lib/supabase/client";
+import { buildPasswordResetRedirectTo } from "@/lib/auth/passwordResetRedirect";
 
 export default function SettingsPage() {
   const [name, setName] = useState("");
@@ -14,6 +16,9 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [kycStatus, setKycStatus] = useState<KycStatus | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetMsg, setResetMsg] = useState<string | null>(null);
+  const [resetErr, setResetErr] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,6 +132,32 @@ export default function SettingsPage() {
     } catch (e) {
       console.error(e);
       setVerifying(false);
+    }
+  }
+
+  async function sendPasswordReset() {
+    setResetBusy(true);
+    setResetMsg(null);
+    setResetErr(null);
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+        error: userErr,
+      } = await supabase.auth.getUser();
+      if (userErr || !user?.email) {
+        setResetErr("Could not load your account email. Sign out and use “Forgot password?” on the login page.");
+        return;
+      }
+      const redirectTo = buildPasswordResetRedirectTo(window.location.origin);
+      const { error: reqErr } = await supabase.auth.resetPasswordForEmail(user.email, { redirectTo });
+      if (reqErr) {
+        setResetErr(reqErr.message);
+        return;
+      }
+      setResetMsg("If your address matches this account, you will receive an email with a link to set a new password.");
+    } finally {
+      setResetBusy(false);
     }
   }
 
@@ -263,16 +294,29 @@ export default function SettingsPage() {
       <div className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
         <h2 className="text-lg font-medium text-neutral-950">Security</h2>
         <div className="mt-4 space-y-4">
-          <button className="rounded-lg border border-black/15 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-neutral-50">
-            Change password
-          </button>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="font-medium text-neutral-950">Two-factor authentication</p>
-              <p className="text-sm text-neutral-700">Add an extra layer of security</p>
-            </div>
-            <button className="rounded-lg border border-black/15 px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-neutral-50">
-              Enable
+          <div>
+            <p className="text-sm font-medium text-neutral-950">Password</p>
+            <p className="mt-1 text-sm text-neutral-700">
+              We will email a one-time link to set a new password (configure outbound mail or Resend SMTP under
+              Supabase Authentication).
+            </p>
+            {resetErr && (
+              <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+                {resetErr}
+              </p>
+            )}
+            {resetMsg && (
+              <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+                {resetMsg}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => void sendPasswordReset()}
+              disabled={resetBusy}
+              className="mt-3 rounded-lg border border-black/15 bg-white px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-neutral-50 disabled:opacity-60"
+            >
+              {resetBusy ? "Sending…" : "Email me a reset link"}
             </button>
           </div>
         </div>

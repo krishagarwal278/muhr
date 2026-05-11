@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import { safeInternalPath } from "@/lib/auth/safeRedirectPath";
+
 const protectedPaths = [
   "/dashboard",
   "/vault",
@@ -9,6 +11,7 @@ const protectedPaths = [
   "/licenses",
   "/enforcement",
   "/settings",
+  "/update-password",
 ];
 
 export async function middleware(request: NextRequest) {
@@ -24,6 +27,17 @@ export async function middleware(request: NextRequest) {
         loginUrl.searchParams.set(key, value);
       });
       return NextResponse.redirect(loginUrl);
+    }
+    // Supabase falls back to "Site URL" (often `/`) when `redirect_to` from the email
+    // is not in the project's Redirect URL allow list — the PKCE `code` then lands here
+    // and is never exchanged. Forward to the auth callback so recovery can continue.
+    const pkceCode = sp.get("code");
+    if (pkceCode) {
+      const cb = new URL("/api/auth/callback", request.url);
+      cb.searchParams.set("code", pkceCode);
+      const next = safeInternalPath(sp.get("next"), "/update-password");
+      cb.searchParams.set("next", next);
+      return NextResponse.redirect(cb);
     }
   }
 
@@ -92,5 +106,6 @@ export const config = {
     "/licenses/:path*",
     "/enforcement/:path*",
     "/settings/:path*",
+    "/update-password",
   ],
 };

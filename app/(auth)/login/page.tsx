@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthCallbackError } from "@/lib/auth/authCallbackMessages";
+import { buildPasswordResetRedirectTo } from "@/lib/auth/passwordResetRedirect";
 
 function LoginForm() {
   const router = useRouter();
@@ -14,6 +15,11 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [callbackMessage, setCallbackMessage] = useState<string | null>(null);
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState<string | null>(null);
+  const [forgotError, setForgotError] = useState("");
+  const [passwordResetBanner, setPasswordResetBanner] = useState(false);
 
   useEffect(() => {
     const err = searchParams.get("error");
@@ -25,6 +31,15 @@ function LoginForm() {
 
     const clean = new URL(window.location.href);
     ["error", "error_code", "error_description"].forEach((k) => clean.searchParams.delete(k));
+    const qs = clean.searchParams.toString();
+    router.replace(`${clean.pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [searchParams, router]);
+
+  useEffect(() => {
+    if (searchParams.get("reset") !== "success") return;
+    setPasswordResetBanner(true);
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete("reset");
     const qs = clean.searchParams.toString();
     router.replace(`${clean.pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
   }, [searchParams, router]);
@@ -48,6 +63,32 @@ function LoginForm() {
     router.refresh();
   }
 
+  async function handleForgotSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setForgotError("");
+    setForgotMessage(null);
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setForgotError("Enter the email you use to sign in.");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const supabase = createClient();
+      const redirectTo = buildPasswordResetRedirectTo(window.location.origin);
+      const { error: resetErr } = await supabase.auth.resetPasswordForEmail(trimmed, { redirectTo });
+      if (resetErr) {
+        setForgotError(resetErr.message);
+        return;
+      }
+      setForgotMessage(
+        "If an account exists for that email, you will receive a link to choose a new password shortly."
+      );
+    } finally {
+      setForgotLoading(false);
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 sm:p-8">
       <div className="mb-6 text-center">
@@ -58,55 +99,118 @@ function LoginForm() {
         <p className="mt-1.5 text-sm text-zinc-300">Welcome back</p>
       </div>
 
+      {passwordResetBanner ? (
+        <p className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+          Your password was updated. Sign in with your new password.
+        </p>
+      ) : null}
+
       {callbackMessage ? (
         <p className="mb-4 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
           {callbackMessage}
         </p>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="mb-1.5 block text-xs font-medium text-zinc-300">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-white/30"
-            placeholder="you@example.com"
-          />
-        </div>
+      {forgotOpen ? (
+        <form onSubmit={handleForgotSubmit} className="space-y-4">
+          <p className="text-sm text-zinc-300">
+            Enter your account email. We will send a reset link if an account exists.
+          </p>
+          <div>
+            <label htmlFor="forgot-email" className="mb-1.5 block text-xs font-medium text-zinc-300">
+              Email
+            </label>
+            <input
+              id="forgot-email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-white/30"
+              placeholder="you@example.com"
+            />
+          </div>
+          {forgotError && (
+            <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">{forgotError}</p>
+          )}
+          {forgotMessage && (
+            <p className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
+              {forgotMessage}
+            </p>
+          )}
+          <button
+            type="submit"
+            disabled={forgotLoading}
+            className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-black transition hover:opacity-90 disabled:opacity-60"
+          >
+            {forgotLoading ? "Sending…" : "Send reset link"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setForgotOpen(false);
+              setForgotMessage(null);
+              setForgotError("");
+            }}
+            className="w-full text-center text-xs text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
+          >
+            Back to sign in
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="mb-1.5 block text-xs font-medium text-zinc-300">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-white/30"
+              placeholder="you@example.com"
+            />
+          </div>
 
-        <div>
-          <label htmlFor="password" className="mb-1.5 block text-xs font-medium text-zinc-300">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-white/30"
-            placeholder="••••••••"
-          />
-        </div>
+          <div>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <label htmlFor="password" className="block text-xs font-medium text-zinc-300">
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="text-xs font-medium text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
+              >
+                Forgot password?
+              </button>
+            </div>
+            <input
+              id="password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-2.5 text-sm text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-white/30"
+              placeholder="••••••••"
+            />
+          </div>
 
-        {error && (
-          <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</p>
-        )}
+          {error && (
+            <p className="rounded-lg bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</p>
+          )}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-black transition hover:opacity-90 disabled:opacity-60"
-        >
-          {loading ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-black transition hover:opacity-90 disabled:opacity-60"
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+      )}
     </div>
   );
 }

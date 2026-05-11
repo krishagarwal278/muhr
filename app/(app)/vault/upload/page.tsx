@@ -174,30 +174,30 @@ export default function VaultUploadPage() {
         <div>
           <Link
             href="/vault"
-            className="inline-flex items-center gap-1 text-sm text-neutral-900/60 hover:text-neutral-950"
+            className="inline-flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-neutral-950"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
             </svg>
             Back to Vault
           </Link>
-          <h1 className="mt-4 text-2xl font-semibold tracking-tight">Verification required</h1>
-          <p className="mt-1 text-sm text-neutral-900/60">
+          <h1 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-950">Verification required</h1>
+          <p className="mt-1.5 text-sm text-neutral-700">
             Complete identity verification before uploading vault assets.
           </p>
         </div>
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-8 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/10">
-            <svg className="h-7 w-7 text-amber-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-8 text-center shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-amber-200 bg-amber-100">
+            <svg className="h-7 w-7 text-amber-800" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
             </svg>
           </div>
-          <p className="text-sm text-amber-100/80">
+          <p className="text-sm font-medium leading-relaxed text-amber-950">
             Vault uploads are unlocked after your identity and liveness checks succeed.
           </p>
           <Link
             href="/settings#identity-verification"
-            className="mt-6 inline-flex rounded-lg bg-white px-4 py-2 text-sm font-medium text-black hover:opacity-90"
+            className="mt-6 inline-flex rounded-lg border border-black/10 bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-neutral-900"
           >
             Go to verification
           </Link>
@@ -211,17 +211,15 @@ export default function VaultUploadPage() {
       <div>
         <Link
           href="/vault"
-          className="inline-flex items-center gap-1 text-sm text-neutral-900/60 hover:text-neutral-950"
+          className="inline-flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-neutral-950"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
           </svg>
           Back to Vault
         </Link>
-        <h1 className="mt-4 text-2xl font-semibold tracking-tight">Upload assets</h1>
-        <p className="mt-1 text-sm text-neutral-900/60">
-          Add identity assets to your secure vault
-        </p>
+        <h1 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-950">Upload assets</h1>
+        <p className="mt-1.5 text-sm text-neutral-700">Add identity assets to your secure vault</p>
       </div>
 
       {/* Progress indicator */}
@@ -272,7 +270,7 @@ export default function VaultUploadPage() {
                   </svg>
                 </div>
                 <h3 className="font-medium">Face photos</h3>
-                <p className="mt-1 text-sm text-neutral-900/55">Upload clear photos of your face</p>
+                <p className="mt-1 text-sm text-neutral-700">Upload clear photos of your face</p>
               </button>
               <div
                 className="relative rounded-xl border border-black/10 bg-white/70 p-5 text-left opacity-50"
@@ -286,7 +284,7 @@ export default function VaultUploadPage() {
                   </svg>
                 </div>
                 <h3 className="font-medium">Voice samples</h3>
-                <p className="mt-1 text-sm text-neutral-900/55">Upload audio recordings of your voice</p>
+                <p className="mt-1 text-sm text-neutral-700">Upload audio recordings of your voice</p>
               </div>
             </div>
           </div>
@@ -296,8 +294,8 @@ export default function VaultUploadPage() {
           <div className="space-y-4">
             <h2 className="text-lg font-medium">Upload photos</h2>
             <div className="rounded-xl border border-black/10 bg-white/70 p-4">
-              <label className="block text-sm font-medium text-neutral-900/70">Vault password</label>
-              <p className="mt-1 text-xs text-neutral-900/50">
+              <label className="block text-sm font-semibold text-neutral-800">Vault password</label>
+              <p className="mt-1 text-xs leading-relaxed text-neutral-700">
                 Used to encrypt files before upload. If you lose it, Muhr can’t recover your assets.
               </p>
               <input
@@ -308,7 +306,7 @@ export default function VaultUploadPage() {
                 className="mt-3 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 placeholder:text-neutral-500/70 focus:border-black/15 focus:outline-none"
                 disabled={uploading}
               />
-              <label className="mt-3 flex items-center gap-2 text-xs text-neutral-900/55">
+              <label className="mt-3 flex items-center gap-2 text-xs text-neutral-700">
                 <input
                   type="checkbox"
                   checked={rememberPassword}
@@ -335,10 +333,10 @@ export default function VaultUploadPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
                   </svg>
                 </div>
-                <p className="text-sm text-neutral-900/70">
-                  Drag and drop or <span className="text-neutral-950 underline">browse files</span>
+                <p className="text-sm text-neutral-800">
+                  Drag and drop or <span className="font-medium text-neutral-950 underline">browse files</span>
                 </p>
-                <p className="mt-1 text-xs text-neutral-900/45">
+                <p className="mt-1 text-xs text-neutral-600">
                   JPG, PNG, WebP up to 10MB each
                 </p>
               </label>
@@ -383,7 +381,7 @@ export default function VaultUploadPage() {
             {uploading && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-neutral-900/60">Uploading...</span>
+                  <span className="text-neutral-700">Uploading...</span>
                   <span className="font-medium">{uploadProgress}%</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-black/10">
@@ -409,9 +407,7 @@ export default function VaultUploadPage() {
               </svg>
             </div>
             <h2 className="text-lg font-medium">Assets uploaded successfully</h2>
-            <p className="text-sm text-neutral-900/60">
-              Your photos are now securely stored in your vault.
-            </p>
+            <p className="text-sm text-neutral-700">Your photos are now securely stored in your vault.</p>
             <div className="flex justify-center gap-3 pt-2">
               <Link
                 href="/vault"

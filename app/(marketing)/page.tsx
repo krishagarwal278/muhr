@@ -335,7 +335,7 @@ export default function MuhrLanding() {
       {/* ── For individuals ───────────────────────────────────────────── */}
       <section id="creators" className="mx-auto max-w-7xl px-5 py-10 sm:px-6 sm:py-16 lg:px-10 lg:py-20">
         <div className="rounded-xl border border-black/10 bg-white/60 p-5 sm:rounded-2xl sm:p-8">
-          <h3 className="text-xl font-semibold tracking-tight sm:text-2xl">For individuals</h3>
+          <h3 className="text-xl font-semibold tracking-tight sm:text-2xl">Your identity, on your terms.</h3>
           <p className="mt-1.5 text-sm text-neutral-900/60 sm:mt-2 sm:text-base">Secure your identity, voice, and likeness.</p>
           <p className="mt-2 text-xs leading-6 text-neutral-900/55 sm:text-sm sm:leading-7">
             Also available for brands and agencies that need to license likeness safely.

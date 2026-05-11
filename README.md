@@ -26,7 +26,7 @@ Copy `.env.example` to `.env.local` and fill in values:
 - `NEXT_PUBLIC_PERSONA_TEMPLATE_ID`
 - `NEXT_PUBLIC_PERSONA_ENVIRONMENT_ID`
 - `RESEND_API_KEY` (server-only)
-- `RESEND_FROM_EMAIL`
+- `RESEND_FROM_EMAIL` — production default in code is `Muhr <communication@muhr.app>` after you verify **muhr.app** in Resend; set explicitly to `Muhr <onboarding@resend.dev>` for local tests if needed
 - `SUPPORT_EMAIL`
 - `MUHR_FACE_EMBEDDING_URL` (server-only)
 - `DEV_AUTH_BYPASS` (local dev only; keep unset elsewhere)

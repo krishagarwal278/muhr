@@ -6,7 +6,9 @@ export async function resendSendEmail(to: string, subject: string, text: string)
   if (!key) {
     throw new Error("RESEND_API_KEY is not configured");
   }
-  const from = process.env.RESEND_FROM_EMAIL ?? "Muhr <onboarding@resend.dev>";
+  /** Verified sending domain in Resend should be muhr.app; override for local/dev if needed. */
+  const from =
+    process.env.RESEND_FROM_EMAIL ?? "Muhr <communication@muhr.app>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

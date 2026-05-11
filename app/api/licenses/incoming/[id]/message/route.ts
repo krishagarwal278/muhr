@@ -73,17 +73,24 @@ export async function POST(
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://muhr.app";
-  const subject = `Message from a Muhr creator about your license request`;
+  const meta = user.user_metadata as Record<string, unknown> | undefined;
+  const fullName =
+    typeof meta?.full_name === "string" && meta.full_name.trim()
+      ? meta.full_name.trim()
+      : null;
+  const creatorLabel = fullName ?? user.email ?? "A Muhr creator";
+
+  const subject = `Message from ${creatorLabel} (via Muhr)`;
 
   const text = `Hi ${row.brand_name},
 
-A creator you contacted on Muhr sent you this message:
+You received this via Muhr (communication@muhr.app). The creator said:
 
 ---
 ${message}
 ---
 
-This relates to your earlier license request (reference on Muhr). If you are waiting on a contract, ask the creator to send their exported agreement (Word/PDF) or their preferred signing process — Muhr no longer uses in-app signing links.
+This relates to the license request between you and ${creatorLabel} on Muhr. For contract files or signing, coordinate directly with the creator (they may send a Word/PDF export from Muhr).
 
 — Muhr
 ${appUrl}

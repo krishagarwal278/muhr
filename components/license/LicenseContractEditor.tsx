@@ -358,7 +358,7 @@ export function LicenseContractEditor({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2 border-b border-black/10 pb-3">
-        <span className="text-xs text-neutral-900/50">Format</span>
+        <span className="text-xs font-medium text-neutral-700">Format</span>
         <button
           type="button"
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -388,7 +388,7 @@ export function LicenseContractEditor({
           List
         </button>
         <span className="mx-1 hidden h-4 w-px bg-black/10 sm:inline" aria-hidden />
-        <span className="w-full text-xs text-neutral-900/50 sm:w-auto">Export</span>
+        <span className="w-full text-xs font-medium text-neutral-700 sm:w-auto">Export</span>
         <button
           type="button"
           onClick={() => exportHtml()}
@@ -433,7 +433,7 @@ export function LicenseContractEditor({
         >
           {saveState === "saving" ? "Saving…" : "Save now"}
         </button>
-        <span className="ml-auto max-w-[min(100%,14rem)] text-right text-xs text-neutral-900/50 sm:max-w-[20rem]">
+        <span className="ml-auto max-w-[min(100%,14rem)] text-right text-xs text-neutral-700 sm:max-w-[20rem]">
           {saveState === "saving"
             ? "Saving to server…"
             : saveState === "saved"
@@ -460,7 +460,7 @@ export function LicenseContractEditor({
           <span className="font-medium text-neutral-950">{request.brand_name}</span> by email or your own process — in-app
           brand signing is no longer used.
         </p>
-        <p className="mt-2 text-xs text-neutral-900/50">
+        <p className="mt-2 text-xs leading-relaxed text-neutral-700">
           Saves require column <span className="font-mono">contract_body</span> on{" "}
           <span className="font-mono">license_requests</span>. If the red box shows SQL, run it in your
           Supabase project (same URL as <span className="font-mono">NEXT_PUBLIC_SUPABASE_URL</span>), then

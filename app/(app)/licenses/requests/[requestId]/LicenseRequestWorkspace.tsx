@@ -174,7 +174,7 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
       <div>
         <Link
           href="/licenses"
-          className="inline-flex items-center gap-1 text-sm text-neutral-900/55 hover:text-neutral-950"
+          className="inline-flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-neutral-950"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -188,18 +188,18 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
               <h1 className="text-2xl font-semibold tracking-tight">
                 {request.brand_name}
                 {request.brand_company ? (
-                  <span className="font-normal text-neutral-900/50"> · {request.brand_company}</span>
+                  <span className="font-normal text-neutral-600"> · {request.brand_company}</span>
                 ) : null}
               </h1>
               <StatusBadge status={request.status} />
             </div>
-            <p className="mt-1 text-sm text-neutral-900/55">{request.brand_email}</p>
+            <p className="mt-1 text-sm text-neutral-700">{request.brand_email}</p>
             {request.brand_website ? (
               <a
                 href={request.brand_website.startsWith("http") ? request.brand_website : `https://${request.brand_website}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-1 inline-block text-sm text-emerald-400/90 hover:text-emerald-300"
+                className="mt-1 inline-block text-sm font-medium text-emerald-800 underline-offset-2 hover:text-emerald-950 hover:underline"
               >
                 {request.brand_website}
               </a>
@@ -210,7 +210,7 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
               <button
                 type="button"
                 onClick={() => setCancelOpen(true)}
-                className="rounded-lg border border-red-500/40 bg-red-500/15 px-4 py-2 text-sm font-medium text-red-200 hover:bg-red-500/25"
+                className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-900 shadow-sm hover:bg-red-100"
               >
                 Cancel license
               </button>
@@ -220,10 +220,10 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
       </div>
 
       {isWithdrawn ? (
-        <div className="space-y-2 rounded-xl border border-amber-500/25 bg-amber-500/10 p-5">
-          <p className="text-sm font-medium text-amber-100">Under review</p>
-          <p className="text-sm text-amber-100/80">
-            This license is <span className="font-medium text-red-200/90">withdrawn</span>. The brand was
+        <div className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-5">
+          <p className="text-sm font-semibold text-amber-950">Under review</p>
+          <p className="text-sm text-amber-950/90">
+            This license is <span className="font-semibold text-red-800">withdrawn</span>. The brand was
             notified to cease use. Our team may follow up within 3–5 business days. Reason recorded:{" "}
             <span className="text-neutral-950">{cancellationReasonLabel(request.cancellation_reason)}</span>
             {request.cancellation_note ? (
@@ -233,9 +233,9 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
               </>
             ) : null}
           </p>
-          <p className="text-xs text-neutral-900/50">
+          <p className="text-xs text-neutral-700">
             Questions?{" "}
-            <a href="mailto:support@muhr.app" className="text-emerald-400/90 hover:underline">
+            <a href="mailto:support@muhr.app" className="font-medium text-emerald-800 hover:underline">
               support@muhr.app
             </a>
           </p>
@@ -243,7 +243,7 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
       ) : null}
 
       {message && (
-        <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">
+        <p className="rounded-lg border border-emerald-600/25 bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-950 shadow-sm">
           {message}
         </p>
       )}
@@ -253,12 +253,12 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
         <h2 className="text-lg font-medium">What they need</h2>
         <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-4")}>
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-neutral-900/45">Intended use</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">Intended use</p>
             <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-900/85">{request.intended_use}</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-900/45">Channels</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">Channels</p>
               <div className="mt-2 flex flex-wrap gap-1">
                 {(request.channels ?? []).length ? (
                   (request.channels ?? []).map((c) => (
@@ -270,12 +270,12 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
                     </span>
                   ))
                 ) : (
-                  <span className="text-sm text-neutral-900/50">—</span>
+                  <span className="text-sm text-neutral-600">—</span>
                 )}
               </div>
             </div>
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-neutral-900/45">Territories</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">Territories</p>
               <div className="mt-2 flex flex-wrap gap-1">
                 {(request.territories ?? []).length ? (
                   (request.territories ?? []).map((t) => (
@@ -287,40 +287,40 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
                     </span>
                   ))
                 ) : (
-                  <span className="text-sm text-neutral-900/50">—</span>
+                  <span className="text-sm text-neutral-600">—</span>
                 )}
               </div>
             </div>
           </div>
           <div className="flex flex-wrap gap-6 border-t border-black/10 pt-4 text-sm">
             <div>
-              <p className="text-xs text-neutral-900/45">Duration</p>
-              <p className="mt-0.5 font-medium text-neutral-900/90">{request.duration_days} days</p>
+              <p className="text-xs font-medium text-neutral-600">Duration</p>
+              <p className="mt-0.5 font-semibold text-neutral-900">{request.duration_days} days</p>
             </div>
             <div>
-              <p className="text-xs text-neutral-900/45">Budget (INR)</p>
-              <p className="mt-0.5 font-medium text-neutral-900/90">
+              <p className="text-xs font-medium text-neutral-600">Budget (INR)</p>
+              <p className="mt-0.5 font-semibold text-neutral-900">
                 {request.budget_inr != null ? `₹${request.budget_inr.toLocaleString("en-IN")}` : "—"}
               </p>
             </div>
             <div>
-              <p className="text-xs text-neutral-900/45">Submitted</p>
-              <p className="mt-0.5 font-medium text-neutral-900/90">
+              <p className="text-xs font-medium text-neutral-600">Submitted</p>
+              <p className="mt-0.5 font-semibold text-neutral-900">
                 {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
               </p>
             </div>
             {request.responded_at ? (
               <div>
-                <p className="text-xs text-neutral-900/45">Responded</p>
-                <p className="mt-0.5 font-medium text-neutral-900/90">
+                <p className="text-xs font-medium text-neutral-600">Responded</p>
+                <p className="mt-0.5 font-semibold text-neutral-900">
                   {formatDistanceToNow(new Date(request.responded_at), { addSuffix: true })}
                 </p>
               </div>
             ) : null}
           </div>
           {request.status === "declined" && request.decline_reason ? (
-            <p className="border-t border-black/10 pt-4 text-sm text-neutral-900/55">
-              <span className="text-neutral-900/45">Your note to the brand: </span>
+            <p className="border-t border-black/10 pt-4 text-sm text-neutral-800">
+              <span className="font-medium text-neutral-600">Your note to the brand: </span>
               {request.decline_reason}
             </p>
           ) : null}
@@ -331,7 +331,7 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Respond</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-sm text-neutral-900/58">
+            <p className="text-sm text-neutral-800">
               Accept to move forward with payment, messaging, and delivering assets from this page.
             </p>
             {showDecline ? (
@@ -348,7 +348,7 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
                     type="button"
                     disabled={busy}
                     onClick={() => void respond("decline")}
-                    className="rounded-lg bg-red-500/20 px-4 py-2 text-sm font-medium text-red-200 hover:bg-red-500/30 disabled:opacity-50"
+                    className="rounded-lg border border-red-300 bg-red-100 px-4 py-2 text-sm font-semibold text-red-900 hover:bg-red-200 disabled:opacity-50"
                   >
                     Confirm decline
                   </button>
@@ -394,9 +394,9 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Contract</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-2")}>
-            <p className="text-sm text-neutral-900/58">
+            <p className="text-sm text-neutral-800">
               Draft loads from Muhr when you open this page and saves to your account while you edit (use{" "}
-              <span className="text-neutral-900/80">Save now</span> if you want an immediate sync). Export Word or
+              <span className="font-medium text-neutral-950">Save now</span> if you want an immediate sync). Export Word or
               PDF for counsel and for signing outside Muhr, then email the brand or use your own e-sign tool.
             </p>
             <LicenseContractEditor
@@ -412,7 +412,7 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Payment</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-sm text-neutral-900/58">
+            <p className="text-sm text-neutral-800">
               When you are ready to collect fees in-app, connect a payment provider (e.g. Stripe Connect).
               Final contract execution remains between you and the brand outside Muhr.
             </p>
@@ -428,10 +428,16 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Message the brand</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-sm text-neutral-900/55">
-              Sends an email to <span className="font-mono text-neutral-900/70">{request.brand_email}</span> via
-              Resend (<span className="font-mono">RESEND_API_KEY</span> on the server). In-app chat history
-              can be added later.
+            <p className="text-sm text-neutral-800">
+              Delivers to <span className="font-mono text-sm text-neutral-900">{request.brand_email}</span>{" "}
+              <span className="text-neutral-600">from</span>{" "}
+              <span className="font-mono text-sm text-neutral-900">communication@muhr.app</span>
+              <span className="text-neutral-600">
+                {" "}
+                (set <span className="font-mono text-xs">RESEND_FROM_EMAIL</span> if you use another verified sender).
+              </span>{" "}
+              The email quotes your text as “The creator said: …”. Requires{" "}
+              <span className="font-mono text-xs">RESEND_API_KEY</span> and a verified domain in Resend.
             </p>
             <textarea
               value={emailBody}
@@ -457,16 +463,19 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Deliver assets</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-sm text-neutral-900/58">
+            <p className="text-sm text-neutral-800">
               Copy time-limited download links to paste into your email, or open an asset to verify before
               sharing. Links expire after about an hour — generate a fresh one before sending.
             </p>
             {assetsLoading ? (
               <div className="h-20 animate-pulse rounded-lg bg-neutral-100" />
             ) : assets.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-black/15 p-4 text-center text-sm text-neutral-900/50">
-                <p>No vault assets yet.</p>
-                <Link href="/vault/upload" className="mt-2 inline-block text-emerald-400/90 hover:text-emerald-300">
+              <div className="rounded-lg border border-dashed border-black/20 bg-neutral-50/80 p-4 text-center text-sm text-neutral-800">
+                <p className="font-medium text-neutral-900">No vault assets yet.</p>
+                <Link
+                  href="/vault/upload"
+                  className="mt-2 inline-block font-semibold text-emerald-800 underline-offset-2 hover:text-emerald-950 hover:underline"
+                >
                   Upload assets
                 </Link>
               </div>
@@ -479,7 +488,7 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
                   >
                     <div className="min-w-0">
                       <p className="truncate font-mono text-xs text-neutral-900/70">{a.file_path}</p>
-                      <p className="text-[11px] text-neutral-900/42">{a.mime_type ?? "file"}</p>
+                      <p className="text-[11px] text-neutral-600">{a.mime_type ?? "file"}</p>
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       <Link

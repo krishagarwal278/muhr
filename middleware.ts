@@ -49,9 +49,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Dev-only bypass (e.g. during Supabase outages).
-  // Set DEV_AUTH_BYPASS=1 in `.env` for local development.
-  if (process.env.DEV_AUTH_BYPASS === "1") {
+  // Local break-glass only: never honored in production builds (`NODE_ENV === "production"`).
+  if (process.env.NODE_ENV !== "production" && process.env.DEV_AUTH_BYPASS === "1") {
     return NextResponse.next();
   }
 

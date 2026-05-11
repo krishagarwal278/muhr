@@ -83,7 +83,16 @@ export function LicenseRequestPanel({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Request failed");
+        const err = data as { error?: string | { message?: string } };
+        const msg =
+          typeof err.error === "string"
+            ? err.error
+            : err.error && typeof err.error === "object" && typeof err.error.message === "string"
+              ? err.error.message
+              : res.status === 429
+                ? "Too many requests. Try again later."
+                : "Request failed";
+        setError(msg);
         return;
       }
       setSuccess(true);

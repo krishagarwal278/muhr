@@ -23,6 +23,10 @@ export function formatAuthCallbackError(error: string | null, errorCode: string 
     return "We couldn’t finish signing you in. Try again, or use another sign-in method.";
   }
 
+  if (error === "rate_limited") {
+    return "Too many sign-in attempts. Please wait a few minutes and try again.";
+  }
+
   if (errorCode === "validation_failed") {
     return "Sign-in could not be completed. Try again.";
   }

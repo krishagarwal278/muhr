@@ -9,9 +9,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  // So client components can align with `DEV_AUTH_BYPASS` in middleware (same value in `.env`).
+  // Mirrors `DEV_AUTH_BYPASS` for any client checks; forced empty when `NODE_ENV === "production"`.
   env: {
-    NEXT_PUBLIC_DEV_AUTH_BYPASS: process.env.DEV_AUTH_BYPASS ?? "",
+    NEXT_PUBLIC_DEV_AUTH_BYPASS:
+      process.env.NODE_ENV === "production" ? "" : (process.env.DEV_AUTH_BYPASS ?? ""),
   },
   async headers() {
     const headers = [...securityHeaders];

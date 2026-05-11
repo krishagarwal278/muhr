@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+
 import { safeInternalPath } from "@/lib/auth/safeRedirectPath";
 import { createClient } from "@/lib/supabase/client";
 
@@ -35,7 +36,8 @@ export function GoogleSignInButton({ label, nextPath }: GoogleSignInButtonProps)
     });
 
     if (oauthError) {
-      setError(oauthError.message);
+      console.warn("google_oauth_start_failed", oauthError.name);
+      setError("Could not start Google sign-in. Try again or use email.");
       setLoading(false);
       return;
     }

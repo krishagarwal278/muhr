@@ -17,6 +17,8 @@ export interface WaitlistRequest {
 export interface WaitlistResponse {
   success: boolean;
   message: string;
+  /** Stable machine-readable code when `success` is false (optional). */
+  code?: string;
 }
 
 // Vault assets

@@ -1,17 +1,24 @@
 import { NextResponse } from "next/server";
 
-import { logger } from "@/lib/logger";
-
-export async function POST(request: Request) {
-  const body = await request.text();
-
-  // TODO: Verify webhook signature based on source
-  // TODO: Route to appropriate handler (Razorpay, platform callbacks, etc.)
-
-  logger.warn("webhook_received", {
-    bodyLength: body.length,
-    hasSignatureHeader: Boolean(request.headers.get("x-webhook-signature")),
-  });
-
-  return NextResponse.json({ received: true });
+/**
+ * Generic webhook receiver is disabled until signature verification and routing exist.
+ * Do not return a success body for unsigned requests.
+ */
+function disabled() {
+  return NextResponse.json(
+    {
+      ok: false,
+      error: {
+        code: "webhook_disabled",
+        message: "This endpoint is not enabled.",
+      },
+    },
+    { status: 410 }
+  );
 }
+
+export const GET = disabled;
+export const POST = disabled;
+export const PUT = disabled;
+export const PATCH = disabled;
+export const DELETE = disabled;

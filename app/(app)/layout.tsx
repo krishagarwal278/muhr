@@ -85,22 +85,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    const devFallback = (): UserProfile => ({
-      id: "00000000-0000-4000-a000-000000000001",
-      shortId: "DEV-LOCAL",
-      name: "Local dev",
-      email: "dev@localhost",
-    });
-
     async function fetchUser() {
-      const bypass = process.env.NEXT_PUBLIC_DEV_AUTH_BYPASS === "1";
-
       let supabase: ReturnType<typeof createClient>;
       try {
         supabase = createClient();
       } catch {
-        if (!cancelled && bypass) setUser(devFallback());
-        else if (!cancelled) setUser(null);
+        if (!cancelled) setUser(null);
         return;
       }
 
@@ -125,13 +115,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         if (error.code === "refresh_token_not_found") {
           await supabase.auth.signOut({ scope: "local" });
         }
-        if (bypass) setUser(devFallback());
-        else setUser(null);
+        setUser(null);
         return;
       }
 
-      if (bypass) setUser(devFallback());
-      else setUser(null);
+      setUser(null);
     }
 
     void fetchUser();

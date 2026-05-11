@@ -93,7 +93,14 @@ export default function EnforcementPage() {
         setDescription("");
         fetchCases();
       } else {
-        setError(data.error || "Failed to submit report");
+        const err = data.error;
+        setError(
+          typeof err === "string"
+            ? err
+            : err && typeof err === "object" && "message" in err
+              ? String((err as { message: string }).message)
+              : "Failed to submit report"
+        );
       }
     } catch (err) {
       console.error("Failed to submit report:", err);

@@ -84,13 +84,16 @@ function WaitlistForm({ userType, label, variant }: WaitlistFormProps) {
         body: JSON.stringify({ email, user_type: userType }),
       });
       const data: WaitlistResponse = await res.json();
-      if (data.success) {
+      if (res.ok && data.success) {
         setState("success");
         setMessage(data.message);
         setEmail("");
       } else {
         setState("error");
-        setMessage(data.message);
+        setMessage(
+          data.message ||
+            (res.status === 429 ? "Too many submissions. Try again later." : "Something went wrong.")
+        );
       }
     } catch {
       setState("error");

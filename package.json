@@ -7,6 +7,7 @@
     "build": "PATH=/usr/local/bin:$PATH next build",
     "start": "PATH=/usr/local/bin:$PATH next start",
     "lint": "PATH=/usr/local/bin:$PATH eslint .",
+    "test": "PATH=/usr/local/bin:$PATH vitest run",
     "db:print-license-contract-sql": "node -e \"process.stdout.write(require('fs').readFileSync('supabase/migrations/005_license_contract.sql','utf8'))\""
   },
   "dependencies": {
@@ -29,7 +30,8 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "server-only": "^0.0.1",
-    "workflow": "^4.2.4"
+    "workflow": "^4.2.4",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -39,7 +41,8 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.6",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.0.5"
   },
   "overrides": {
     "postcss": "8.5.14",

@@ -53,7 +53,7 @@ function LoginForm() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setError(error.message);
+      setError("Could not sign in with that email and password.");
       setLoading(false);
       return;
     }
@@ -78,7 +78,7 @@ function LoginForm() {
       const redirectTo = buildPasswordResetRedirectTo(window.location.origin);
       const { error: resetErr } = await supabase.auth.resetPasswordForEmail(trimmed, { redirectTo });
       if (resetErr) {
-        setForgotError(resetErr.message);
+        setForgotError("Could not send reset email. Check the address and try again.");
         return;
       }
       setForgotMessage(

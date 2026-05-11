@@ -20,7 +20,14 @@ export default function VaultUploadPage() {
   const [kycStatus, setKycStatus] = useState<KycStatus | null>(null);
   const [identityLoading, setIdentityLoading] = useState(true);
   const [vaultPassword, setVaultPassword] = useState("");
-  const [rememberPassword, setRememberPassword] = useState(true);
+
+  useEffect(() => {
+    try {
+      window.localStorage.removeItem("muhr_vault_password");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,12 +45,6 @@ export default function VaultUploadPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  useEffect(() => {
-    const stored = typeof window !== "undefined" ? window.localStorage.getItem("muhr_vault_password") : null;
-    const initial = stored || "";
-    setVaultPassword(initial);
   }, []);
 
   const kycVerified = kycStatus === "verified";
@@ -136,12 +137,6 @@ export default function VaultUploadPage() {
     
     setUploading(false);
 
-    if (rememberPassword && typeof window !== "undefined") {
-      window.localStorage.setItem("muhr_vault_password", vaultPassword);
-    } else if (!rememberPassword && typeof window !== "undefined") {
-      window.localStorage.removeItem("muhr_vault_password");
-    }
-    
     if (successCount === files.length) {
       setStep("complete");
     } else if (successCount > 0) {
@@ -303,19 +298,14 @@ export default function VaultUploadPage() {
                 value={vaultPassword}
                 onChange={(e) => setVaultPassword(e.target.value)}
                 placeholder="Min 8 characters"
+                autoComplete="off"
                 className="mt-3 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 placeholder:text-neutral-500/70 focus:border-black/15 focus:outline-none"
                 disabled={uploading}
               />
-              <label className="mt-3 flex items-center gap-2 text-xs text-neutral-700">
-                <input
-                  type="checkbox"
-                  checked={rememberPassword}
-                  onChange={(e) => setRememberPassword(e.target.checked)}
-                  className="accent-white"
-                  disabled={uploading}
-                />
-                Remember on this device
-              </label>
+              <p className="mt-2 text-xs text-neutral-600">
+                For your security, the vault password is not saved in the browser. You will need it again to view
+                encrypted assets.
+              </p>
             </div>
             <div className="rounded-xl border-2 border-dashed border-black/15 bg-white/60 p-8 text-center">
               <input

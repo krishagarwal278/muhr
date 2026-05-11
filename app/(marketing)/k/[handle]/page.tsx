@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { getPublicSiteBaseUrl } from "@/lib/app/publicSiteUrl";
 import { createServerClient, getUser } from "@/lib/supabase/server";
 import { PublicCreatorClient } from "./PublicCreatorClient";
 
@@ -9,6 +10,8 @@ type RpcRow = {
   profile_handle: string;
   profile_display_name: string;
   profile_accepting_requests: boolean;
+  /** Present after migration `007_profiles_licensing_notes_and_request_terms.sql`; older RPC rows omit this. */
+  profile_licensing_notes?: string | null;
 };
 
 function normalizeRpcRow(data: unknown): RpcRow | null {
@@ -49,16 +52,16 @@ export default async function PublicCreatorPage({
     handle: row.profile_handle,
     displayName: row.profile_display_name || row.profile_handle,
     acceptingRequests: row.profile_accepting_requests !== false,
+    licensingNotes: row.profile_licensing_notes?.trim() || null,
   };
 
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
-  const fallbackOrigin =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
-  const origin = host
+  const requestOrigin = host
     ? `${h.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https")}://${host}`
-    : fallbackOrigin;
-  const publicProfileUrl = `${origin}/k/${profile.handle}`;
+    : null;
+  const publicSiteBase = getPublicSiteBaseUrl(requestOrigin);
+  const publicProfileUrl = `${publicSiteBase}/k/${profile.handle}`;
 
   return (
     <Suspense

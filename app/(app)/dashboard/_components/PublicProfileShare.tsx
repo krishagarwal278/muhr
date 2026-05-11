@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { primaryButtonVariants } from "@/components/ui/button-recipes";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
 import { cx } from "@/lib/cx";
+import { getPublicShareableSiteBase } from "@/lib/app/publicSiteUrl";
 
 type Profile = {
   handle: string | null;
@@ -43,11 +44,7 @@ export function PublicProfileShare() {
     };
   }, []);
 
-  const base =
-    typeof window !== "undefined"
-      ? window.location.origin
-      : process.env.NEXT_PUBLIC_APP_URL || "";
-
+  const base = getPublicShareableSiteBase();
   const publicUrl = profile?.handle ? `${base}/k/${profile.handle}` : "";
 
   const copy = useCallback(async () => {

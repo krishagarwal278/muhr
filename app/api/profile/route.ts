@@ -37,7 +37,7 @@ export async function GET() {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("handle, display_name, accepting_requests")
+    .select("handle, display_name, accepting_requests, licensing_notes")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -50,6 +50,7 @@ export async function GET() {
     handle: profile?.handle ?? null,
     displayName: profile?.display_name ?? null,
     acceptingRequests: profile?.accepting_requests ?? true,
+    licensingNotes: typeof profile?.licensing_notes === "string" ? profile.licensing_notes : "",
     muid: muidFromUserId(user.id),
     email: user.email ?? null,
   });
@@ -73,6 +74,7 @@ export async function PATCH(request: Request) {
     handle?: string | null;
     display_name?: string;
     accepting_requests?: boolean;
+    licensing_notes?: string | null;
   } = {};
 
   if ("handle" in body) {
@@ -104,6 +106,21 @@ export async function PATCH(request: Request) {
     updates.accepting_requests = body.acceptingRequests;
   }
 
+  if ("licensingNotes" in body) {
+    const v = body.licensingNotes;
+    if (v === null || v === "") {
+      updates.licensing_notes = null;
+    } else if (typeof v === "string") {
+      const t = v.trim();
+      if (t.length > 4000) {
+        return NextResponse.json({ error: "Licensing notes must be at most 4000 characters" }, { status: 400 });
+      }
+      updates.licensing_notes = t.length ? t : null;
+    } else {
+      return NextResponse.json({ error: "Invalid licensingNotes" }, { status: 400 });
+    }
+  }
+
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "No valid fields" }, { status: 400 });
   }
@@ -112,7 +129,7 @@ export async function PATCH(request: Request) {
     .from("profiles")
     .update(updates)
     .eq("id", user.id)
-    .select("handle, display_name, accepting_requests")
+    .select("handle, display_name, accepting_requests, licensing_notes")
     .single();
 
   if (error) {
@@ -127,6 +144,7 @@ export async function PATCH(request: Request) {
     handle: data?.handle ?? null,
     displayName: data?.display_name ?? null,
     acceptingRequests: data?.accepting_requests ?? true,
+    licensingNotes: typeof data?.licensing_notes === "string" ? data.licensing_notes : "",
     muid: muidFromUserId(user.id),
   });
 }

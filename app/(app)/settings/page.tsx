@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const [email, setEmail] = useState("");
   const [handle, setHandle] = useState("");
   const [acceptingRequests, setAcceptingRequests] = useState(true);
+  const [licensingNotes, setLicensingNotes] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -39,6 +40,7 @@ export default function SettingsPage() {
             setName(typeof p.displayName === "string" ? p.displayName : "");
             setEmail(typeof p.email === "string" ? p.email : "");
             setAcceptingRequests(p.acceptingRequests !== false);
+            setLicensingNotes(typeof p.licensingNotes === "string" ? p.licensingNotes : "");
           }
         }
       } catch {
@@ -62,6 +64,7 @@ export default function SettingsPage() {
           handle: handle.trim() || null,
           displayName: name.trim(),
           acceptingRequests,
+          licensingNotes: licensingNotes.trim() || null,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -70,6 +73,7 @@ export default function SettingsPage() {
         return;
       }
       if (typeof data.handle === "string") setHandle(data.handle);
+      if (typeof data.licensingNotes === "string") setLicensingNotes(data.licensingNotes);
       setSaveOk(true);
       setTimeout(() => setSaveOk(false), 2500);
     } catch {
@@ -252,6 +256,23 @@ export default function SettingsPage() {
               disabled
             />
             <p className="mt-1 text-xs text-neutral-600">Email changes are not wired here yet.</p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-neutral-900">
+              Licensing notes (shown to brands)
+            </label>
+            <textarea
+              value={licensingNotes}
+              onChange={(e) => setLicensingNotes(e.target.value)}
+              maxLength={4000}
+              rows={5}
+              placeholder="e.g., Minimum fee, channels you won’t do, typical turnaround, link to your rate card…"
+              className="w-full resize-y rounded-lg border border-black/10 bg-white px-4 py-2.5 text-sm text-neutral-950 outline-none focus:border-black/15"
+            />
+            <p className="mt-1 text-xs text-neutral-600">
+              Optional. Shown on your public page (<span className="font-mono">/k/your_handle</span>) before brands
+              submit a license request. Muhr Terms still apply; this is extra guidance from you.
+            </p>
           </div>
           <label className="flex cursor-pointer items-center gap-3">
             <input

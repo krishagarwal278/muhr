@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getPublicSiteBaseUrl } from "@/lib/app/publicSiteUrl";
+import { parsePublicProfileNavFrom } from "@/lib/marketing/publicProfileNav";
 import { createServerClient, getUser } from "@/lib/supabase/server";
 import { PublicCreatorClient } from "./PublicCreatorClient";
 
@@ -27,12 +28,17 @@ function normalizeRpcRow(data: unknown): RpcRow | null {
 
 export default async function PublicCreatorPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ handle: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { handle: raw } = await params;
   const handle = decodeURIComponent(raw).trim();
   if (!handle) notFound();
+
+  const sp = await searchParams;
+  const navFrom = parsePublicProfileNavFrom(sp.from);
 
   const supabase = await createServerClient();
   const { data, error } = await supabase.rpc("get_public_profile", { p_handle: handle });
@@ -73,6 +79,7 @@ export default async function PublicCreatorPage({
         profile={profile}
         viewerUserId={user?.id ?? null}
         publicProfileUrl={publicProfileUrl}
+        navFrom={navFrom}
       />
     </Suspense>
   );

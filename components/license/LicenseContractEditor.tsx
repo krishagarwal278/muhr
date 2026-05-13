@@ -24,9 +24,15 @@ function isDocRoot(v: unknown): v is JSONContent {
 export function LicenseContractEditor({
   request,
   onRequestUpdated,
+  persistPath,
+  workspaceMode,
 }: {
   request: LicenseRequestRow;
   onRequestUpdated: (next: LicenseRequestRow) => void;
+  /** Full URL for PATCH contract save (defaults to creator incoming route). */
+  persistPath?: string;
+  /** Shorter copy when using in-app workspace signing flow. */
+  workspaceMode?: boolean;
 }) {
   const [mounted, setMounted] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -71,7 +77,7 @@ export function LicenseContractEditor({
       setMigrationSql(null);
       setMigrationSteps(null);
       try {
-        const res = await fetch(`/api/licenses/incoming/${request.id}/contract`, {
+        const res = await fetch(persistPath ?? `/api/licenses/incoming/${request.id}/contract`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "save", contract_body: doc }),
@@ -125,7 +131,7 @@ export function LicenseContractEditor({
         return false;
       }
     },
-    [request.id, onRequestUpdated]
+    [request.id, onRequestUpdated, persistPath]
   );
 
   const scheduleSave = useCallback(
@@ -453,13 +459,21 @@ export function LicenseContractEditor({
       </div>
 
       <div className="border-t border-black/10 pt-4 text-sm text-neutral-900/65">
-        <p>
-          Edit this draft in Muhr, <span className="font-medium text-neutral-950">Save now</span> to store it in your
-          account, and <span className="font-medium text-neutral-950">export Word or PDF</span> for legal review and
-          signing outside Muhr (e-sign tool, counsel, or wet ink). Share the final agreement with{" "}
-          <span className="font-medium text-neutral-950">{request.brand_name}</span> by email or your own process — in-app
-          brand signing is no longer used.
-        </p>
+        {workspaceMode ? (
+          <p>
+            Edit and <span className="font-medium text-neutral-950">Save now</span> to sync the shared draft. Export
+            Word or PDF anytime. Signing happens below once the brand payment step is cleared and both parties are
+            ready.
+          </p>
+        ) : (
+          <p>
+            Edit this draft in Muhr, <span className="font-medium text-neutral-950">Save now</span> to store it in your
+            account, and <span className="font-medium text-neutral-950">export Word or PDF</span> for legal review and
+            signing outside Muhr (e-sign tool, counsel, or wet ink). Share the final agreement with{" "}
+            <span className="font-medium text-neutral-950">{request.brand_name}</span> by email or your own process — in-app
+            brand signing is no longer used.
+          </p>
+        )}
         <p className="mt-2 text-xs leading-relaxed text-neutral-700">
           Saves require column <span className="font-mono">contract_body</span> on{" "}
           <span className="font-mono">license_requests</span>. If the red box shows SQL, run it in your

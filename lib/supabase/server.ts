@@ -1,6 +1,7 @@
 import { createServerClient as createSupabaseServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 export function createAdminClient() {
   return createClient(
@@ -9,7 +10,8 @@ export function createAdminClient() {
   );
 }
 
-export async function createServerClient() {
+/** One Supabase SSR client + one `getUser` JWT round-trip per React server request (avoids duplicate auth work across layouts/pages/data loaders). */
+export const createServerClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createSupabaseServerClient(
@@ -32,12 +34,12 @@ export async function createServerClient() {
       },
     }
   );
-}
+});
 
-export async function getUser() {
+export const getUser = cache(async () => {
   const supabase = await createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   return user;
-}
+});

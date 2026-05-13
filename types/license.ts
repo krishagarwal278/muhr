@@ -33,4 +33,12 @@ export type LicenseRequestRow = {
   cancelled_at?: string | null;
   cancellation_reason?: string | null;
   cancellation_note?: string | null;
+  /** Creator-recorded agreed fee after negotiation (INR). */
+  agreed_budget_inr?: number | null;
+  /** Brand completed payment step (placeholder until real gateway). */
+  brand_payment_cleared_at?: string | null;
+  /** When contract is in force (payment + both signatures). */
+  contract_effective_at?: string | null;
+  /** Set when the brand submitted this request while signed in (same email + profiles row). */
+  brand_user_id?: string | null;
 };

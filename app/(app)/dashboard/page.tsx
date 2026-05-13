@@ -87,10 +87,9 @@ export default function DashboardPage() {
         const identityData = identityRes.ok ? await identityRes.json() : {};
 
         const counts = licensesData.counts as { pending?: number; accepted?: number } | undefined;
-        const pendingFromCounts = typeof counts?.pending === "number" ? counts.pending : undefined;
-        const pendingLen = Array.isArray(licensesData.incomingRequests)
-          ? licensesData.incomingRequests.length
-          : 0;
+        const pendingFromCounts =
+          typeof counts?.pending === "number" ? counts.pending : undefined;
+        const pendingLen = Array.isArray(licensesData.incomingRequests) ? licensesData.incomingRequests.length : 0;
 
         setStats({
           vaultAssets: vaultData.assets?.length || 0,

@@ -44,6 +44,7 @@ export async function GET() {
   }
 
   const rows = lrError ? [] : allRows ?? [];
+
   const incomingRequests = rows.filter((r) => r.status === "pending");
   const respondedRequests = rows
     .filter((r) => r.status === "accepted" || r.status === "declined")
@@ -66,6 +67,13 @@ export async function GET() {
   const withdrawnCount = rows.filter((r) => r.status === "withdrawn").length;
   const pendingCount = incomingRequests.length;
 
+  const countsVerifiedBrand = {
+    pending: pendingCount,
+    accepted: acceptedCount,
+    declined: declinedCount,
+    withdrawn: withdrawnCount,
+  };
+
   return NextResponse.json({
     active: [],
     pending: [],
@@ -79,6 +87,7 @@ export async function GET() {
       declined: declinedCount,
       withdrawn: withdrawnCount,
     },
+    countsVerifiedBrand,
   });
 }
 

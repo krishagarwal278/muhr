@@ -8,6 +8,8 @@ import { displayNameFromAuthUser } from "@/lib/auth/displayName";
 import { createClient } from "@/lib/supabase/client";
 import { muidFromUserId } from "@/lib/profile/muid";
 import { NavTourBootstrap } from "@/components/tour/NavTourBootstrap";
+import { destroyActiveNavTourWithoutCompleting } from "@/lib/tour/navTour";
+import { GlobalLicenseMessagesDock } from "@/components/license/GlobalLicenseMessagesDock";
 
 interface UserProfile {
   id: string;
@@ -229,7 +231,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </Link>
             <button
               type="button"
-              onClick={() => setLogoutDialogOpen(true)}
+              onClick={() => {
+                destroyActiveNavTourWithoutCompleting();
+                setLogoutDialogOpen(true);
+              }}
               disabled={loggingOut}
               aria-label="Log out"
               title="Log out"
@@ -242,7 +247,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {logoutDialogOpen ? (
-        <div className="fixed inset-0 z-overlay flex items-center justify-center p-4" role="presentation">
+        <div
+          className="fixed inset-0 z-[10050] flex items-center justify-center p-4"
+          role="presentation"
+        >
           <button
             type="button"
             aria-label="Dismiss"
@@ -302,6 +310,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      <GlobalLicenseMessagesDock />
     </div>
   );
 }

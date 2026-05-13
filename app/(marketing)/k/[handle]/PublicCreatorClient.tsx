@@ -6,6 +6,10 @@ import { useCallback, useState } from "react";
 import { LicenseRequestPanel } from "@/components/marketing/LicenseRequestPanel";
 import { muidFromUserId } from "@/lib/profile/muid";
 import { primaryButtonVariants } from "@/components/ui/button-recipes";
+import {
+  publicProfileBackNav,
+  type PublicProfileNavFrom,
+} from "@/lib/marketing/publicProfileNav";
 
 type PublicRow = {
   id: string;
@@ -19,15 +23,18 @@ export function PublicCreatorClient({
   profile,
   viewerUserId,
   publicProfileUrl,
+  navFrom,
 }: {
   profile: PublicRow;
   viewerUserId: string | null;
   /** Canonical profile URL from the server — avoids hydration mismatch (QR / link must match SSR). */
   publicProfileUrl: string;
+  navFrom: PublicProfileNavFrom | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const previewBrand = searchParams.get("preview") === "brand";
+  const backNav = publicProfileBackNav(navFrom);
   const isOwner = viewerUserId !== null && viewerUserId === profile.id;
   const showAsBrand = !isOwner || previewBrand;
 
@@ -60,8 +67,8 @@ export function PublicCreatorClient({
   return (
     <div className="mx-auto max-w-lg px-4 py-10 sm:px-6">
       <div className="mb-6 flex items-start justify-between gap-4">
-        <Link href="/" className="text-sm text-neutral-900/60 hover:text-neutral-950">
-          ← Muhr
+        <Link href={backNav.href} className="text-sm text-neutral-900/60 hover:text-neutral-950">
+          {backNav.label}
         </Link>
         {isOwner && (
           <label className="flex cursor-pointer items-center gap-2 text-xs text-neutral-900/65">

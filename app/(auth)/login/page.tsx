@@ -1,16 +1,25 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthCallbackError } from "@/lib/auth/authCallbackMessages";
 import { buildPasswordResetRedirectTo } from "@/lib/auth/passwordResetRedirect";
+import {
+  getBrandPreviewSignInEmail,
+  isBrandAuthDestination,
+  shouldRouteSignedInUserToBrandPreview,
+} from "@/lib/brand/brandPreviewSignIn";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next");
-  const [email, setEmail] = useState("");
+  const intent = searchParams.get("intent");
+  const suggestedEmail =
+    isBrandAuthDestination(nextPath, intent) ? getBrandPreviewSignInEmail()?.trim() ?? "" : "";
+  const [email, setEmail] = useState(suggestedEmail);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -50,7 +59,7 @@ function LoginForm() {
     setError("");
 
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError("Could not sign in with that email and password.");
@@ -58,7 +67,14 @@ function LoginForm() {
       return;
     }
 
-    const dest = nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/dashboard";
+    const signedEmail = data.user?.email ?? email;
+    const normalizedNext =
+      nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : null;
+    const dest =
+      normalizedNext ??
+      (intent === "brand" || shouldRouteSignedInUserToBrandPreview(signedEmail)
+        ? "/brand/dashboard"
+        : "/dashboard");
     router.push(dest);
     router.refresh();
   }
@@ -89,6 +105,8 @@ function LoginForm() {
     }
   }
 
+  const previewSignInEmail = getBrandPreviewSignInEmail();
+
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6 sm:p-8">
       <div className="mb-6 text-center">
@@ -98,6 +116,14 @@ function LoginForm() {
         <h1 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">Sign in</h1>
         <p className="mt-1.5 text-sm text-zinc-300">Welcome back</p>
       </div>
+
+      {isBrandAuthDestination(nextPath, intent) ? (
+        <p className="mb-4 rounded-lg border border-sky-500/25 bg-sky-500/10 px-3 py-2 text-left text-xs text-sky-100">
+          Brand workspace is preview-only. Public brand sign-up stays closed until the org model ships; use the
+          internal preview Supabase account from your team
+          {previewSignInEmail ? ` (${previewSignInEmail})` : ""}.
+        </p>
+      ) : null}
 
       {passwordResetBanner ? (
         <p className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-100">
@@ -209,6 +235,22 @@ function LoginForm() {
           >
             {loading ? "Signing in..." : "Sign in"}
           </button>
+          {!isBrandAuthDestination(nextPath, intent) ? (
+            <p className="mt-4 text-center text-xs text-zinc-500">
+              Brand workspace preview?{" "}
+              <Link
+                href="/login?next=/brand/dashboard"
+                className="font-medium text-zinc-300 underline-offset-2 hover:text-zinc-100 hover:underline"
+              >
+                Sign in here
+              </Link>{" "}
+              (or open{" "}
+              <Link href="/brand/dashboard" className="font-medium text-zinc-300 underline-offset-2 hover:underline">
+                /brand/dashboard
+              </Link>{" "}
+              when already signed in).
+            </p>
+          ) : null}
         </form>
       )}
     </div>

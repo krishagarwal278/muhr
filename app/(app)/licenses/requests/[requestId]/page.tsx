@@ -56,5 +56,12 @@ export default async function LicenseRequestPage({
 
   const request = row as LicenseRequestRow;
 
-  return <LicenseRequestWorkspace initialRequest={request} />;
+  return (
+    <LicenseRequestWorkspace
+      initialRequest={request}
+      viewerRole="creator"
+      backHref="/licenses"
+      backLabel="Back to Licenses"
+    />
+  );
 }

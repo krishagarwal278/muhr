@@ -1,5 +1,10 @@
 import { driver } from "driver.js";
-import type { Config, DriveStep } from "driver.js";
+import type { Config, DriveStep, Driver } from "driver.js";
+
+/** driver.js overlay uses inline z-index 10000; keep a handle so we can tear it down before account modals. */
+let activeTourDriver: Driver | null = null;
+/** When true, the next tour `onDestroyed` must not persist completion (e.g. user opened Log out mid-tour). */
+let suppressTourCompletionPersist = false;
 
 const STORAGE_PREFIX = "muhr_nav_tour_v1";
 
@@ -95,6 +100,17 @@ export type StartNavTourOptions = {
   markCompleteForUserId?: string | null;
 };
 
+/**
+ * Removes an in-progress nav tour so fixed overlays (logout, etc.) work and clicks don’t fall through
+ * to the page behind driver.js (e.g. the shareable profile card).
+ * Does not mark the tour as completed in localStorage.
+ */
+export function destroyActiveNavTourWithoutCompleting() {
+  if (!activeTourDriver?.isActive?.()) return;
+  suppressTourCompletionPersist = true;
+  activeTourDriver.destroy();
+}
+
 export function startNavTour(options?: StartNavTourOptions) {
   const steps = buildSteps();
 
@@ -112,13 +128,16 @@ export function startNavTour(options?: StartNavTourOptions) {
     stageRadius: 8,
     steps,
     onDestroyed: () => {
-      if (options?.markCompleteForUserId) {
+      if (options?.markCompleteForUserId && !suppressTourCompletionPersist) {
         markNavTourCompleted(options.markCompleteForUserId);
       }
+      suppressTourCompletionPersist = false;
+      activeTourDriver = null;
     },
   };
 
   const driverObj = driver(config);
+  activeTourDriver = driverObj;
   driverObj.drive();
   return driverObj;
 }

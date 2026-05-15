@@ -27,7 +27,7 @@ export default async function SignupPage({
         )}
       </p>
       <Link
-        href={brandIntent ? "/login?next=/brand/dashboard" : "/login"}
+        href={brandIntent ? "/login?intent=brand&next=/brand/dashboard" : "/login"}
         className="mt-6 inline-flex w-full justify-center rounded-lg bg-white py-2.5 text-sm font-medium text-black transition hover:opacity-90"
       >
         {brandIntent ? "Sign in to brand preview" : "Sign in"}

@@ -1,13 +1,35 @@
 /**
  * Internal brand workspace preview (no public brand sign-up yet).
  *
- * Set `NEXT_PUBLIC_BRAND_PREVIEW_SIGNIN_EMAIL` to the Supabase Auth user you
- * create manually for designers / PMs. Password stays in your secrets manager
- * or Supabase dashboard — never commit it.
+ * Set `NEXT_PUBLIC_BRAND_PREVIEW_SIGNIN_EMAIL` to one or more Supabase Auth
+ * emails (comma-separated). Only those accounts may access `/brand/*`.
+ * Passwords stay in your secrets manager or Supabase dashboard — never commit them.
  */
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+export function getBrandWorkspaceAllowlistEmails(): string[] {
+  const raw = process.env.NEXT_PUBLIC_BRAND_PREVIEW_SIGNIN_EMAIL?.trim();
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((e) => normalizeEmail(e))
+    .filter(Boolean);
+}
+
 export function getBrandPreviewSignInEmail(): string | undefined {
-  const v = process.env.NEXT_PUBLIC_BRAND_PREVIEW_SIGNIN_EMAIL?.trim();
-  return v || undefined;
+  return getBrandWorkspaceAllowlistEmails()[0];
+}
+
+export function isBrandWorkspaceConfigured(): boolean {
+  return getBrandWorkspaceAllowlistEmails().length > 0;
+}
+
+export function isBrandWorkspaceUser(emailFromAuth: string | null | undefined): boolean {
+  if (!emailFromAuth) return false;
+  const normalized = normalizeEmail(emailFromAuth);
+  return getBrandWorkspaceAllowlistEmails().includes(normalized);
 }
 
 export function isBrandAuthDestination(
@@ -18,9 +40,7 @@ export function isBrandAuthDestination(
   return Boolean(next?.startsWith("/brand"));
 }
 
-/** When set, users who sign in with this email default to `/brand/dashboard` if no `next` was requested. */
+/** Brand-only accounts default to `/brand/dashboard` when no `next` was requested. */
 export function shouldRouteSignedInUserToBrandPreview(emailFromAuth: string | null | undefined): boolean {
-  const preview = getBrandPreviewSignInEmail()?.trim().toLowerCase();
-  if (!preview || !emailFromAuth) return false;
-  return emailFromAuth.trim().toLowerCase() === preview;
+  return isBrandWorkspaceUser(emailFromAuth);
 }

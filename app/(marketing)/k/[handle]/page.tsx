@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getPublicSiteBaseUrl } from "@/lib/app/publicSiteUrl";
-import { parsePublicProfileNavFrom } from "@/lib/marketing/publicProfileNav";
+import { isBrandWorkspaceUser } from "@/lib/brand/brandPreviewSignIn";
 import { createServerClient, getUser } from "@/lib/supabase/server";
 import { PublicCreatorClient } from "./PublicCreatorClient";
 
@@ -28,17 +28,12 @@ function normalizeRpcRow(data: unknown): RpcRow | null {
 
 export default async function PublicCreatorPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ handle: string }>;
-  searchParams: Promise<{ from?: string }>;
 }) {
   const { handle: raw } = await params;
   const handle = decodeURIComponent(raw).trim();
   if (!handle) notFound();
-
-  const sp = await searchParams;
-  const navFrom = parsePublicProfileNavFrom(sp.from);
 
   const supabase = await createServerClient();
   const { data, error } = await supabase.rpc("get_public_profile", { p_handle: handle });
@@ -52,6 +47,8 @@ export default async function PublicCreatorPage({
   if (!row?.profile_handle) notFound();
 
   const user = await getUser();
+  const signedInBrandEmail =
+    user?.email && isBrandWorkspaceUser(user.email) ? user.email.trim() : null;
 
   const profile = {
     id: row.profile_id,
@@ -78,8 +75,8 @@ export default async function PublicCreatorPage({
       <PublicCreatorClient
         profile={profile}
         viewerUserId={user?.id ?? null}
+        signedInBrandEmail={signedInBrandEmail}
         publicProfileUrl={publicProfileUrl}
-        navFrom={navFrom}
       />
     </Suspense>
   );

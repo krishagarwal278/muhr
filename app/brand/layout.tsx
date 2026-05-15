@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { displayNameFromAuthUser } from "@/lib/auth/displayName";
 import { brandShortIdFromUserId } from "@/lib/brand/brandShortId";
+import { isBrandWorkspaceUser } from "@/lib/brand/brandPreviewSignIn";
 import { BRAND_ROSTER_AVAILABLE } from "@/lib/brand/rosterAvailability";
 import { createClient } from "@/lib/supabase/client";
 import { GlobalLicenseMessagesDock } from "@/components/license/GlobalLicenseMessagesDock";
@@ -127,6 +128,10 @@ export default function BrandLayout({ children }: { children: React.ReactNode })
       if (cancelled) return;
 
       if (authUser) {
+        if (!isBrandWorkspaceUser(authUser.email)) {
+          router.replace("/dashboard?brand_access=denied");
+          return;
+        }
         setUser({
           id: authUser.id,
           brandShortId: brandShortIdFromUserId(authUser.id),
@@ -138,7 +143,18 @@ export default function BrandLayout({ children }: { children: React.ReactNode })
 
       if (error?.code === "refresh_token_not_found") {
         await supabase.auth.signOut({ scope: "local" });
+        router.replace("/login?intent=brand&next=/brand/dashboard");
+        return;
       }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        router.replace("/login?intent=brand&next=/brand/dashboard");
+        return;
+      }
+
       setUser(null);
     }
 
@@ -146,7 +162,7 @@ export default function BrandLayout({ children }: { children: React.ReactNode })
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!logoutDialogOpen) return;

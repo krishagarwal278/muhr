@@ -2,6 +2,9 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
+import { resolveLicenseRequestAccess } from "@/lib/license/workspaceAccess";
+import type { LicenseRequestRow } from "@/types/license";
+
 export async function GET(
   _request: Request,
   ctx: { params: Promise<{ id: string }> }
@@ -46,6 +49,11 @@ export async function GET(
     return NextResponse.json({ error: "Fetch failed" }, { status: 500 });
   }
   if (!row) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const role = resolveLicenseRequestAccess(user, row as LicenseRequestRow);
+  if (role !== "creator") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

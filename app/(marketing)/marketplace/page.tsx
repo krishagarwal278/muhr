@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isBrandWorkspaceUser } from "@/lib/brand/brandPreviewSignIn";
 import { createServerClient, getUser } from "@/lib/supabase/server";
 import { publicProfileHref } from "@/lib/marketing/publicProfileNav";
 import { appPageTitleVariants } from "@/components/ui/page-header";
@@ -15,6 +16,7 @@ type RpcRow = {
 export default async function MarketplacePage() {
   const supabase = await createServerClient();
   const user = await getUser();
+  const showBrandNav = user ? isBrandWorkspaceUser(user.email) : false;
   const { data, error } = await supabase.rpc("list_public_creators", {
     p_limit: 72,
     p_offset: 0,
@@ -28,13 +30,13 @@ export default async function MarketplacePage() {
         className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-neutral-200/90 pb-4 text-sm text-neutral-600"
         aria-label="Marketplace navigation"
       >
-        {user ? (
-            <Link
-              href="/brand/dashboard"
-              className="font-medium text-neutral-800 underline-offset-2 hover:text-neutral-950 hover:underline"
-            >
-              ← Back to Brand workspace
-            </Link>
+        {showBrandNav ? (
+          <Link
+            href="/brand/dashboard"
+            className="font-medium text-neutral-800 underline-offset-2 hover:text-neutral-950 hover:underline"
+          >
+            ← Back to Brand workspace
+          </Link>
         ) : null}
       </nav>
 
@@ -65,7 +67,7 @@ export default async function MarketplacePage() {
         <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((row) => {
             const h = row.handle.trim();
-            const href = publicProfileHref(h, "marketplace");
+            const href = publicProfileHref(h, showBrandNav ? "brand" : "marketplace");
             const at = h.startsWith("@") ? h : `@${h}`;
             return (
               <li key={h}>

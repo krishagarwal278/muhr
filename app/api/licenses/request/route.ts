@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { jsonApiError } from "@/lib/api/jsonResponse";
+import { getRouteHandlerUser } from "@/lib/auth/routeHandlerUser";
+import { isBrandWorkspaceUser } from "@/lib/brand/brandPreviewSignIn";
 import { sendLicenseRequestAdminNotification } from "@/lib/email/sendLicenseRequestAdminNotification";
 import { resendSendEmail } from "@/lib/email/resendSend";
 import { RateLimitError } from "@/lib/errors/apiError";
@@ -66,7 +68,7 @@ async function notifyCreatorOfLicenseRequest(
 Intended use:
 ${snippet}
 
-Open Muhr → Licenses to review. In-app messaging is available when the brand submits while signed in on Muhr.`;
+Open Muhr → Licenses to review or message them.`;
   await resendSendEmail(email, subject, text);
 }
 
@@ -104,7 +106,42 @@ export async function POST(request: Request) {
     }
 
     const creator_handle = typeof body.creator_handle === "string" ? body.creator_handle.trim() : "";
-    const brand_email = typeof body.brand_email === "string" ? body.brand_email.trim() : "";
+    let brand_email = typeof body.brand_email === "string" ? body.brand_email.trim() : "";
+    let brand_user_id: string | null = null;
+
+    const cookieStore = await cookies();
+    const sessionClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll(cookiesToSet) {
+            try {
+              cookiesToSet.forEach(({ name, value, options }) =>
+                cookieStore.set(name, value, options)
+              );
+            } catch {
+              // Route Handler may not be able to set cookies in all contexts.
+            }
+          },
+        },
+      }
+    );
+    const sessionUser = await getRouteHandlerUser(sessionClient);
+    if (sessionUser?.email && isBrandWorkspaceUser(sessionUser.email)) {
+      brand_email = sessionUser.email.trim();
+      const { data: profileRow } = await sessionClient
+        .from("profiles")
+        .select("id")
+        .eq("id", sessionUser.id)
+        .maybeSingle();
+      if (profileRow?.id) {
+        brand_user_id = profileRow.id;
+      }
+    }
     const brand_name = typeof body.brand_name === "string" ? body.brand_name.trim() : "";
     const brand_company =
       typeof body.brand_company === "string" ? body.brand_company.trim() || null : null;
@@ -245,64 +282,39 @@ export async function POST(request: Request) {
       );
     }
 
-    let brandUserId: string | null = null;
-    try {
-      const cookieStore = await cookies();
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-      if (url && anon) {
-        const authed = createServerClient(url, anon, {
-          cookies: {
-            getAll() {
-              return cookieStore.getAll();
-            },
-            setAll(cookiesToSet) {
-              try {
-                cookiesToSet.forEach(({ name, value, options }) =>
-                  cookieStore.set(name, value, options)
-                );
-              } catch {
-                // ignore
-              }
-            },
+    if (sessionUser && isBrandWorkspaceUser(sessionUser.email) && profile.id === sessionUser.id) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: {
+            code: "invalid_input",
+            message: "You cannot send a license request to your own creator profile.",
           },
-        });
-        const {
-          data: { user: submitter },
-        } = await authed.auth.getUser();
-        const submitterEm = submitter?.email?.trim().toLowerCase();
-        const brandNorm = brand_email.trim().toLowerCase();
-        if (submitter?.id && submitterEm === brandNorm) {
-          const { data: brandProf } = await admin
-            .from("profiles")
-            .select("id")
-            .eq("id", submitter.id)
-            .maybeSingle();
-          if (brandProf) {
-            brandUserId = submitter.id;
-          }
-        }
-      }
-    } catch {
-      // anonymous public submission
+        },
+        { status: 400 }
+      );
+    }
+
+    const insertRow: Record<string, unknown> = {
+      creator_id: profile.id,
+      brand_email,
+      brand_name,
+      brand_company,
+      brand_website,
+      intended_use,
+      channels,
+      territories,
+      duration_days,
+      budget_inr,
+      brand_accepted_muhr_terms: true,
+    };
+    if (brand_user_id) {
+      insertRow.brand_user_id = brand_user_id;
     }
 
     const { data: row, error: insErr } = await admin
       .from("license_requests")
-      .insert({
-        creator_id: profile.id,
-        brand_email,
-        brand_name,
-        brand_company,
-        brand_website,
-        intended_use,
-        channels,
-        territories,
-        duration_days,
-        budget_inr,
-        brand_accepted_muhr_terms: true,
-        brand_user_id: brandUserId,
-      })
+      .insert(insertRow)
       .select("id, request_token, created_at")
       .single();
 

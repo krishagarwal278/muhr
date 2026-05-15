@@ -4,6 +4,23 @@ import type { LicenseRequestRow } from "@/types/license";
 
 export type LicenseWorkspaceRole = "creator" | "brand";
 
+/** Application-level authorization — do not infer access from RLS alone. */
+export function resolveLicenseRequestAccess(
+  user: User,
+  row: LicenseRequestRow
+): LicenseWorkspaceRole | null {
+  if (row.creator_id === user.id) return "creator";
+
+  if (row.brand_user_id && row.brand_user_id === user.id) return "brand";
+
+  const em = user.email?.trim().toLowerCase() ?? "";
+  const brandEm =
+    typeof row.brand_email === "string" ? row.brand_email.trim().toLowerCase() : "";
+  if (em && brandEm && em === brandEm) return "brand";
+
+  return null;
+}
+
 export async function getLicenseWorkspaceAccess(
   supabase: SupabaseClient,
   user: User,
@@ -14,20 +31,10 @@ export async function getLicenseWorkspaceAccess(
   if (error || !data) return null;
 
   const row = data as LicenseRequestRow;
-  if (row.creator_id === user.id) return { row, role: "creator" };
+  const role = resolveLicenseRequestAccess(user, row);
+  if (!role) return null;
 
-  const em = user.email?.trim().toLowerCase() ?? "";
-  const brandEm =
-    typeof row.brand_email === "string" ? row.brand_email.trim().toLowerCase() : "";
-  if (em && brandEm && em === brandEm) {
-    return { row, role: "brand" };
-  }
-
-  if (row.brand_user_id && row.brand_user_id === user.id) {
-    return { row, role: "brand" };
-  }
-
-  return null;
+  return { row, role };
 }
 
 export function isContractInForce(row: LicenseRequestRow): boolean {

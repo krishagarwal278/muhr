@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { KycStatusBadge } from "@/components/KycStatusBadge";
 import { ghostButtonVariants } from "@/components/ui/button-recipes";
 import { appPageHeaderVariants, appPageTitleVariants } from "@/components/ui/page-header";
@@ -61,6 +62,8 @@ function ActionIcon({ name, className }: { name: string; className?: string }) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
+  const [brandAccessDenied, setBrandAccessDenied] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     vaultAssets: 0,
     activeLicenses: 0,
@@ -70,6 +73,15 @@ export default function DashboardPage() {
   });
   const [kycStatus, setKycStatus] = useState<KycStatus | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get("brand_access") !== "denied") return;
+    setBrandAccessDenied(true);
+    sp.delete("brand_access");
+    const qs = sp.toString();
+    router.replace(`${window.location.pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  }, [router]);
 
   useEffect(() => {
     async function fetchStats() {
@@ -87,9 +99,10 @@ export default function DashboardPage() {
         const identityData = identityRes.ok ? await identityRes.json() : {};
 
         const counts = licensesData.counts as { pending?: number; accepted?: number } | undefined;
-        const pendingFromCounts =
-          typeof counts?.pending === "number" ? counts.pending : undefined;
-        const pendingLen = Array.isArray(licensesData.incomingRequests) ? licensesData.incomingRequests.length : 0;
+        const pendingFromCounts = typeof counts?.pending === "number" ? counts.pending : undefined;
+        const pendingLen = Array.isArray(licensesData.incomingRequests)
+          ? licensesData.incomingRequests.length
+          : 0;
 
         setStats({
           vaultAssets: vaultData.assets?.length || 0,
@@ -120,6 +133,15 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {brandAccessDenied ? (
+        <p
+          className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          role="status"
+        >
+          The brand workspace is only available to designated brand preview accounts. You are signed in
+          to the creator app.
+        </p>
+      ) : null}
       <header className={appPageHeaderVariants()}>
         <div className="min-w-0 flex-1 space-y-3">
           <h1 className={appPageTitleVariants()}>Dashboard</h1>

@@ -23,16 +23,13 @@ function isDocRoot(v: unknown): v is JSONContent {
 
 export function LicenseContractEditor({
   request,
+  readOnly = false,
   onRequestUpdated,
-  persistPath,
-  workspaceMode,
 }: {
   request: LicenseRequestRow;
+  /** Brand workspace: view + export only (no server saves from this session). */
+  readOnly?: boolean;
   onRequestUpdated: (next: LicenseRequestRow) => void;
-  /** Full URL for PATCH contract save (defaults to creator incoming route). */
-  persistPath?: string;
-  /** Shorter copy when using in-app workspace signing flow. */
-  workspaceMode?: boolean;
 }) {
   const [mounted, setMounted] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -72,12 +69,13 @@ export function LicenseContractEditor({
 
   const persist = useCallback(
     async (doc: JSONContent): Promise<boolean> => {
+      if (readOnly) return false;
       setSaveState("saving");
       setSaveError(null);
       setMigrationSql(null);
       setMigrationSteps(null);
       try {
-        const res = await fetch(persistPath ?? `/api/licenses/incoming/${request.id}/contract`, {
+        const res = await fetch(`/api/licenses/incoming/${request.id}/contract`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "save", contract_body: doc }),
@@ -131,20 +129,22 @@ export function LicenseContractEditor({
         return false;
       }
     },
-    [request.id, onRequestUpdated, persistPath]
+    [request.id, onRequestUpdated, readOnly]
   );
 
   const scheduleSave = useCallback(
     (doc: JSONContent) => {
+      if (readOnly) return;
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
         void persist(doc);
       }, 1400);
     },
-    [persist]
+    [persist, readOnly]
   );
 
   const scheduleLocalBackup = useCallback((doc: JSONContent) => {
+    if (readOnly) return;
     if (backupTimer.current) clearTimeout(backupTimer.current);
     backupTimer.current = setTimeout(() => {
       try {
@@ -156,7 +156,7 @@ export function LicenseContractEditor({
         // ignore
       }
     }, 600);
-  }, [request.id]);
+  }, [request.id, readOnly]);
 
   useEffect(() => {
     queueMicrotask(() => setMounted(true));
@@ -167,13 +167,14 @@ export function LicenseContractEditor({
       immediatelyRender: false,
       extensions: [StarterKit],
       content: initialDoc,
-      editable: true,
+      editable: !readOnly,
       editorProps: {
         attributes: {
           class: "tiptap",
         },
       },
       onUpdate: ({ editor: ed }) => {
+        if (readOnly) return;
         dirtySinceSave.current = true;
         const json = ed.getJSON();
         scheduleLocalBackup(json);
@@ -184,9 +185,15 @@ export function LicenseContractEditor({
   );
 
   useEffect(() => {
+    if (!editor) return;
+    editor.setEditable(!readOnly);
+  }, [editor, readOnly]);
+
+  useEffect(() => {
     if (!editor || restoredRef.current) return;
     restoredRef.current = true;
     queueMicrotask(() => {
+      if (readOnly) return;
       try {
         const raw = localStorage.getItem(backupKey(request.id));
         if (!raw) return;
@@ -205,7 +212,7 @@ export function LicenseContractEditor({
         // ignore corrupt backup
       }
     });
-  }, [editor, request.id, request.contract_updated_at]);
+  }, [editor, request.id, request.contract_updated_at, readOnly]);
 
   useEffect(() => {
     return () => {
@@ -216,6 +223,7 @@ export function LicenseContractEditor({
 
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (readOnly) return;
       if (dirtySinceSave.current) {
         e.preventDefault();
         e.returnValue = "";
@@ -223,10 +231,10 @@ export function LicenseContractEditor({
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, []);
+  }, [readOnly]);
 
   async function saveNow() {
-    if (!editor) return;
+    if (readOnly || !editor) return;
     if (saveTimer.current) {
       clearTimeout(saveTimer.current);
       saveTimer.current = null;
@@ -324,7 +332,7 @@ export function LicenseContractEditor({
 
   return (
     <div className="space-y-4">
-      {restoredNotice ? (
+      {restoredNotice && !readOnly ? (
         <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950">
           Restored a newer draft from this browser (it had not been saved to the server yet). Use{" "}
           <span className="font-medium">Save now</span> to sync.
@@ -364,36 +372,42 @@ export function LicenseContractEditor({
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2 border-b border-black/10 pb-3">
-        <span className="text-xs font-medium text-neutral-700">Format</span>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs font-medium text-neutral-900 hover:bg-neutral-50"
-        >
-          Bold
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs font-medium text-neutral-900 hover:bg-neutral-50"
-        >
-          Italic
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs font-medium text-neutral-900 hover:bg-neutral-50"
-        >
-          H2
-        </button>
-        <button
-          type="button"
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs font-medium text-neutral-900 hover:bg-neutral-50"
-        >
-          List
-        </button>
-        <span className="mx-1 hidden h-4 w-px bg-black/10 sm:inline" aria-hidden />
+        {!readOnly ? (
+          <>
+            <span className="text-xs font-medium text-neutral-700">Format</span>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs font-medium text-neutral-900 hover:bg-neutral-50"
+            >
+              Bold
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs font-medium text-neutral-900 hover:bg-neutral-50"
+            >
+              Italic
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+              className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs font-medium text-neutral-900 hover:bg-neutral-50"
+            >
+              H2
+            </button>
+            <button
+              type="button"
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs font-medium text-neutral-900 hover:bg-neutral-50"
+            >
+              List
+            </button>
+            <span className="mx-1 hidden h-4 w-px bg-black/10 sm:inline" aria-hidden />
+          </>
+        ) : (
+          <span className="text-xs font-medium text-neutral-600">Read-only</span>
+        )}
         <span className="w-full text-xs font-medium text-neutral-700 sm:w-auto">Export</span>
         <button
           type="button"
@@ -431,23 +445,27 @@ export function LicenseContractEditor({
           Print
         </button>
         <span className="mx-1 hidden h-4 w-px bg-black/10 sm:inline" aria-hidden />
-        <button
-          type="button"
-          disabled={saveState === "saving"}
-          onClick={() => void saveNow()}
-          className={primaryButtonVariants({ size: "sm" })}
-        >
-          {saveState === "saving" ? "Saving…" : "Save now"}
-        </button>
-        <span className="ml-auto max-w-[min(100%,14rem)] text-right text-xs text-neutral-700 sm:max-w-[20rem]">
-          {saveState === "saving"
-            ? "Saving to server…"
-            : saveState === "saved"
-              ? "Saved to server"
-              : saveState === "error"
-                ? "Save failed — fix above or use Export"
-                : "Autosaves ~1.5s after you stop typing; also backed up in this browser"}
-        </span>
+        {!readOnly ? (
+          <>
+            <button
+              type="button"
+              disabled={saveState === "saving"}
+              onClick={() => void saveNow()}
+              className={primaryButtonVariants({ size: "sm" })}
+            >
+              {saveState === "saving" ? "Saving…" : "Save now"}
+            </button>
+            <span className="ml-auto max-w-[min(100%,14rem)] text-right text-xs text-neutral-700 sm:max-w-[20rem]">
+              {saveState === "saving"
+                ? "Saving to server…"
+                : saveState === "saved"
+                  ? "Saved to server"
+                  : saveState === "error"
+                    ? "Save failed — fix above or use Export"
+                    : "Autosaves ~1.5s after you stop typing; also backed up in this browser"}
+            </span>
+          </>
+        ) : null}
       </div>
 
       <div className="tiptap-editor-shell rounded-lg border border-black/10 bg-white">
@@ -459,27 +477,30 @@ export function LicenseContractEditor({
       </div>
 
       <div className="border-t border-black/10 pt-4 text-sm text-neutral-900/65">
-        {workspaceMode ? (
-          <p>
-            Edit and <span className="font-medium text-neutral-950">Save now</span> to sync the shared draft. Export
-            Word or PDF anytime. Signing happens below once the brand payment step is cleared and both parties are
-            ready.
-          </p>
-        ) : (
-          <p>
-            Edit this draft in Muhr, <span className="font-medium text-neutral-950">Save now</span> to store it in your
-            account, and <span className="font-medium text-neutral-950">export Word or PDF</span> for legal review and
-            signing outside Muhr (e-sign tool, counsel, or wet ink). Share the final agreement with{" "}
-            <span className="font-medium text-neutral-950">{request.brand_name}</span> by email or your own process — in-app
-            brand signing is no longer used.
-          </p>
-        )}
-        <p className="mt-2 text-xs leading-relaxed text-neutral-700">
-          Saves require column <span className="font-mono">contract_body</span> on{" "}
-          <span className="font-mono">license_requests</span>. If the red box shows SQL, run it in your
-          Supabase project (same URL as <span className="font-mono">NEXT_PUBLIC_SUPABASE_URL</span>), then
-          save again.
+        <p>
+          {readOnly ? (
+            <>
+              This is the creator&apos;s draft (read-only here). Use <span className="font-medium text-neutral-950">Export</span>{" "}
+              for your records.
+            </>
+          ) : (
+            <>
+              Edit this draft in Muhr, <span className="font-medium text-neutral-950">Save now</span> to store it in your
+              account, and <span className="font-medium text-neutral-950">export Word or PDF</span> for legal review and
+              signing outside Muhr (e-sign tool, counsel, or wet ink). Share the final agreement with{" "}
+              <span className="font-medium text-neutral-950">{request.brand_name}</span> by email or your own process — in-app
+              brand signing is no longer used.
+            </>
+          )}
         </p>
+        {!readOnly ? (
+          <p className="mt-2 text-xs leading-relaxed text-neutral-700">
+            Saves require column <span className="font-mono">contract_body</span> on{" "}
+            <span className="font-mono">license_requests</span>. If the red box shows SQL, run it in your
+            Supabase project (same URL as <span className="font-mono">NEXT_PUBLIC_SUPABASE_URL</span>), then
+            save again.
+          </p>
+        ) : null}
       </div>
     </div>
   );

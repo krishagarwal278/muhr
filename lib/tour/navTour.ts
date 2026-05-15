@@ -1,12 +1,28 @@
 import { driver } from "driver.js";
 import type { Config, DriveStep, Driver } from "driver.js";
 
-/** driver.js overlay uses inline z-index 10000; keep a handle so we can tear it down before account modals. */
-let activeTourDriver: Driver | null = null;
-/** When true, the next tour `onDestroyed` must not persist completion (e.g. user opened Log out mid-tour). */
-let suppressTourCompletionPersist = false;
-
 const STORAGE_PREFIX = "muhr_nav_tour_v1";
+
+/** Active Driver.js instance for the creator nav tour (brand shell may dismiss without persisting completion). */
+let activeNavTourDriver: Driver | null = null;
+/** When true, `onDestroyed` will not write “tour completed” to localStorage. */
+let suppressNavTourCompletion = false;
+
+/** Close an in-progress nav tour without marking it completed (e.g. before logout modal). */
+export function destroyActiveNavTourWithoutCompleting() {
+  const d = activeNavTourDriver;
+  if (!d?.isActive()) {
+    activeNavTourDriver = null;
+    return;
+  }
+  suppressNavTourCompletion = true;
+  try {
+    d.destroy();
+  } finally {
+    suppressNavTourCompletion = false;
+    activeNavTourDriver = null;
+  }
+}
 
 export function navTourStorageKey(userId: string) {
   return `${STORAGE_PREFIX}_${userId}`;
@@ -100,19 +116,19 @@ export type StartNavTourOptions = {
   markCompleteForUserId?: string | null;
 };
 
-/**
- * Removes an in-progress nav tour so fixed overlays (logout, etc.) work and clicks don’t fall through
- * to the page behind driver.js (e.g. the shareable profile card).
- * Does not mark the tour as completed in localStorage.
- */
-export function destroyActiveNavTourWithoutCompleting() {
-  if (!activeTourDriver?.isActive?.()) return;
-  suppressTourCompletionPersist = true;
-  activeTourDriver.destroy();
-}
-
 export function startNavTour(options?: StartNavTourOptions) {
+  if (activeNavTourDriver?.isActive()) {
+    suppressNavTourCompletion = true;
+    try {
+      activeNavTourDriver.destroy();
+    } finally {
+      suppressNavTourCompletion = false;
+      activeNavTourDriver = null;
+    }
+  }
+
   const steps = buildSteps();
+  const markUserId = options?.markCompleteForUserId ?? null;
 
   const config: Config = {
     showProgress: true,
@@ -128,16 +144,15 @@ export function startNavTour(options?: StartNavTourOptions) {
     stageRadius: 8,
     steps,
     onDestroyed: () => {
-      if (options?.markCompleteForUserId && !suppressTourCompletionPersist) {
-        markNavTourCompleted(options.markCompleteForUserId);
+      activeNavTourDriver = null;
+      if (!suppressNavTourCompletion && markUserId) {
+        markNavTourCompleted(markUserId);
       }
-      suppressTourCompletionPersist = false;
-      activeTourDriver = null;
     },
   };
 
   const driverObj = driver(config);
-  activeTourDriver = driverObj;
+  activeNavTourDriver = driverObj;
   driverObj.drive();
   return driverObj;
 }

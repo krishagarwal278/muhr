@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { LicenseRequestPanel } from "@/components/marketing/LicenseRequestPanel";
+import {
+  parsePublicProfileNavFrom,
+  publicProfileBackNav,
+} from "@/lib/marketing/publicProfileNav";
 import { muidFromUserId } from "@/lib/profile/muid";
 import { primaryButtonVariants } from "@/components/ui/button-recipes";
-import {
-  publicProfileBackNav,
-  type PublicProfileNavFrom,
-} from "@/lib/marketing/publicProfileNav";
 
 type PublicRow = {
   id: string;
@@ -22,21 +22,24 @@ type PublicRow = {
 export function PublicCreatorClient({
   profile,
   viewerUserId,
+  signedInBrandEmail,
   publicProfileUrl,
-  navFrom,
 }: {
   profile: PublicRow;
   viewerUserId: string | null;
+  signedInBrandEmail?: string | null;
   /** Canonical profile URL from the server — avoids hydration mismatch (QR / link must match SSR). */
   publicProfileUrl: string;
-  navFrom: PublicProfileNavFrom | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const previewBrand = searchParams.get("preview") === "brand";
-  const backNav = publicProfileBackNav(navFrom);
   const isOwner = viewerUserId !== null && viewerUserId === profile.id;
   const showAsBrand = !isOwner || previewBrand;
+  const navFrom =
+    parsePublicProfileNavFrom(searchParams.get("from")) ??
+    (signedInBrandEmail ? "brand" : null);
+  const backNav = publicProfileBackNav(navFrom);
 
   const [copied, setCopied] = useState(false);
 
@@ -155,6 +158,7 @@ export function PublicCreatorClient({
               acceptingRequests={profile.acceptingRequests}
               licensingNotes={profile.licensingNotes}
               publicProfileUrl={publicProfileUrl}
+              signedInBrandEmail={signedInBrandEmail}
             />
           </div>
         ) : null}

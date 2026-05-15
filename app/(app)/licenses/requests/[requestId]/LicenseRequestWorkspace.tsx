@@ -7,9 +7,6 @@ import { useCallback, useEffect, useState } from "react";
 import { LicenseCancelDialog } from "@/components/license/LicenseCancelDialog";
 import { LicenseContractEditor } from "@/components/license/LicenseContractEditor";
 import { cancellationReasonLabel } from "@/lib/license/cancellationReasons";
-import { canSignContract, isContractInForce } from "@/lib/license/workspaceAccess";
-import { canUseInAppLicenseMessaging } from "@/lib/license/workspaceMessages";
-import { publicProfileHref } from "@/lib/marketing/publicProfileNav";
 import { ghostButtonVariants, primaryButtonVariants } from "@/components/ui/button-recipes";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
 import { cx } from "@/lib/cx";
@@ -23,14 +20,10 @@ type VaultAssetRow = {
   created_at?: string;
 };
 
-type WorkspaceMsg = {
-  id: string;
-  author_role: string;
-  body: string;
-  created_at: string;
-};
-
-type CreatorMeta = { handle: string | null; display_name: string | null };
+function formatInr(n: number | null | undefined): string {
+  if (n == null) return "—";
+  return `₹${n.toLocaleString("en-IN")}`;
+}
 
 function StatusBadge({ status }: { status: LicenseRequestRow["status"] }) {
   if (status === "accepted") {
@@ -70,69 +63,51 @@ function StatusBadge({ status }: { status: LicenseRequestRow["status"] }) {
 
 export function LicenseRequestWorkspace({
   initialRequest,
-  viewerRole,
-  backHref,
-  backLabel,
+  backHref = "/licenses",
+  backLabel = "Back to Licenses",
+  viewerRole = "creator",
 }: {
   initialRequest: LicenseRequestRow;
-  viewerRole: "creator" | "brand";
-  backHref: string;
-  backLabel: string;
+  backHref?: string;
+  backLabel?: string;
+  viewerRole?: "creator" | "brand";
 }) {
   const router = useRouter();
   const [request, setRequest] = useState<LicenseRequestRow>(initialRequest);
-  const [creatorMeta, setCreatorMeta] = useState<CreatorMeta | null>(null);
+  const isBrand = viewerRole === "brand";
   const [cancelOpen, setCancelOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [declineReason, setDeclineReason] = useState("");
   const [showDecline, setShowDecline] = useState(false);
+  const [emailBody, setEmailBody] = useState("");
+  const [emailSending, setEmailSending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [assets, setAssets] = useState<VaultAssetRow[]>([]);
-  const [assetsLoading, setAssetsLoading] = useState(viewerRole === "creator");
+  const [assetsLoading, setAssetsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [thread, setThread] = useState<WorkspaceMsg[]>([]);
-  const [threadLoading, setThreadLoading] = useState(false);
-  const [chatBody, setChatBody] = useState("");
-  const [chatSending, setChatSending] = useState(false);
-  const [agreedInput, setAgreedInput] = useState(
-    initialRequest.agreed_budget_inr != null ? String(initialRequest.agreed_budget_inr) : ""
-  );
-  const [signName, setSignName] = useState("");
-  const [stateBusy, setStateBusy] = useState(false);
+  const [brandSignatoryName, setBrandSignatoryName] = useState("");
 
-  const wsBase = `/api/licenses/workspace/${request.id}`;
-  const contractPath = `${wsBase}/contract`;
+  const brandPaymentCleared = Boolean(request.brand_payment_cleared_at);
+  const brandCanViewContract =
+    request.status === "accepted" && (!isBrand || brandPaymentCleared);
+  const licenseFeeInr = request.agreed_budget_inr ?? request.budget_inr;
 
-  const reloadWorkspace = useCallback(async (opts?: { silent?: boolean }) => {
-    const silent = opts?.silent ?? false;
-    if (!silent) setThreadLoading(true);
-    try {
-      const ac = new AbortController();
-      const tid = setTimeout(() => ac.abort(), 15_000);
-      let res: Response;
-      try {
-        res = await fetch(`${wsBase}?embed=messages`, { signal: ac.signal });
-      } finally {
-        clearTimeout(tid);
-      }
-      if (!res.ok) return;
-      const data = await res.json().catch(() => ({}));
-      if (data.request) setRequest(data.request as LicenseRequestRow);
-      if (data.creator) setCreatorMeta(data.creator as CreatorMeta);
-      if (Array.isArray(data.messages)) setThread(data.messages as WorkspaceMsg[]);
-    } catch {
-      // timeout / network — avoid wedging the page
-    } finally {
-      if (!silent) setThreadLoading(false);
-    }
-  }, [wsBase]);
+  const reloadRequest = useCallback(async () => {
+    const url = isBrand
+      ? `/api/licenses/workspace/${request.id}`
+      : `/api/licenses/incoming/${request.id}`;
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    if (data.request) setRequest(data.request as LicenseRequestRow);
+  }, [request.id, isBrand]);
 
+  const isPending = request.status === "pending";
+  const isWithdrawn = request.status === "withdrawn";
+  const canEmailBrand =
+    !isBrand && (request.status === "accepted" || request.status === "declined");
   useEffect(() => {
-    void reloadWorkspace();
-  }, [reloadWorkspace]);
-
-  useEffect(() => {
-    if (viewerRole !== "creator") {
+    if (isBrand) {
       setAssetsLoading(false);
       return;
     }
@@ -152,15 +127,7 @@ export function LicenseRequestWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [viewerRole]);
-
-  const isPending = request.status === "pending";
-  const isWithdrawn = request.status === "withdrawn";
-  const isAccepted = request.status === "accepted";
-  const canMessage = canUseInAppLicenseMessaging(request);
-  const paymentCleared = Boolean(request.brand_payment_cleared_at);
-  const contractLive = isContractInForce(request);
-  const signingAllowed = canSignContract(request);
+  }, [isBrand]);
 
   async function respond(action: "accept" | "decline") {
     setMessage(null);
@@ -182,47 +149,49 @@ export function LicenseRequestWorkspace({
       setShowDecline(false);
       setDeclineReason("");
       setMessage(action === "accept" ? "Request accepted." : "Request declined.");
-      await reloadWorkspace();
+      await reloadRequest();
       router.refresh();
     } finally {
       setBusy(false);
     }
   }
 
-  async function postChat() {
+  async function sendBrandEmail() {
     setMessage(null);
-    const trimmed = chatBody.trim();
+    const trimmed = emailBody.trim();
     if (trimmed.length < 1) {
-      setMessage("Write a message first.");
+      setMessage("Write a message before sending.");
       return;
     }
-    setChatSending(true);
+    setEmailSending(true);
     try {
-      const res = await fetch(`${wsBase}/messages`, {
+      const res = await fetch(`/api/licenses/incoming/${request.id}/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: trimmed }),
+        body: JSON.stringify({ message: trimmed }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setMessage(typeof data.error === "string" ? data.error : "Could not send message");
+        setMessage(typeof data.error === "string" ? data.error : "Could not send email");
         return;
       }
-      setChatBody("");
-      await reloadWorkspace({ silent: true });
+      setEmailBody("");
+      setMessage("Email sent to the brand.");
+    } catch {
+      setMessage("Network error");
     } finally {
-      setChatSending(false);
+      setEmailSending(false);
     }
   }
 
-  async function patchState(payload: Record<string, unknown>) {
-    setStateBusy(true);
+  async function patchWorkspaceState(body: Record<string, unknown>) {
     setMessage(null);
+    setBusy(true);
     try {
-      const res = await fetch(`${wsBase}/state`, {
+      const res = await fetch(`/api/licenses/workspace/${request.id}/state`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -230,8 +199,9 @@ export function LicenseRequestWorkspace({
         return;
       }
       if (data.request) setRequest(data.request as LicenseRequestRow);
+      router.refresh();
     } finally {
-      setStateBusy(false);
+      setBusy(false);
     }
   }
 
@@ -250,11 +220,6 @@ export function LicenseRequestWorkspace({
     }
   }
 
-  const creatorTitle =
-    creatorMeta?.display_name?.trim() ||
-    (creatorMeta?.handle ? `@${creatorMeta.handle.replace(/^@/, "")}` : null) ||
-    "Creator";
-
   return (
     <div className="space-y-8">
       <div>
@@ -272,35 +237,17 @@ export function LicenseRequestWorkspace({
           <div>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-2xl font-semibold tracking-tight">
-                {viewerRole === "creator" ? (
-                  <>
-                    {request.brand_name}
-                    {request.brand_company ? (
-                      <span className="font-normal text-neutral-600"> · {request.brand_company}</span>
-                    ) : null}
-                  </>
-                ) : (
-                  <>{creatorTitle}</>
-                )}
+                {request.brand_name}
+                {request.brand_company ? (
+                  <span className="font-normal text-neutral-600"> · {request.brand_company}</span>
+                ) : null}
               </h1>
               <StatusBadge status={request.status} />
             </div>
-            <p className="mt-1 text-sm text-neutral-700">
-              {viewerRole === "creator" ? request.brand_email : `You (${request.brand_email})`}
-            </p>
-            {viewerRole === "brand" && creatorMeta?.handle ? (
-              <Link
-                href={publicProfileHref(creatorMeta.handle.replace(/^@/, ""), "brand")}
-                className="mt-1 inline-block text-sm font-medium text-emerald-800 underline-offset-2 hover:underline"
-              >
-                Public profile →
-              </Link>
-            ) : null}
-            {viewerRole === "creator" && request.brand_website ? (
+            <p className="mt-1 text-sm text-neutral-700">{request.brand_email}</p>
+            {request.brand_website ? (
               <a
-                href={
-                  request.brand_website.startsWith("http") ? request.brand_website : `https://${request.brand_website}`
-                }
+                href={request.brand_website.startsWith("http") ? request.brand_website : `https://${request.brand_website}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-1 inline-block text-sm font-medium text-emerald-800 underline-offset-2 hover:text-emerald-950 hover:underline"
@@ -309,7 +256,7 @@ export function LicenseRequestWorkspace({
               </a>
             ) : null}
           </div>
-          {viewerRole === "creator" && request.status === "accepted" ? (
+          {!isBrand && request.status === "accepted" ? (
             <div className="shrink-0 sm:pt-1">
               <button
                 type="button"
@@ -327,8 +274,8 @@ export function LicenseRequestWorkspace({
         <div className="space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-5">
           <p className="text-sm font-semibold text-amber-950">Under review</p>
           <p className="text-sm text-amber-950/90">
-            This license is <span className="font-semibold text-red-800">withdrawn</span>. The brand was notified to
-            cease use. Our team may follow up within 3–5 business days. Reason recorded:{" "}
+            This license is <span className="font-semibold text-red-800">withdrawn</span>. The brand was
+            notified to cease use. Our team may follow up within 3–5 business days. Reason recorded:{" "}
             <span className="text-neutral-950">{cancellationReasonLabel(request.cancellation_reason)}</span>
             {request.cancellation_note ? (
               <>
@@ -352,42 +299,7 @@ export function LicenseRequestWorkspace({
         </p>
       )}
 
-      {isAccepted && (
-        <section className="space-y-3">
-          <h2 className="text-lg font-medium">License workflow</h2>
-          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3 text-sm")}>
-            <ol className="list-decimal space-y-2 pl-5 text-neutral-800">
-              <li className={paymentCleared ? "text-emerald-800" : ""}>
-                <span className="font-medium">Brand payment step</span> —{" "}
-                {paymentCleared ? "Recorded (placeholder until live payments)." : "Pending. Signing stays locked."}
-              </li>
-              <li className={request.creator_signed_contract_at ? "text-emerald-800" : ""}>
-                <span className="font-medium">Creator signature</span> —{" "}
-                {request.creator_signed_contract_at
-                  ? `Signed (${request.creator_signatory_name ?? "—"})`
-                  : signingAllowed
-                    ? "Ready once you sign below."
-                    : "Locked until payment step."}
-              </li>
-              <li className={request.brand_signed_contract_at ? "text-emerald-800" : ""}>
-                <span className="font-medium">Brand signature</span> —{" "}
-                {request.brand_signed_contract_at
-                  ? `Signed (${request.brand_signatory_name ?? "—"})`
-                  : signingAllowed
-                    ? "Ready once you sign below."
-                    : "Locked until payment step."}
-              </li>
-              <li className={contractLive ? "font-semibold text-emerald-900" : ""}>
-                <span className="font-medium">Contract in force</span> —{" "}
-                {contractLive
-                  ? `From ${request.contract_effective_at ? formatDistanceToNow(new Date(request.contract_effective_at), { addSuffix: true }) : "now"}.`
-                  : "Starts only after payment is cleared and both signatures are captured."}
-              </li>
-            </ol>
-          </div>
-        </section>
-      )}
-
+      {/* What they’re asking for */}
       <section className="space-y-3">
         <h2 className="text-lg font-medium">What they need</h2>
         <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-4")}>
@@ -401,7 +313,10 @@ export function LicenseRequestWorkspace({
               <div className="mt-2 flex flex-wrap gap-1">
                 {(request.channels ?? []).length ? (
                   (request.channels ?? []).map((c) => (
-                    <span key={c} className="rounded-full bg-black/5 px-2.5 py-0.5 text-xs text-neutral-900/80">
+                    <span
+                      key={c}
+                      className="rounded-full bg-black/5 px-2.5 py-0.5 text-xs text-neutral-900/80"
+                    >
                       {c}
                     </span>
                   ))
@@ -415,7 +330,10 @@ export function LicenseRequestWorkspace({
               <div className="mt-2 flex flex-wrap gap-1">
                 {(request.territories ?? []).length ? (
                   (request.territories ?? []).map((t) => (
-                    <span key={t} className="rounded-full border border-black/10 px-2.5 py-0.5 text-xs text-neutral-900/60">
+                    <span
+                      key={t}
+                      className="rounded-full border border-black/10 px-2.5 py-0.5 text-xs text-neutral-900/60"
+                    >
                       {t}
                     </span>
                   ))
@@ -431,19 +349,11 @@ export function LicenseRequestWorkspace({
               <p className="mt-0.5 font-semibold text-neutral-900">{request.duration_days} days</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-neutral-600">Budget (requested)</p>
+              <p className="text-xs font-medium text-neutral-600">Budget (INR)</p>
               <p className="mt-0.5 font-semibold text-neutral-900">
                 {request.budget_inr != null ? `₹${request.budget_inr.toLocaleString("en-IN")}` : "—"}
               </p>
             </div>
-            {request.agreed_budget_inr != null ? (
-              <div>
-                <p className="text-xs font-medium text-neutral-600">Agreed budget (locked)</p>
-                <p className="mt-0.5 font-semibold text-emerald-900">
-                  ₹{request.agreed_budget_inr.toLocaleString("en-IN")}
-                </p>
-              </div>
-            ) : null}
             <div>
               <p className="text-xs font-medium text-neutral-600">Submitted</p>
               <p className="mt-0.5 font-semibold text-neutral-900">
@@ -459,7 +369,7 @@ export function LicenseRequestWorkspace({
               </div>
             ) : null}
           </div>
-          {viewerRole === "creator" && request.status === "declined" && request.decline_reason ? (
+          {request.status === "declined" && request.decline_reason ? (
             <p className="border-t border-black/10 pt-4 text-sm text-neutral-800">
               <span className="font-medium text-neutral-600">Your note to the brand: </span>
               {request.decline_reason}
@@ -468,58 +378,12 @@ export function LicenseRequestWorkspace({
         </div>
       </section>
 
-      {canMessage && (
-        <section className="space-y-3">
-          <h2 className="text-lg font-medium">Messages</h2>
-          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-sm text-neutral-700">
-              In-app thread when the brand submitted this request while signed in on Muhr. Public-form-only requests
-              do not use this chat—use email from the request details instead.
-            </p>
-            {threadLoading ? (
-              <div className="h-16 animate-pulse rounded-lg bg-neutral-100" />
-            ) : (
-              <ul className="max-h-72 space-y-2 overflow-y-auto rounded-lg border border-black/10 bg-neutral-50/80 p-3">
-                {thread.length === 0 ? (
-                  <li className="text-sm text-neutral-600">No messages yet.</li>
-                ) : (
-                  thread.map((m) => (
-                    <li key={m.id} className="rounded-md bg-white px-3 py-2 text-sm shadow-sm">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                        {m.author_role === "creator" ? "Creator" : "Brand"} ·{" "}
-                        {formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}
-                      </p>
-                      <p className="mt-1 whitespace-pre-wrap text-neutral-900">{m.body}</p>
-                    </li>
-                  ))
-                )}
-              </ul>
-            )}
-            <textarea
-              value={chatBody}
-              onChange={(e) => setChatBody(e.target.value)}
-              rows={3}
-              placeholder="Write a message…"
-              className="w-full resize-y rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 outline-none"
-            />
-            <button
-              type="button"
-              disabled={chatSending}
-              onClick={() => void postChat()}
-              className={primaryButtonVariants()}
-            >
-              {chatSending ? "Sending…" : "Send message"}
-            </button>
-          </div>
-        </section>
-      )}
-
-      {viewerRole === "creator" && isPending && (
+      {isPending && !isBrand && (
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Respond</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
             <p className="text-sm text-neutral-800">
-              Accept to open the shared workspace: payment step, contract draft, in-app messages, and signatures.
+              Accept to move forward with payment, messaging, and delivering assets from this page.
             </p>
             {showDecline ? (
               <div className="space-y-2">
@@ -554,10 +418,20 @@ export function LicenseRequestWorkspace({
               </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                <button type="button" disabled={busy} onClick={() => void respond("accept")} className={primaryButtonVariants()}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void respond("accept")}
+                  className={primaryButtonVariants()}
+                >
                   Accept request
                 </button>
-                <button type="button" disabled={busy} onClick={() => setShowDecline(true)} className={ghostButtonVariants()}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setShowDecline(true)}
+                  className={ghostButtonVariants()}
+                >
                   Decline
                 </button>
               </div>
@@ -566,148 +440,224 @@ export function LicenseRequestWorkspace({
         </section>
       )}
 
-      {isAccepted && (
+      {/* Brand: mock payment before contract unlock */}
+      {isBrand && request.status === "accepted" ? (
         <section className="space-y-3">
-          <h2 className="text-lg font-medium">Record agreed budget (INR)</h2>
-          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
+          <h2 className="text-lg font-medium">Payment</h2>
+          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-4")}>
+            {brandPaymentCleared ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+                <span className="font-medium">Payment recorded</span>
+                <span className="text-emerald-900/80">
+                  {formatInr(licenseFeeInr)} · preview placeholder (Stripe coming soon)
+                </span>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-neutral-800">
+                  Complete payment to unlock the license agreement. This preview uses a mock checkout — no
+                  card is charged.
+                </p>
+                <div className="flex flex-wrap items-end justify-between gap-4 rounded-lg border border-black/10 bg-neutral-50 px-4 py-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Amount due
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold tabular-nums text-neutral-950">
+                      {formatInr(licenseFeeInr)}
+                    </p>
+                    <p className="mt-1 text-xs text-neutral-600">
+                      Based on the budget from your request. Final fees may be updated by the creator.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void patchWorkspaceState({ action: "brand_clear_payment" })}
+                    className={primaryButtonVariants()}
+                  >
+                    {busy ? "Processing…" : "Make payment"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Contract — brand sees this only after payment is recorded */}
+      {brandCanViewContract ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium">Contract</h2>
+          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-2")}>
             <p className="text-sm text-neutral-800">
-              Use <span className="font-medium">Messages</span> to align on scope and fees. When you are aligned, the
-              creator records the final number here so both sides see the same figure before signing.
+              {isBrand
+                ? "Read-only copy of the draft the creator maintains. Export for your records; edits and saves happen on the creator side."
+                : "Draft loads from Muhr when you open this page and saves to your account while you edit (use Save now if you want an immediate sync). Export Word or PDF for counsel and for signing outside Muhr, then email the brand or use your own e-sign tool."}
             </p>
-            {viewerRole === "creator" ? (
-              <div className="flex flex-wrap items-end gap-2">
+            <LicenseContractEditor
+              request={request}
+              readOnly={isBrand}
+              onRequestUpdated={(next) => setRequest(next)}
+            />
+          </div>
+        </section>
+      ) : isBrand && request.status === "accepted" ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium">Contract</h2>
+          <div
+            className={cx(
+              surfaceCardVariants({ padding: "md", interactive: "none" }),
+              "border-dashed border-neutral-300 bg-neutral-50"
+            )}
+          >
+            <p className="text-sm font-medium text-neutral-800">Agreement locked</p>
+            <p className="mt-1 text-sm text-neutral-600">
+              Record payment above to review the license draft and sign.
+            </p>
+          </div>
+        </section>
+      ) : null}
+
+      {/* Brand: mock digital signature after payment */}
+      {isBrand && request.status === "accepted" && brandPaymentCleared ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium">Sign agreement</h2>
+          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-4")}>
+            {request.brand_signed_contract_at ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+                <p className="font-medium">Digitally signed (preview)</p>
+                <p className="mt-1 text-emerald-900/90">
+                  {request.brand_signatory_name ? (
+                    <>
+                      Signed by <span className="font-semibold">{request.brand_signatory_name}</span>
+                    </>
+                  ) : (
+                    "Signature recorded"
+                  )}{" "}
+                  ·{" "}
+                  {formatDistanceToNow(new Date(request.brand_signed_contract_at), {
+                    addSuffix: true,
+                  })}
+                </p>
+                {request.contract_effective_at ? (
+                  <p className="mt-2 text-xs text-emerald-800">
+                    Agreement in force since{" "}
+                    {new Date(request.contract_effective_at).toLocaleString(undefined, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-emerald-800">
+                    Waiting for the creator to sign before the agreement is fully in force.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-neutral-800">
+                  By signing, you confirm you have read the agreement above and are authorized to bind your
+                  organization. This is a preview flow — not a legally binding e-sign integration yet.
+                </p>
                 <div>
-                  <label htmlFor="agreed-inr" className="mb-1 block text-xs font-medium text-neutral-600">
-                    Agreed amount (INR)
+                  <label
+                    htmlFor="brand-signatory"
+                    className="mb-1.5 block text-xs font-medium text-neutral-700"
+                  >
+                    Full legal name
                   </label>
                   <input
-                    id="agreed-inr"
-                    type="number"
-                    min={0}
-                    value={agreedInput}
-                    onChange={(e) => setAgreedInput(e.target.value)}
-                    className="w-40 rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950"
+                    id="brand-signatory"
+                    type="text"
+                    required
+                    minLength={2}
+                    maxLength={200}
+                    value={brandSignatoryName}
+                    onChange={(e) => setBrandSignatoryName(e.target.value)}
+                    placeholder={request.brand_name || "Your name"}
+                    className="w-full max-w-md rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 outline-none placeholder:text-neutral-500"
                   />
                 </div>
                 <button
                   type="button"
-                  disabled={stateBusy || contractLive}
+                  disabled={busy || brandSignatoryName.trim().length < 2}
                   onClick={() =>
-                    void patchState({
-                      action: "set_agreed_budget",
-                      agreed_budget_inr: Number(agreedInput),
+                    void patchWorkspaceState({
+                      action: "sign",
+                      side: "brand",
+                      signatory_name: brandSignatoryName.trim(),
                     })
                   }
                   className={primaryButtonVariants()}
                 >
-                  Save agreed budget
+                  {busy ? "Signing…" : "Sign digitally (preview)"}
                 </button>
-              </div>
-            ) : (
-              <p className="text-sm font-medium text-neutral-900">
-                {request.agreed_budget_inr != null
-                  ? `Creator recorded ₹${request.agreed_budget_inr.toLocaleString("en-IN")}.`
-                  : "Waiting for the creator to record the agreed amount."}
-              </p>
+              </>
             )}
           </div>
         </section>
-      )}
+      ) : null}
 
-      {isAccepted && (
+      {/* Payment — Stripe etc. next; no longer gated on in-app signatures */}
+      {request.status === "accepted" && !isBrand && (
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Payment</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
             <p className="text-sm text-neutral-800">
-              In production this step will capture real settlement (e.g. Stripe). For now the brand confirms the
-              payment checkpoint so signatures can unlock.
+              When you are ready to collect fees in-app, connect a payment provider (e.g. Stripe Connect).
+              Final contract execution remains between you and the brand outside Muhr.
             </p>
-            {viewerRole === "brand" ? (
-              <button
-                type="button"
-                disabled={stateBusy || Boolean(request.brand_payment_cleared_at) || contractLive}
-                onClick={() => void patchState({ action: "brand_clear_payment" })}
-                className={primaryButtonVariants()}
-              >
-                {request.brand_payment_cleared_at ? "Payment step completed" : "Confirm payment step (placeholder)"}
-              </button>
-            ) : (
-              <p className="text-sm text-neutral-700">
-                {paymentCleared
-                  ? "The brand has cleared the payment checkpoint. You can sign when ready."
-                  : "Waiting for the brand to clear the payment checkpoint before signatures unlock."}
-              </p>
-            )}
+            <button type="button" disabled className={cx(primaryButtonVariants(), "cursor-not-allowed opacity-45")}>
+              Accept payment (coming soon)
+            </button>
           </div>
         </section>
       )}
 
-      {isAccepted && (
+      {/* Email brand */}
+      {canEmailBrand && (
         <section className="space-y-3">
-          <h2 className="text-lg font-medium">Shared contract draft</h2>
-          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-2")}>
-            <LicenseContractEditor
-              request={request}
-              onRequestUpdated={(next) => setRequest(next)}
-              persistPath={contractPath}
-              workspaceMode
-            />
-          </div>
-        </section>
-      )}
-
-      {isAccepted && !contractLive && (
-        <section className="space-y-3">
-          <h2 className="text-lg font-medium">Digital signatures</h2>
-          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-4")}>
+          <h2 className="text-lg font-medium">Message the brand</h2>
+          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
             <p className="text-sm text-neutral-800">
-              Type your legal name and sign. Both parties must sign after the payment step. The contract is not in
-              force until both signatures and payment are complete.
+              Delivers to <span className="font-mono text-sm text-neutral-900">{request.brand_email}</span>{" "}
+              <span className="text-neutral-600">from</span>{" "}
+              <span className="font-mono text-sm text-neutral-900">communication@muhr.app</span>
+              <span className="text-neutral-600">
+                {" "}
+                (set <span className="font-mono text-xs">RESEND_FROM_EMAIL</span> if you use another verified sender).
+              </span>{" "}
+              The email quotes your text as “The creator said: …”. Requires{" "}
+              <span className="font-mono text-xs">RESEND_API_KEY</span> and a verified domain in Resend.
             </p>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-neutral-600">Signatory name</label>
-              <input
-                type="text"
-                value={signName}
-                onChange={(e) => setSignName(e.target.value)}
-                placeholder="Full name"
-                className="max-w-md rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950"
-              />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {viewerRole === "creator" ? (
-                <button
-                  type="button"
-                  disabled={stateBusy || Boolean(request.creator_signed_contract_at) || !signingAllowed}
-                  onClick={() => void patchState({ action: "sign", side: "creator", signatory_name: signName })}
-                  className={primaryButtonVariants()}
-                >
-                  {request.creator_signed_contract_at ? "Creator signed" : "Sign as creator"}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={stateBusy || Boolean(request.brand_signed_contract_at) || !signingAllowed}
-                  onClick={() => void patchState({ action: "sign", side: "brand", signatory_name: signName })}
-                  className={primaryButtonVariants()}
-                >
-                  {request.brand_signed_contract_at ? "Brand signed" : "Sign as brand"}
-                </button>
-              )}
-            </div>
-            {!signingAllowed && !contractLive ? (
-              <p className="text-xs text-amber-900">Signing is disabled until the brand completes the payment step.</p>
-            ) : null}
+            <textarea
+              value={emailBody}
+              onChange={(e) => setEmailBody(e.target.value)}
+              rows={5}
+              placeholder="Write your message to the brand…"
+              className="w-full resize-y rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 outline-none placeholder:text-neutral-900/40"
+            />
+            <button
+              type="button"
+              disabled={emailSending}
+              onClick={() => void sendBrandEmail()}
+              className={primaryButtonVariants()}
+            >
+              {emailSending ? "Sending…" : "Send email"}
+            </button>
           </div>
         </section>
       )}
 
-      {viewerRole === "creator" && isAccepted && (
+      {/* Deliver assets */}
+      {request.status === "accepted" && !isBrand && (
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Deliver assets</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
             <p className="text-sm text-neutral-800">
-              Copy time-limited download links to paste into your message, or open an asset to verify before sharing.
+              Copy time-limited download links to paste into your email, or open an asset to verify before
+              sharing. Links expire after about an hour — generate a fresh one before sending.
             </p>
             {assetsLoading ? (
               <div className="h-20 animate-pulse rounded-lg bg-neutral-100" />
@@ -756,7 +706,7 @@ export function LicenseRequestWorkspace({
         </section>
       )}
 
-      {viewerRole === "creator" && cancelOpen ? (
+      {cancelOpen ? (
         <LicenseCancelDialog
           requestId={request.id}
           brandName={request.brand_name}

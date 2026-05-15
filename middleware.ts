@@ -4,6 +4,10 @@ import type { NextRequest } from "next/server";
 
 import { getUserForMiddleware } from "@/lib/auth/middlewareSupabaseUser";
 import { safeInternalPath } from "@/lib/auth/safeRedirectPath";
+import {
+  getBrandWorkspaceAllowlistEmails,
+  isBrandWorkspaceUser,
+} from "@/lib/brand/brandPreviewSignIn";
 
 const protectedPaths = [
   "/dashboard",
@@ -51,6 +55,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const isBrandRoute = pathname === "/brand" || pathname.startsWith("/brand/");
+  if (isBrandRoute && getBrandWorkspaceAllowlistEmails().length === 0) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("intent", "brand");
+    loginUrl.searchParams.set("error", "brand_preview_unconfigured");
+    return NextResponse.redirect(loginUrl);
+  }
+
   // Local break-glass only: never honored in production builds (`NODE_ENV === "production"`).
   if (process.env.NODE_ENV !== "production" && process.env.DEV_AUTH_BYPASS === "1") {
     return NextResponse.next();
@@ -96,7 +108,26 @@ export async function middleware(request: NextRequest) {
   if (!user) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
+    if (pathname === "/brand" || pathname.startsWith("/brand/")) {
+      loginUrl.searchParams.set("intent", "brand");
+    }
     return NextResponse.redirect(loginUrl);
+  }
+
+  const brandAccount = isBrandWorkspaceUser(user.email);
+
+  if (isBrandRoute && !brandAccount) {
+    const creatorHome = new URL("/dashboard", request.url);
+    creatorHome.searchParams.set("brand_access", "denied");
+    return NextResponse.redirect(creatorHome);
+  }
+
+  if (!isBrandRoute && brandAccount) {
+    // Brand accounts may still complete Supabase password recovery on this route.
+    if (pathname === "/update-password") {
+      return response;
+    }
+    return NextResponse.redirect(new URL("/brand/dashboard", request.url));
   }
 
   return response;

@@ -3,12 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev:reset-cache": "rm -rf .next/dev .next/cache",
-    "dev": "PATH=/usr/local/bin:$PATH next dev --turbopack",
-    "dev:webpack": "PATH=/usr/local/bin:$PATH next dev --webpack",
-    "dev:turbo": "PATH=/usr/local/bin:$PATH next dev --turbopack",
-    "dev:fresh": "npm run dev:reset-cache && PATH=/usr/local/bin:$PATH next dev --turbopack",
-    "dev:clean": "PATH=/usr/local/bin:$PATH rm -rf .next && next dev --turbopack",
+    "dev": "PATH=/usr/local/bin:$PATH next dev",
     "build": "PATH=/usr/local/bin:$PATH next build",
     "start": "PATH=/usr/local/bin:$PATH next start",
     "lint": "PATH=/usr/local/bin:$PATH eslint .",

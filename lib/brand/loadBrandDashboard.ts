@@ -99,11 +99,15 @@ export async function loadBrandDashboard(): Promise<BrandDashboardPayload> {
   }
 
   const list = (rows ?? []) as unknown as BrandLicenseRow[];
+  // RLS also returns rows where we are the creator. Brand shell should only list requests where we
+  // are the brand party (another creator), otherwise "Manage license" links hit /brand/.../requests
+  // and resolve as creator role → 404.
+  const brandPartyRows = list.filter((row) => row.creator_id !== user.id);
   const now = new Date();
   const in14 = addDays(now, 14);
 
   const byCreator = new Map<string, BrandLicenseRow[]>();
-  for (const row of list) {
+  for (const row of brandPartyRows) {
     const arr = byCreator.get(row.creator_id) ?? [];
     arr.push(row);
     byCreator.set(row.creator_id, arr);
@@ -115,7 +119,7 @@ export async function loadBrandDashboard(): Promise<BrandDashboardPayload> {
   ).length;
   const creatorsTouched = byCreator.size;
 
-  const expiring14d = list.filter((r) => {
+  const expiring14d = brandPartyRows.filter((r) => {
     if (r.status !== "accepted" || !r.expires_at) return false;
     const exp = new Date(r.expires_at);
     return exp >= now && exp <= in14;
@@ -186,9 +190,10 @@ export async function loadBrandLicenseList(): Promise<{ rows: BrandLicenseListIt
   }
 
   const list = (rows ?? []) as unknown as BrandLicenseRow[];
+  const brandPartyRows = list.filter((row) => row.creator_id !== user.id);
 
   const byCreator = new Map<string, BrandLicenseRow[]>();
-  for (const row of list) {
+  for (const row of brandPartyRows) {
     const arr = byCreator.get(row.creator_id) ?? [];
     arr.push(row);
     byCreator.set(row.creator_id, arr);

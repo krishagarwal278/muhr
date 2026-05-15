@@ -6,10 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatAuthCallbackError } from "@/lib/auth/authCallbackMessages";
 import { buildPasswordResetRedirectTo } from "@/lib/auth/passwordResetRedirect";
+import { safeInternalPath } from "@/lib/auth/safeRedirectPath";
 import {
   getBrandPreviewSignInEmail,
   isBrandAuthDestination,
-  shouldRouteSignedInUserToBrandPreview,
+  isBrandWorkspaceUser,
 } from "@/lib/brand/brandPreviewSignIn";
 
 function LoginForm() {
@@ -36,10 +37,17 @@ function LoginForm() {
     const desc = searchParams.get("error_description");
     if (!err && !code && !desc) return;
 
-    setCallbackMessage(formatAuthCallbackError(err, code));
+    if (err === "brand_preview_unconfigured") {
+      setCallbackMessage(
+        "Brand workspace preview is not configured. Set NEXT_PUBLIC_BRAND_PREVIEW_SIGNIN_EMAIL in your environment."
+      );
+    } else {
+      setCallbackMessage(formatAuthCallbackError(err, code));
+    }
 
     const clean = new URL(window.location.href);
     ["error", "error_code", "error_description"].forEach((k) => clean.searchParams.delete(k));
+    if (err === "brand_preview_unconfigured") clean.searchParams.delete("intent");
     const qs = clean.searchParams.toString();
     router.replace(`${clean.pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
   }, [searchParams, router]);
@@ -52,6 +60,54 @@ function LoginForm() {
     const qs = clean.searchParams.toString();
     router.replace(`${clean.pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
   }, [searchParams, router]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function redirectIfAlreadySignedIn() {
+      if (searchParams.get("reset") === "success") return;
+
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (cancelled || !user?.email) return;
+
+      const normalizedNext =
+        nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : null;
+      const brandIntent =
+        intent === "brand" || (normalizedNext?.startsWith("/brand") ?? false);
+      const isBrand = isBrandWorkspaceUser(user.email);
+
+      if (brandIntent) {
+        if (isBrand) {
+          router.replace(safeInternalPath(normalizedNext, "/brand/dashboard"));
+          router.refresh();
+        } else {
+          router.replace("/dashboard?brand_access=denied");
+        }
+        return;
+      }
+
+      if (isBrand) {
+        router.replace("/brand/dashboard");
+        router.refresh();
+        return;
+      }
+
+      if (normalizedNext) {
+        router.replace(safeInternalPath(normalizedNext, "/dashboard"));
+        router.refresh();
+        return;
+      }
+
+      router.replace("/dashboard");
+      router.refresh();
+    }
+    void redirectIfAlreadySignedIn();
+    return () => {
+      cancelled = true;
+    };
+  }, [intent, nextPath, router, searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,13 +126,31 @@ function LoginForm() {
     const signedEmail = data.user?.email ?? email;
     const normalizedNext =
       nextPath && nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : null;
-    const dest =
-      normalizedNext ??
-      (intent === "brand" || shouldRouteSignedInUserToBrandPreview(signedEmail)
-        ? "/brand/dashboard"
-        : "/dashboard");
+    const brandIntent =
+      intent === "brand" || (normalizedNext?.startsWith("/brand") ?? false);
+    const isBrand = isBrandWorkspaceUser(signedEmail);
+
+    if (brandIntent && !isBrand) {
+      await supabase.auth.signOut();
+      setError("This account is not authorized for the brand workspace. Use creator sign-in above.");
+      setLoading(false);
+      return;
+    }
+
+    if (!brandIntent && isBrand) {
+      router.push("/brand/dashboard");
+      router.refresh();
+      setLoading(false);
+      return;
+    }
+
+    const dest = safeInternalPath(
+      normalizedNext,
+      brandIntent ? "/brand/dashboard" : "/dashboard"
+    );
     router.push(dest);
     router.refresh();
+    setLoading(false);
   }
 
   async function handleForgotSubmit(e: React.FormEvent) {
@@ -192,6 +266,8 @@ function LoginForm() {
             <input
               id="email"
               type="email"
+              name="email"
+              autoComplete="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -215,7 +291,9 @@ function LoginForm() {
             </div>
             <input
               id="password"
+              name="password"
               type="password"
+              autoComplete="current-password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -239,16 +317,12 @@ function LoginForm() {
             <p className="mt-4 text-center text-xs text-zinc-500">
               Brand workspace preview?{" "}
               <Link
-                href="/login?next=/brand/dashboard"
+                href="/login?intent=brand&next=/brand/dashboard"
                 className="font-medium text-zinc-300 underline-offset-2 hover:text-zinc-100 hover:underline"
               >
-                Sign in here
-              </Link>{" "}
-              (or open{" "}
-              <Link href="/brand/dashboard" className="font-medium text-zinc-300 underline-offset-2 hover:underline">
-                /brand/dashboard
-              </Link>{" "}
-              when already signed in).
+                Sign in to brand workspace
+              </Link>
+              .
             </p>
           ) : null}
         </form>

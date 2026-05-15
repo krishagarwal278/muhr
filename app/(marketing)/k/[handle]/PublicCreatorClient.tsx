@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { LicenseRequestPanel } from "@/components/marketing/LicenseRequestPanel";
+import {
+  parsePublicProfileNavFrom,
+  publicProfileBackNav,
+} from "@/lib/marketing/publicProfileNav";
 import { muidFromUserId } from "@/lib/profile/muid";
 import { primaryButtonVariants } from "@/components/ui/button-recipes";
 
@@ -18,10 +22,12 @@ type PublicRow = {
 export function PublicCreatorClient({
   profile,
   viewerUserId,
+  signedInBrandEmail,
   publicProfileUrl,
 }: {
   profile: PublicRow;
   viewerUserId: string | null;
+  signedInBrandEmail?: string | null;
   /** Canonical profile URL from the server — avoids hydration mismatch (QR / link must match SSR). */
   publicProfileUrl: string;
 }) {
@@ -30,6 +36,10 @@ export function PublicCreatorClient({
   const previewBrand = searchParams.get("preview") === "brand";
   const isOwner = viewerUserId !== null && viewerUserId === profile.id;
   const showAsBrand = !isOwner || previewBrand;
+  const navFrom =
+    parsePublicProfileNavFrom(searchParams.get("from")) ??
+    (signedInBrandEmail ? "brand" : null);
+  const backNav = publicProfileBackNav(navFrom);
 
   const [copied, setCopied] = useState(false);
 
@@ -60,8 +70,8 @@ export function PublicCreatorClient({
   return (
     <div className="mx-auto max-w-lg px-4 py-10 sm:px-6">
       <div className="mb-6 flex items-start justify-between gap-4">
-        <Link href="/" className="text-sm text-neutral-900/60 hover:text-neutral-950">
-          ← Muhr
+        <Link href={backNav.href} className="text-sm text-neutral-900/60 hover:text-neutral-950">
+          {backNav.label}
         </Link>
         {isOwner && (
           <label className="flex cursor-pointer items-center gap-2 text-xs text-neutral-900/65">
@@ -148,6 +158,7 @@ export function PublicCreatorClient({
               acceptingRequests={profile.acceptingRequests}
               licensingNotes={profile.licensingNotes}
               publicProfileUrl={publicProfileUrl}
+              signedInBrandEmail={signedInBrandEmail}
             />
           </div>
         ) : null}

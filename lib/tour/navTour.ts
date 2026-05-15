@@ -1,7 +1,28 @@
 import { driver } from "driver.js";
-import type { Config, DriveStep } from "driver.js";
+import type { Config, DriveStep, Driver } from "driver.js";
 
 const STORAGE_PREFIX = "muhr_nav_tour_v1";
+
+/** Active Driver.js instance for the creator nav tour (brand shell may dismiss without persisting completion). */
+let activeNavTourDriver: Driver | null = null;
+/** When true, `onDestroyed` will not write “tour completed” to localStorage. */
+let suppressNavTourCompletion = false;
+
+/** Close an in-progress nav tour without marking it completed (e.g. before logout modal). */
+export function destroyActiveNavTourWithoutCompleting() {
+  const d = activeNavTourDriver;
+  if (!d?.isActive()) {
+    activeNavTourDriver = null;
+    return;
+  }
+  suppressNavTourCompletion = true;
+  try {
+    d.destroy();
+  } finally {
+    suppressNavTourCompletion = false;
+    activeNavTourDriver = null;
+  }
+}
 
 export function navTourStorageKey(userId: string) {
   return `${STORAGE_PREFIX}_${userId}`;
@@ -96,7 +117,18 @@ export type StartNavTourOptions = {
 };
 
 export function startNavTour(options?: StartNavTourOptions) {
+  if (activeNavTourDriver?.isActive()) {
+    suppressNavTourCompletion = true;
+    try {
+      activeNavTourDriver.destroy();
+    } finally {
+      suppressNavTourCompletion = false;
+      activeNavTourDriver = null;
+    }
+  }
+
   const steps = buildSteps();
+  const markUserId = options?.markCompleteForUserId ?? null;
 
   const config: Config = {
     showProgress: true,
@@ -112,13 +144,15 @@ export function startNavTour(options?: StartNavTourOptions) {
     stageRadius: 8,
     steps,
     onDestroyed: () => {
-      if (options?.markCompleteForUserId) {
-        markNavTourCompleted(options.markCompleteForUserId);
+      activeNavTourDriver = null;
+      if (!suppressNavTourCompletion && markUserId) {
+        markNavTourCompleted(markUserId);
       }
     },
   };
 
   const driverObj = driver(config);
+  activeNavTourDriver = driverObj;
   driverObj.drive();
   return driverObj;
 }

@@ -20,6 +20,11 @@ type VaultAssetRow = {
   created_at?: string;
 };
 
+function formatInr(n: number | null | undefined): string {
+  if (n == null) return "—";
+  return `₹${n.toLocaleString("en-IN")}`;
+}
+
 function StatusBadge({ status }: { status: LicenseRequestRow["status"] }) {
   if (status === "accepted") {
     return (
@@ -56,9 +61,20 @@ function StatusBadge({ status }: { status: LicenseRequestRow["status"] }) {
   );
 }
 
-export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: LicenseRequestRow }) {
+export function LicenseRequestWorkspace({
+  initialRequest,
+  backHref = "/licenses",
+  backLabel = "Back to Licenses",
+  viewerRole = "creator",
+}: {
+  initialRequest: LicenseRequestRow;
+  backHref?: string;
+  backLabel?: string;
+  viewerRole?: "creator" | "brand";
+}) {
   const router = useRouter();
   const [request, setRequest] = useState<LicenseRequestRow>(initialRequest);
+  const isBrand = viewerRole === "brand";
   const [cancelOpen, setCancelOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [declineReason, setDeclineReason] = useState("");
@@ -69,18 +85,32 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
   const [assets, setAssets] = useState<VaultAssetRow[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [brandSignatoryName, setBrandSignatoryName] = useState("");
+
+  const brandPaymentCleared = Boolean(request.brand_payment_cleared_at);
+  const brandCanViewContract =
+    request.status === "accepted" && (!isBrand || brandPaymentCleared);
+  const licenseFeeInr = request.agreed_budget_inr ?? request.budget_inr;
 
   const reloadRequest = useCallback(async () => {
-    const res = await fetch(`/api/licenses/incoming/${request.id}`);
+    const url = isBrand
+      ? `/api/licenses/workspace/${request.id}`
+      : `/api/licenses/incoming/${request.id}`;
+    const res = await fetch(url);
     if (!res.ok) return;
     const data = await res.json().catch(() => ({}));
     if (data.request) setRequest(data.request as LicenseRequestRow);
-  }, [request.id]);
+  }, [request.id, isBrand]);
 
   const isPending = request.status === "pending";
   const isWithdrawn = request.status === "withdrawn";
-  const canEmailBrand = request.status === "accepted" || request.status === "declined";
+  const canEmailBrand =
+    !isBrand && (request.status === "accepted" || request.status === "declined");
   useEffect(() => {
+    if (isBrand) {
+      setAssetsLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -97,7 +127,7 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isBrand]);
 
   async function respond(action: "accept" | "decline") {
     setMessage(null);
@@ -154,6 +184,27 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
     }
   }
 
+  async function patchWorkspaceState(body: Record<string, unknown>) {
+    setMessage(null);
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/licenses/workspace/${request.id}/state`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(typeof data.error === "string" ? data.error : "Update failed");
+        return;
+      }
+      if (data.request) setRequest(data.request as LicenseRequestRow);
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function copyAssetLink(asset: VaultAssetRow) {
     const url = asset.signed_url;
     if (!url) {
@@ -173,13 +224,13 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
     <div className="space-y-8">
       <div>
         <Link
-          href="/licenses"
+          href={backHref}
           className="inline-flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-neutral-950"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
           </svg>
-          Back to Licenses
+          {backLabel}
         </Link>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -205,7 +256,7 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
               </a>
             ) : null}
           </div>
-          {request.status === "accepted" ? (
+          {!isBrand && request.status === "accepted" ? (
             <div className="shrink-0 sm:pt-1">
               <button
                 type="button"
@@ -327,7 +378,7 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
         </div>
       </section>
 
-      {isPending && (
+      {isPending && !isBrand && (
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Respond</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
@@ -389,26 +440,167 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
         </section>
       )}
 
-      {/* Contract — server-backed draft + local browser backup; signing is offline */}
-      {request.status === "accepted" && (
+      {/* Brand: mock payment before contract unlock */}
+      {isBrand && request.status === "accepted" ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium">Payment</h2>
+          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-4")}>
+            {brandPaymentCleared ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+                <span className="font-medium">Payment recorded</span>
+                <span className="text-emerald-900/80">
+                  {formatInr(licenseFeeInr)} · preview placeholder (Stripe coming soon)
+                </span>
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-neutral-800">
+                  Complete payment to unlock the license agreement. This preview uses a mock checkout — no
+                  card is charged.
+                </p>
+                <div className="flex flex-wrap items-end justify-between gap-4 rounded-lg border border-black/10 bg-neutral-50 px-4 py-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+                      Amount due
+                    </p>
+                    <p className="mt-1 text-2xl font-semibold tabular-nums text-neutral-950">
+                      {formatInr(licenseFeeInr)}
+                    </p>
+                    <p className="mt-1 text-xs text-neutral-600">
+                      Based on the budget from your request. Final fees may be updated by the creator.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void patchWorkspaceState({ action: "brand_clear_payment" })}
+                    className={primaryButtonVariants()}
+                  >
+                    {busy ? "Processing…" : "Make payment"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Contract — brand sees this only after payment is recorded */}
+      {brandCanViewContract ? (
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Contract</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-2")}>
             <p className="text-sm text-neutral-800">
-              Draft loads from Muhr when you open this page and saves to your account while you edit (use{" "}
-              <span className="font-medium text-neutral-950">Save now</span> if you want an immediate sync). Export Word or
-              PDF for counsel and for signing outside Muhr, then email the brand or use your own e-sign tool.
+              {isBrand
+                ? "Read-only copy of the draft the creator maintains. Export for your records; edits and saves happen on the creator side."
+                : "Draft loads from Muhr when you open this page and saves to your account while you edit (use Save now if you want an immediate sync). Export Word or PDF for counsel and for signing outside Muhr, then email the brand or use your own e-sign tool."}
             </p>
             <LicenseContractEditor
               request={request}
+              readOnly={isBrand}
               onRequestUpdated={(next) => setRequest(next)}
             />
           </div>
         </section>
-      )}
+      ) : isBrand && request.status === "accepted" ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium">Contract</h2>
+          <div
+            className={cx(
+              surfaceCardVariants({ padding: "md", interactive: "none" }),
+              "border-dashed border-neutral-300 bg-neutral-50"
+            )}
+          >
+            <p className="text-sm font-medium text-neutral-800">Agreement locked</p>
+            <p className="mt-1 text-sm text-neutral-600">
+              Record payment above to review the license draft and sign.
+            </p>
+          </div>
+        </section>
+      ) : null}
+
+      {/* Brand: mock digital signature after payment */}
+      {isBrand && request.status === "accepted" && brandPaymentCleared ? (
+        <section className="space-y-3">
+          <h2 className="text-lg font-medium">Sign agreement</h2>
+          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-4")}>
+            {request.brand_signed_contract_at ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+                <p className="font-medium">Digitally signed (preview)</p>
+                <p className="mt-1 text-emerald-900/90">
+                  {request.brand_signatory_name ? (
+                    <>
+                      Signed by <span className="font-semibold">{request.brand_signatory_name}</span>
+                    </>
+                  ) : (
+                    "Signature recorded"
+                  )}{" "}
+                  ·{" "}
+                  {formatDistanceToNow(new Date(request.brand_signed_contract_at), {
+                    addSuffix: true,
+                  })}
+                </p>
+                {request.contract_effective_at ? (
+                  <p className="mt-2 text-xs text-emerald-800">
+                    Agreement in force since{" "}
+                    {new Date(request.contract_effective_at).toLocaleString(undefined, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-emerald-800">
+                    Waiting for the creator to sign before the agreement is fully in force.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
+                <p className="text-sm text-neutral-800">
+                  By signing, you confirm you have read the agreement above and are authorized to bind your
+                  organization. This is a preview flow — not a legally binding e-sign integration yet.
+                </p>
+                <div>
+                  <label
+                    htmlFor="brand-signatory"
+                    className="mb-1.5 block text-xs font-medium text-neutral-700"
+                  >
+                    Full legal name
+                  </label>
+                  <input
+                    id="brand-signatory"
+                    type="text"
+                    required
+                    minLength={2}
+                    maxLength={200}
+                    value={brandSignatoryName}
+                    onChange={(e) => setBrandSignatoryName(e.target.value)}
+                    placeholder={request.brand_name || "Your name"}
+                    className="w-full max-w-md rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 outline-none placeholder:text-neutral-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  disabled={busy || brandSignatoryName.trim().length < 2}
+                  onClick={() =>
+                    void patchWorkspaceState({
+                      action: "sign",
+                      side: "brand",
+                      signatory_name: brandSignatoryName.trim(),
+                    })
+                  }
+                  className={primaryButtonVariants()}
+                >
+                  {busy ? "Signing…" : "Sign digitally (preview)"}
+                </button>
+              </>
+            )}
+          </div>
+        </section>
+      ) : null}
 
       {/* Payment — Stripe etc. next; no longer gated on in-app signatures */}
-      {request.status === "accepted" && (
+      {request.status === "accepted" && !isBrand && (
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Payment</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
@@ -459,7 +651,7 @@ export function LicenseRequestWorkspace({ initialRequest }: { initialRequest: Li
       )}
 
       {/* Deliver assets */}
-      {request.status === "accepted" && (
+      {request.status === "accepted" && !isBrand && (
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Deliver assets</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getPublicSiteBaseUrl } from "@/lib/app/publicSiteUrl";
+import { isBrandWorkspaceUser } from "@/lib/brand/brandPreviewSignIn";
 import { createServerClient, getUser } from "@/lib/supabase/server";
 import { PublicCreatorClient } from "./PublicCreatorClient";
 
@@ -46,6 +47,8 @@ export default async function PublicCreatorPage({
   if (!row?.profile_handle) notFound();
 
   const user = await getUser();
+  const signedInBrandEmail =
+    user?.email && isBrandWorkspaceUser(user.email) ? user.email.trim() : null;
 
   const profile = {
     id: row.profile_id,
@@ -72,6 +75,7 @@ export default async function PublicCreatorPage({
       <PublicCreatorClient
         profile={profile}
         viewerUserId={user?.id ?? null}
+        signedInBrandEmail={signedInBrandEmail}
         publicProfileUrl={publicProfileUrl}
       />
     </Suspense>

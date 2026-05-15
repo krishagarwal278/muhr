@@ -1,5 +1,10 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { withWorkflow } from "workflow/next";
 import type { NextConfig } from "next";
+
+/** Keeps Turbopack tied to this repo (avoids wrong root when a parent folder has another lockfile). */
+const projectDir = path.dirname(fileURLToPath(import.meta.url));
 
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -9,6 +14,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: projectDir,
+  },
   // Mirrors `DEV_AUTH_BYPASS` for any client checks; forced empty when `NODE_ENV === "production"`.
   env: {
     NEXT_PUBLIC_DEV_AUTH_BYPASS:

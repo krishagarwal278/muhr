@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 const CHANNELS = [
@@ -25,6 +26,8 @@ type Props = {
   acceptingRequests: boolean;
   licensingNotes: string | null;
   publicProfileUrl: string;
+  /** When signed into the brand workspace, we bind the request to this email (read-only in the form). */
+  signedInBrandEmail?: string | null;
 };
 
 export function LicenseRequestPanel({
@@ -33,7 +36,11 @@ export function LicenseRequestPanel({
   acceptingRequests,
   licensingNotes,
   publicProfileUrl,
+  signedInBrandEmail = null,
 }: Props) {
+  const router = useRouter();
+  const lockedBrandEmail = signedInBrandEmail?.trim() ?? "";
+  const brandWorkspaceSignedIn = Boolean(lockedBrandEmail);
   const [brandName, setBrandName] = useState("");
   const [brandEmail, setBrandEmail] = useState("");
   const [brandCompany, setBrandCompany] = useState("");
@@ -47,6 +54,8 @@ export function LicenseRequestPanel({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  const effectiveBrandEmail = brandWorkspaceSignedIn ? lockedBrandEmail : brandEmail;
 
   function toggle(list: string[], v: string, set: (n: string[]) => void) {
     if (list.includes(v)) set(list.filter((x) => x !== v));
@@ -66,10 +75,11 @@ export function LicenseRequestPanel({
         budgetInr.trim() === "" ? undefined : parseInt(budgetInr.replace(/\D/g, ""), 10);
       const res = await fetch("/api/licenses/request", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           creator_handle: creatorHandle,
-          brand_email: brandEmail.trim(),
+          brand_email: effectiveBrandEmail.trim(),
           brand_name: brandName.trim(),
           brand_company: brandCompany.trim() || undefined,
           brand_website: brandWebsite.trim() || undefined,
@@ -96,6 +106,9 @@ export function LicenseRequestPanel({
         return;
       }
       setSuccess(true);
+      if (brandWorkspaceSignedIn) {
+        router.refresh();
+      }
     } catch {
       setError("Network error");
     } finally {
@@ -117,10 +130,24 @@ export function LicenseRequestPanel({
         <p className="font-medium">
           Request sent to {creatorDisplayName}. They&apos;ll see it in their Muhr dashboard.
         </p>
-        <p className="mt-2 text-neutral-900/75">
-          Brand-side request tracking will be available soon. The creator may reply to you at the email address you
-          entered above.
-        </p>
+        {brandWorkspaceSignedIn ? (
+          <>
+            <p className="mt-2 text-neutral-900/75">
+              Track status on your brand dashboard (linked to{" "}
+              <span className="font-mono text-[13px]">{lockedBrandEmail}</span>).
+            </p>
+            <Link
+              href="/brand/dashboard"
+              className="mt-4 inline-flex rounded-lg bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            >
+              Open brand dashboard →
+            </Link>
+          </>
+        ) : (
+          <p className="mt-2 text-neutral-900/75">
+            The creator may reply to you at the email address you entered above.
+          </p>
+        )}
       </div>
     );
   }
@@ -131,7 +158,11 @@ export function LicenseRequestPanel({
       className="space-y-4 rounded-xl border border-black/10 bg-white p-5 text-neutral-950 shadow-sm"
     >
       <h2 className="text-lg font-medium">Request a license</h2>
-      <p className="text-sm text-neutral-900/60">No account required. The creator will respond by email.</p>
+      <p className="text-sm text-neutral-900/60">
+        {brandWorkspaceSignedIn
+          ? "Signed in to your brand workspace — this request will appear on your brand dashboard."
+          : "No account required. The creator will respond by email."}
+      </p>
 
       <div className="rounded-lg border border-black/10 bg-neutral-50 p-4 text-sm text-neutral-800">
         <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900/55">Before you apply</p>
@@ -186,14 +217,26 @@ export function LicenseRequestPanel({
         />
       </div>
       <div>
-        <label className="mb-1 block text-xs font-medium text-neutral-900/70">Email (we&apos;ll send the response here)</label>
+        <label className="mb-1 block text-xs font-medium text-neutral-900/70">
+          {brandWorkspaceSignedIn ? "Brand account email" : "Email (we&apos;ll send the response here)"}
+        </label>
         <input
           required
           type="email"
-          value={brandEmail}
-          onChange={(e) => setBrandEmail(e.target.value)}
-          className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 outline-none placeholder:text-neutral-900/40"
+          readOnly={brandWorkspaceSignedIn}
+          value={effectiveBrandEmail}
+          onChange={(e) => {
+            if (!brandWorkspaceSignedIn) setBrandEmail(e.target.value);
+          }}
+          className={`w-full rounded-lg border border-black/10 px-3 py-2 text-sm text-neutral-950 outline-none placeholder:text-neutral-900/40 ${
+            brandWorkspaceSignedIn ? "cursor-default bg-neutral-100" : "bg-white"
+          }`}
         />
+        {brandWorkspaceSignedIn ? (
+          <p className="mt-1 text-xs text-neutral-600">
+            Must match your brand sign-in so requests show on your dashboard.
+          </p>
+        ) : null}
       </div>
       <div>
         <label className="mb-1 block text-xs font-medium text-neutral-900/70">Company</label>

@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { displayNameFromAuthUser } from "@/lib/auth/displayName";
 import { createClient } from "@/lib/supabase/client";
 import { muidFromUserId } from "@/lib/profile/muid";
+import { GlobalLicenseMessagesDock } from "@/components/license/GlobalLicenseMessagesDock";
 import { NavTourBootstrap } from "@/components/tour/NavTourBootstrap";
 
 interface UserProfile {
@@ -302,6 +303,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      <GlobalLicenseMessagesDock />
     </div>
   );
 }

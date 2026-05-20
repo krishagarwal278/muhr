@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!assetType || !["face_photo", "voice_sample", "document"].includes(assetType)) {
+    if (!assetType || !["face_photo", "voice_sample", "document", "character_sheet"].includes(assetType)) {
       return NextResponse.json<UploadResponse>(
         { success: false, message: "Invalid asset type" },
         { status: 400 }
@@ -92,7 +92,10 @@ export async function POST(request: Request) {
     
     const effectiveMimeType = isEncrypted ? originalMimeType : file.type;
 
-    if (assetType === "face_photo" && !allowedImageTypes.includes(effectiveMimeType)) {
+    if (
+      (assetType === "face_photo" || assetType === "character_sheet") &&
+      !allowedImageTypes.includes(effectiveMimeType)
+    ) {
       return NextResponse.json<UploadResponse>(
         { success: false, message: "Invalid image type. Use JPEG, PNG, or WebP." },
         { status: 400 }
@@ -107,7 +110,12 @@ export async function POST(request: Request) {
     }
 
     // File size limit: 10MB for images, 50MB for audio
-    const maxSize = assetType === "face_photo" ? 10 * 1024 * 1024 : 50 * 1024 * 1024;
+    const maxSize =
+      assetType === "character_sheet"
+        ? 15 * 1024 * 1024
+        : assetType === "face_photo"
+          ? 10 * 1024 * 1024
+          : 50 * 1024 * 1024;
     if (file.size > maxSize) {
       return NextResponse.json<UploadResponse>(
         { success: false, message: `File too large. Max ${maxSize / 1024 / 1024}MB.` },

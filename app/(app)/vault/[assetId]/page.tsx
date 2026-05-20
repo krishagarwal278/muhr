@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { DeleteAssetButton } from "../../../../components/vault/DeleteAssetButton";
+import { CharacterSheetExport } from "@/components/vault/CharacterSheetExport";
 import { DecryptedFacePhoto } from "@/components/vault/DecryptedFacePhoto";
 
 async function getAsset(assetId: string) {
@@ -129,6 +130,24 @@ export default async function AssetDetailPage({
             />
           )}
 
+          {asset.signed_url && asset.asset_type === "character_sheet" && asset.encryption_key_id && (
+            <div className="relative aspect-[4/3] w-full bg-neutral-950">
+              <DecryptedFacePhoto
+                signedUrl={asset.signed_url}
+                meta={{
+                  encryption_version: 1,
+                  encryption_alg: "AES-256-GCM",
+                  encryption_iv_b64: asset.encryption_iv,
+                  wrapped_data_key_b64: asset.wrapped_data_key,
+                  wrapped_key_iv_b64: asset.wrapped_key_iv,
+                  wrapped_key_salt_b64: asset.wrapped_key_salt,
+                  original_file_name: asset.original_file_name ?? asset.file_name,
+                  original_mime_type: asset.original_mime_type ?? "image/png",
+                }}
+              />
+            </div>
+          )}
+
           {/* Details */}
           <div className="space-y-4 p-6">
             <div>
@@ -153,7 +172,11 @@ export default async function AssetDetailPage({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-neutral-900/55">Type</span>
-                <span className="text-sm capitalize">{asset.asset_type.replace("_", " ")}</span>
+                <span className="text-sm capitalize">
+                  {asset.asset_type === "character_sheet"
+                    ? "Character sheet (encrypted)"
+                    : asset.asset_type.replace("_", " ")}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-neutral-900/55">File name</span>
@@ -177,15 +200,34 @@ export default async function AssetDetailPage({
               )}
             </div>
 
+            {asset.asset_type === "character_sheet" && asset.encryption_key_id && asset.signed_url && (
+              <CharacterSheetExport
+                signedUrl={asset.signed_url}
+                meta={{
+                  encryption_version: 1,
+                  encryption_alg: "AES-256-GCM",
+                  encryption_iv_b64: asset.encryption_iv,
+                  wrapped_data_key_b64: asset.wrapped_data_key,
+                  wrapped_key_iv_b64: asset.wrapped_key_iv,
+                  wrapped_key_salt_b64: asset.wrapped_key_salt,
+                  original_file_name: asset.original_file_name ?? asset.file_name,
+                  original_mime_type: asset.original_mime_type ?? "image/png",
+                }}
+                displayFileName="muhr-character-sheet.png"
+              />
+            )}
+
             <div className="flex gap-3 pt-2">
-              <a
-                href={asset.signed_url || "#"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 rounded-lg border border-black/15 bg-white py-2.5 text-center text-sm font-medium text-neutral-950 transition hover:bg-neutral-50"
-              >
-                View full size
-              </a>
+              {asset.asset_type !== "character_sheet" && (
+                <a
+                  href={asset.signed_url || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 rounded-lg border border-black/15 bg-white py-2.5 text-center text-sm font-medium text-neutral-950 transition hover:bg-neutral-50"
+                >
+                  View full size
+                </a>
+              )}
               <DeleteAssetButton assetId={asset.id} />
             </div>
           </div>

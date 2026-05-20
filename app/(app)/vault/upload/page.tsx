@@ -74,30 +74,34 @@ export default function VaultUploadPage() {
 
   async function handleUpload() {
     if (files.length === 0 || !assetType) return;
-    if (!vaultPassword || vaultPassword.trim().length < 8) {
-      setError("Set a Vault password (min 8 chars) to encrypt your uploads.");
+
+    const encryptUpload = assetType !== "face_photo";
+    if (encryptUpload && (!vaultPassword || vaultPassword.trim().length < 8)) {
+      setError("Set a Vault password (min 8 chars) to encrypt this asset type.");
       return;
     }
-    
+
     setUploading(true);
     setError("");
-    
+
     let successCount = 0;
-    
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       let fileToUpload: File = file;
       let encMeta: Awaited<ReturnType<typeof encryptFileWithVaultPassword>>["meta"] | null = null;
 
-      try {
-        const encrypted = await encryptFileWithVaultPassword(file, vaultPassword);
-        fileToUpload = encrypted.encryptedFile;
-        encMeta = encrypted.meta;
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : "Failed to encrypt file";
-        console.error("Encrypt error:", e);
-        setError(msg);
-        break;
+      if (encryptUpload) {
+        try {
+          const encrypted = await encryptFileWithVaultPassword(file, vaultPassword);
+          fileToUpload = encrypted.encryptedFile;
+          encMeta = encrypted.meta;
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Failed to encrypt file";
+          console.error("Encrypt error:", e);
+          setError(msg);
+          break;
+        }
       }
 
       const formData = new FormData();
@@ -265,7 +269,7 @@ export default function VaultUploadPage() {
                   </svg>
                 </div>
                 <h3 className="font-medium">Face photos</h3>
-                <p className="mt-1 text-sm text-neutral-700">Upload clear photos of your face</p>
+                <p className="mt-1 text-sm text-neutral-700">Stored in plain view in your Vault (not encrypted)</p>
               </button>
               <div
                 className="relative rounded-xl border border-black/10 bg-white/70 p-5 text-left opacity-50"
@@ -288,25 +292,28 @@ export default function VaultUploadPage() {
         {step === "upload" && (
           <div className="space-y-4">
             <h2 className="text-lg font-medium">Upload photos</h2>
-            <div className="rounded-xl border border-black/10 bg-white/70 p-4">
-              <label className="block text-sm font-semibold text-neutral-800">Vault password</label>
-              <p className="mt-1 text-xs leading-relaxed text-neutral-700">
-                Used to encrypt files before upload. If you lose it, Muhr can’t recover your assets.
+            {assetType === "face_photo" ? (
+              <p className="rounded-lg border border-violet-200/80 bg-violet-50/80 px-3 py-2 text-xs text-violet-950">
+                Face photos are saved unencrypted so you can preview them in Vault. Only your{" "}
+                <strong>character sheet</strong> is encrypted when you seal it from the Vault page.
               </p>
-              <input
-                type="password"
-                value={vaultPassword}
-                onChange={(e) => setVaultPassword(e.target.value)}
-                placeholder="Min 8 characters"
-                autoComplete="off"
-                className="mt-3 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 placeholder:text-neutral-500/70 focus:border-black/15 focus:outline-none"
-                disabled={uploading}
-              />
-              <p className="mt-2 text-xs text-neutral-600">
-                For your security, the vault password is not saved in the browser. You will need it again to view
-                encrypted assets.
-              </p>
-            </div>
+            ) : (
+              <div className="rounded-xl border border-black/10 bg-white/70 p-4">
+                <label className="block text-sm font-semibold text-neutral-800">Vault password</label>
+                <p className="mt-1 text-xs leading-relaxed text-neutral-700">
+                  Used to encrypt files before upload. If you lose it, Muhr can’t recover your assets.
+                </p>
+                <input
+                  type="password"
+                  value={vaultPassword}
+                  onChange={(e) => setVaultPassword(e.target.value)}
+                  placeholder="Min 8 characters"
+                  autoComplete="off"
+                  className="mt-3 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 placeholder:text-neutral-500/70 focus:border-black/15 focus:outline-none"
+                  disabled={uploading}
+                />
+              </div>
+            )}
             <div className="rounded-xl border-2 border-dashed border-black/15 bg-white/60 p-8 text-center">
               <input
                 type="file"

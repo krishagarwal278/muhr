@@ -37,7 +37,7 @@ export interface ProfileCompletionResponse {
 }
 
 // Vault assets
-export type AssetType = "face_photo" | "voice_sample" | "document";
+export type AssetType = "face_photo" | "voice_sample" | "document" | "character_sheet";
 
 export interface VaultAsset {
   id: string;

@@ -7,6 +7,8 @@ import { ProfileCompletionCard } from "@/components/profile/ProfileCompletionCar
 import type { ProfileCompletionItem } from "@/lib/profile/completion";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { VaultGridAssetCard, VaultRowAssetCard } from "@/components/vault/AssetCard";
+import { CharacterSheetForge } from "@/components/vault/CharacterSheetForge";
+import type { CharacterSheetStatusResponse } from "@/lib/character-sheet/types";
 import type { KycStatus, VaultAsset } from "@/types";
 import type { CreatorSecurityState } from "@/types/vault";
 
@@ -21,6 +23,7 @@ export default function VaultPage() {
   const [loading, setLoading] = useState(true);
   const [profilePercent, setProfilePercent] = useState(0);
   const [profileItems, setProfileItems] = useState<ProfileCompletionItem[]>([]);
+  const [characterSheet, setCharacterSheet] = useState<CharacterSheetStatusResponse | null>(null);
 
   useEffect(() => {
     fetchAssets();
@@ -28,10 +31,11 @@ export default function VaultPage() {
 
   async function fetchAssets() {
     try {
-      const [vaultRes, identityRes, completionRes] = await Promise.all([
+      const [vaultRes, identityRes, completionRes, sheetRes] = await Promise.all([
         fetch("/api/vault"),
         fetch("/api/identity"),
         fetch("/api/profile/completion"),
+        fetch("/api/character-sheet"),
       ]);
       const data = await vaultRes.json();
       const identityData = identityRes.ok ? await identityRes.json() : {};
@@ -44,6 +48,9 @@ export default function VaultPage() {
         const c = await completionRes.json();
         setProfilePercent(c.percent ?? 0);
         setProfileItems(c.items ?? []);
+      }
+      if (sheetRes.ok) {
+        setCharacterSheet(await sheetRes.json());
       }
     } catch (error) {
       console.error("Error fetching assets:", error);
@@ -59,7 +66,10 @@ export default function VaultPage() {
     kyc_verified_at: kycVerifiedAt,
   };
 
-  const facePhotos = assets.filter((a) => a.asset_type === "face_photo");
+  const vaultFacePhotos = assets.filter((a) => a.asset_type === "face_photo" && !a.encryption_key_id);
+  const characterSheets = assets.filter((a) => a.asset_type === "character_sheet");
+  const facePhotoCount = vaultFacePhotos.length + characterSheets.length;
+  const showVaultGallery = vaultFacePhotos.length > 0 || characterSheets.length > 0;
   const voiceSamples = assets.filter((a) => a.asset_type === "voice_sample");
   const documents = assets.filter((a) => a.asset_type === "document");
 
@@ -79,7 +89,7 @@ export default function VaultPage() {
             )}
           </div>
           <p className="text-sm text-neutral-900/60">
-            Your secured identity assets
+            Your secured identity assets and encrypted character sheet
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
@@ -96,7 +106,7 @@ export default function VaultPage() {
           ) : (
             <Link
               href="/settings#identity-verification"
-              className="flex items-center justify-center gap-2 rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-950 transition hover:bg-amber-100"
+              className="flex items-center justify-center gap-2 rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-amber-100"
             >
               Verify identity first
             </Link>
@@ -108,16 +118,40 @@ export default function VaultPage() {
         <ProfileCompletionCard percent={profilePercent} items={profileItems} compact />
       )}
 
+      {!loading && characterSheet && (
+        <CharacterSheetForge
+          status={characterSheet}
+          kycVerified={kycVerified}
+          onSealed={() => void fetchAssets()}
+        />
+      )}
+
       {/* Asset categories */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="rounded-xl border border-black/10 bg-white p-5">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border border-indigo-200/60 bg-gradient-to-br from-indigo-50/80 to-violet-50/50 p-5">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-neutral-900/70">Face photos</span>
-            <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-neutral-950">
+            <span className="text-sm font-medium text-indigo-950">Character sheet</span>
+            <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-900">
+              {loading ? (
+                <span className="inline-block h-4 w-10 animate-pulse rounded bg-black/10" />
+              ) : characterSheets.length > 0 ? (
+                "Sealed"
+              ) : characterSheet?.eligible ? (
+                "Ready"
+              ) : (
+                "Locked"
+              )}
+            </span>
+          </div>
+        </div>
+        <div className="rounded-xl border border-violet-200/60 bg-gradient-to-br from-violet-50/50 to-sky-50/30 p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-violet-950">Face photos</span>
+            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-900">
               {loading ? (
                 <span className="inline-block h-4 w-6 animate-pulse rounded bg-black/10" />
               ) : (
-                facePhotos.length
+                facePhotoCount
               )}
             </span>
           </div>
@@ -189,7 +223,7 @@ export default function VaultPage() {
           ) : (
             <Link
               href="/settings#identity-verification"
-              className="mt-6 rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-950 transition hover:bg-amber-100"
+              className="mt-6 rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-amber-100"
             >
               Complete verification to upload
             </Link>
@@ -198,11 +232,22 @@ export default function VaultPage() {
       ) : (
         <TooltipProvider>
           <div className="space-y-6">
-            {facePhotos.length > 0 && (
+            {showVaultGallery && (
               <div>
-                <h2 className="mb-4 text-lg font-medium">Face photos</h2>
+                <h2 className="mb-2 text-lg font-semibold text-neutral-950">Face photos</h2>
+                <p className="mb-4 text-sm text-neutral-600">
+                  Vault uploads are visible here. Your character sheet is stored encrypted — open it and enter your
+                  vault password to view or download. Reference photos for building the sheet are in{" "}
+                  <Link href="/settings#complete-profile" className="font-medium text-violet-700 underline-offset-2 hover:underline">
+                    Settings
+                  </Link>
+                  .
+                </p>
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  {facePhotos.map((asset) => (
+                  {vaultFacePhotos.map((asset) => (
+                    <VaultGridAssetCard key={asset.id} asset={asset} creator={creatorSecurity} />
+                  ))}
+                  {characterSheets.map((asset) => (
                     <VaultGridAssetCard key={asset.id} asset={asset} creator={creatorSecurity} />
                   ))}
                 </div>

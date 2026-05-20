@@ -294,8 +294,7 @@ export default function SettingsPage() {
           <div>
             <p className="text-sm font-medium text-neutral-950">Password</p>
             <p className="mt-1 text-sm text-neutral-700">
-              We will email a one-time link to set a new password (configure outbound mail or Resend SMTP under
-              Supabase Authentication).
+              We will email a one-time link to set a new password.
             </p>
             {resetErr && (
               <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">

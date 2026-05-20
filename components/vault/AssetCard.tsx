@@ -31,13 +31,33 @@ export function VaultGridAssetCard({
 }) {
   const badges = computeSecurityBadges(toSecurityInput(asset), creator);
 
+  const isEncryptedSheet = asset.asset_type === "character_sheet" && !!asset.encryption_key_id;
+
   return (
     <Link
       href={`/vault/${asset.id}`}
-      className="group relative block overflow-hidden rounded-xl border border-black/10 bg-white transition hover:border-black/20"
+      className={`group relative block overflow-hidden rounded-xl border bg-white transition ${
+        isEncryptedSheet
+          ? "border-violet-300/50 hover:border-violet-400/70"
+          : "border-black/10 hover:border-black/20"
+      }`}
     >
       <div className="relative aspect-square">
-        {asset.signed_url && !asset.encryption_key_id ? (
+        {isEncryptedSheet ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-[#1a1033] via-[#12121f] to-[#0f172a] p-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-violet-400/30 bg-violet-500/10">
+              <svg className="h-6 w-6 text-violet-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16.5 10.5V7.875c0-2.485-2.015-4.5-4.5-4.5s-4.5 2.015-4.5 4.5V10.5m-.75 0h10.5a1.5 1.5 0 0 1 1.5 1.5v7.5a1.5 1.5 0 0 1-1.5 1.5H6a1.5 1.5 0 0 1-1.5-1.5V12a1.5 1.5 0 0 1 1.5-1.5Z"
+                />
+              </svg>
+            </div>
+            <p className="text-center text-xs font-semibold text-violet-100">Character sheet</p>
+            <p className="text-center text-[10px] text-violet-300/70">Password required</p>
+          </div>
+        ) : asset.signed_url && !asset.encryption_key_id ? (
           <Image
             src={asset.signed_url}
             alt={asset.file_name}

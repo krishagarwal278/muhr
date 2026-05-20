@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { start } from "workflow/api";
 import { z } from "zod";
 
 import { jsonApiError } from "@/lib/api/jsonResponse";
 import { RateLimitError } from "@/lib/errors/apiError";
-import { sendWaitlistWelcomeEmail } from "@/lib/email/waitlistWelcomeSend";
 import { logger } from "@/lib/logger";
 import { getRateLimitIp, rateLimit } from "@/lib/ratelimit";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { WaitlistResponse } from "@/types";
-import { waitlistWelcomeWorkflow } from "@/workflows/waitlist-welcome";
 
 const waitlistBodySchema = z.object({
   email: z.string().trim().email().max(255),
@@ -52,47 +49,10 @@ export async function POST(request: NextRequest) {
       throw error;
     }
 
-    const normalized = email.toLowerCase();
-
-    if (process.env.NODE_ENV === "development") {
-      try {
-        await sendWaitlistWelcomeEmail(normalized, user_type);
-      } catch (welcomeErr) {
-        logger.error("waitlist_welcome_dev_send", {
-          message: welcomeErr instanceof Error ? welcomeErr.message : "unknown",
-        });
-        return NextResponse.json<WaitlistResponse>(
-          {
-            success: false,
-            message:
-              "You're on the list, but the welcome email did not send. Add RESEND_API_KEY (and optional RESEND_WELCOME_*) to `.env.local` and check the terminal log.",
-            code: "welcome_email_failed",
-          },
-          { status: 500 }
-        );
-      }
-    } else {
-      try {
-        await start(waitlistWelcomeWorkflow, [normalized, user_type]);
-      } catch (workflowErr) {
-        logger.error("waitlist_workflow_start", {
-          message: workflowErr instanceof Error ? workflowErr.message : "unknown",
-        });
-        return NextResponse.json<WaitlistResponse>(
-          {
-            success: false,
-            message:
-              "You're on the list, but we could not queue your welcome email right now. Please try again in a few minutes.",
-            code: "workflow_unavailable",
-          },
-          { status: 503 }
-        );
-      }
-    }
-
     return NextResponse.json<WaitlistResponse>({
       success: true,
-      message: "You're on the list. We'll be in touch.",
+      message: "Almost there — tell us a bit more about you.",
+      needsDetails: true,
     });
   } catch (err) {
     if (err instanceof RateLimitError) {

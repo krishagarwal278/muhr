@@ -81,7 +81,7 @@ const NAV_META: { key: string; title: string; description: string }[] = [
     key: "settings",
     title: "Settings",
     description:
-      "Verify your identity (Persona), set your public instagram handle, and tune account preferences.",
+      "Complete identity verification, set your public instagram handle, and tune account preferences.",
   },
 ];
 

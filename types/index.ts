@@ -19,6 +19,21 @@ export interface WaitlistResponse {
   message: string;
   /** Stable machine-readable code when `success` is false (optional). */
   code?: string;
+  /** When true, client should collect Instagram + profession before welcome email. */
+  needsDetails?: boolean;
+}
+
+export type IdentityVerificationFileKind =
+  | "liveness_front"
+  | "liveness_left"
+  | "liveness_right"
+  | "social_followers"
+  | "social_age"
+  | "social_location";
+
+export interface ProfileCompletionResponse {
+  percent: number;
+  items: { id: string; label: string; complete: boolean; href?: string }[];
 }
 
 // Vault assets

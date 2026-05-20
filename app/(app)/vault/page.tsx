@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { KycStatusBadge } from "@/components/KycStatusBadge";
+import { ProfileCompletionCard } from "@/components/profile/ProfileCompletionCard";
+import type { ProfileCompletionItem } from "@/lib/profile/completion";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { VaultGridAssetCard, VaultRowAssetCard } from "@/components/vault/AssetCard";
 import type { KycStatus, VaultAsset } from "@/types";
@@ -17,6 +19,8 @@ export default function VaultPage() {
   const [kycStatus, setKycStatus] = useState<KycStatus | null>(null);
   const [kycVerifiedAt, setKycVerifiedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [profilePercent, setProfilePercent] = useState(0);
+  const [profileItems, setProfileItems] = useState<ProfileCompletionItem[]>([]);
 
   useEffect(() => {
     fetchAssets();
@@ -24,9 +28,10 @@ export default function VaultPage() {
 
   async function fetchAssets() {
     try {
-      const [vaultRes, identityRes] = await Promise.all([
+      const [vaultRes, identityRes, completionRes] = await Promise.all([
         fetch("/api/vault"),
         fetch("/api/identity"),
+        fetch("/api/profile/completion"),
       ]);
       const data = await vaultRes.json();
       const identityData = identityRes.ok ? await identityRes.json() : {};
@@ -35,6 +40,11 @@ export default function VaultPage() {
       }
       setKycStatus((identityData.kycStatus as KycStatus) ?? "unverified");
       setKycVerifiedAt((identityData.kycVerifiedAt as string | null) ?? null);
+      if (completionRes.ok) {
+        const c = await completionRes.json();
+        setProfilePercent(c.percent ?? 0);
+        setProfileItems(c.items ?? []);
+      }
     } catch (error) {
       console.error("Error fetching assets:", error);
     } finally {
@@ -62,6 +72,11 @@ export default function VaultPage() {
             {!loading && kycStatus !== null && (
               <KycStatusBadge status={kycStatus} />
             )}
+            {!loading && profileItems.length > 0 && (
+              <span className="rounded-full border border-black/10 bg-black/5 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-neutral-800">
+                {profilePercent}% complete
+              </span>
+            )}
           </div>
           <p className="text-sm text-neutral-900/60">
             Your secured identity assets
@@ -88,6 +103,10 @@ export default function VaultPage() {
           )}
         </div>
       </div>
+
+      {!loading && profileItems.length > 0 && profilePercent < 100 && (
+        <ProfileCompletionCard percent={profilePercent} items={profileItems} compact />
+      )}
 
       {/* Asset categories */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

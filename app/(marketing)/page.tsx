@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { WaitlistDetailsModal } from "@/components/waitlist/WaitlistDetailsModal";
 import { UserType, WaitlistResponse } from "../../types";
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -72,11 +73,16 @@ function WaitlistForm({ userType, label, variant }: WaitlistFormProps) {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<FormState>("idle");
   const [message, setMessage] = useState("");
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
     setState("loading");
+    setDetailsError(null);
     try {
       const res = await fetch("/api/waitlist", {
         method: "POST",
@@ -85,9 +91,15 @@ function WaitlistForm({ userType, label, variant }: WaitlistFormProps) {
       });
       const data: WaitlistResponse = await res.json();
       if (res.ok && data.success) {
-        setState("success");
-        setMessage(data.message);
-        setEmail("");
+        if (data.needsDetails) {
+          setPendingEmail(email.trim().toLowerCase());
+          setDetailsOpen(true);
+          setState("idle");
+        } else {
+          setState("success");
+          setMessage(data.message);
+          setEmail("");
+        }
       } else {
         setState("error");
         setMessage(
@@ -101,6 +113,37 @@ function WaitlistForm({ userType, label, variant }: WaitlistFormProps) {
     }
   }
 
+  async function submitDetails(instagram: string, profession: string) {
+    if (!pendingEmail) return;
+    setDetailsLoading(true);
+    setDetailsError(null);
+    try {
+      const res = await fetch("/api/waitlist/details", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: pendingEmail,
+          instagram_profile: instagram,
+          profession,
+        }),
+      });
+      const data: WaitlistResponse = await res.json();
+      if (res.ok && data.success) {
+        setDetailsOpen(false);
+        setState("success");
+        setMessage(data.message);
+        setEmail("");
+        setPendingEmail(null);
+      } else {
+        setDetailsError(data.message || "Something went wrong.");
+      }
+    } catch {
+      setDetailsError("Something went wrong. Please try again.");
+    } finally {
+      setDetailsLoading(false);
+    }
+  }
+
   if (state === "success") {
     return (
       <div className="mt-2 rounded-full border border-black/10 bg-white/70 px-4 py-2.5 text-xs text-neutral-900/70 backdrop-blur-sm sm:px-5 sm:py-3 sm:text-sm">
@@ -110,6 +153,21 @@ function WaitlistForm({ userType, label, variant }: WaitlistFormProps) {
   }
 
   return (
+    <>
+    <WaitlistDetailsModal
+      open={detailsOpen}
+      email={pendingEmail ?? email}
+      loading={detailsLoading}
+      error={detailsError}
+      onClose={() => {
+        setDetailsOpen(false);
+        setState("success");
+        setMessage("You're on the list. We'll be in touch.");
+        setEmail("");
+        setPendingEmail(null);
+      }}
+      onSubmit={(instagram, profession) => void submitDetails(instagram, profession)}
+    />
     <form onSubmit={handleSubmit} className="mt-2 flex flex-col gap-2 min-[480px]:flex-row">
       <input
         type="email"
@@ -148,6 +206,7 @@ function WaitlistForm({ userType, label, variant }: WaitlistFormProps) {
         <p className="w-full pl-2 text-[11px] text-red-400 sm:text-xs">{message}</p>
       )}
     </form>
+    </>
   );
 }
 

@@ -1,7 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { KycStatusBadge } from "@/components/KycStatusBadge";
+import { ManualIdentityVerification } from "@/components/identity/ManualIdentityVerification";
+import { CompleteProfileSection } from "@/components/profile/CompleteProfileSection";
+import { ProfileCompletionCard } from "@/components/profile/ProfileCompletionCard";
+import type { ProfileCompletionItem } from "@/lib/profile/completion";
 import type { KycStatus } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { buildPasswordResetRedirectTo } from "@/lib/auth/passwordResetRedirect";
@@ -16,18 +20,29 @@ export default function SettingsPage() {
   const [saveOk, setSaveOk] = useState(false);
   const [saving, setSaving] = useState(false);
   const [kycStatus, setKycStatus] = useState<KycStatus | null>(null);
-  const [verifying, setVerifying] = useState(false);
+  const [profilePercent, setProfilePercent] = useState(0);
+  const [profileItems, setProfileItems] = useState<ProfileCompletionItem[]>([]);
   const [resetBusy, setResetBusy] = useState(false);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [resetErr, setResetErr] = useState<string | null>(null);
+
+  const refreshCompletion = useCallback(async () => {
+    const res = await fetch("/api/profile/completion");
+    if (res.ok) {
+      const data = await res.json();
+      setProfilePercent(data.percent ?? 0);
+      setProfileItems(data.items ?? []);
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [idRes, profileRes] = await Promise.all([
+        const [idRes, profileRes, completionRes] = await Promise.all([
           fetch("/api/identity"),
           fetch("/api/profile"),
+          fetch("/api/profile/completion"),
         ]);
         const idData = idRes.ok ? await idRes.json() : {};
         if (!cancelled) {
@@ -42,6 +57,11 @@ export default function SettingsPage() {
             setAcceptingRequests(p.acceptingRequests !== false);
             setLicensingNotes(typeof p.licensingNotes === "string" ? p.licensingNotes : "");
           }
+        }
+        if (completionRes.ok && !cancelled) {
+          const c = await completionRes.json();
+          setProfilePercent(c.percent ?? 0);
+          setProfileItems(c.items ?? []);
         }
       } catch {
         if (!cancelled) setKycStatus("unverified");
@@ -82,63 +102,6 @@ export default function SettingsPage() {
       setSaving(false);
     }
   }
-  async function startVerification() {
-    setVerifying(true);
-    try {
-      const templateId = process.env.NEXT_PUBLIC_PERSONA_TEMPLATE_ID;
-      const environmentId = process.env.NEXT_PUBLIC_PERSONA_ENVIRONMENT_ID;
-      if (!templateId || !environmentId) {
-        setSaveError(
-          "Persona env vars missing (NEXT_PUBLIC_PERSONA_TEMPLATE_ID / NEXT_PUBLIC_PERSONA_ENVIRONMENT_ID)."
-        );
-        setVerifying(false);
-        return;
-      }
-
-      // Ask your server for the user's reference id (don't trust the client to set it).
-      const res = await fetch("/api/identity/inquiry", { method: "POST" });
-      if (!res.ok) throw new Error("Could not start verification");
-      const { referenceId, inquiryId } = await res.json();
-
-      const Persona = (await import("persona")).default;
-      const client = new Persona.Client({
-        templateId,
-        environmentId,
-        referenceId,                   // links inquiry → your user
-        inquiryId: inquiryId ?? undefined, // optional: resume an existing inquiry
-        onReady: () => {
-          setVerifying(false);
-          client.open();
-        },
-        onComplete: ({ inquiryId, status }) => {
-          // Optimistic UI; the webhook is the source of truth.
-          if (status === "completed") setKycStatus("pending"); // pending review
-          if (inquiryId) {
-            // Local dev often doesn't receive webhooks; refresh from Persona API.
-            void fetch("/api/identity/refresh", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ inquiryId }),
-            })
-              .then(async (r) => (r.ok ? r.json() : null))
-              .then((data) => {
-                if (data?.kycStatus) setKycStatus(data.kycStatus as KycStatus);
-              })
-              .catch(() => {});
-          }
-        },
-        onCancel: () => setVerifying(false),
-        onError: (err) => {
-          console.error(err);
-          setVerifying(false);
-        },
-      });
-    } catch (e) {
-      console.error(e);
-      setVerifying(false);
-    }
-  }
-
   async function sendPasswordReset() {
     setResetBusy(true);
     setResetMsg(null);
@@ -167,39 +130,43 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:px-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="mt-1 text-sm text-neutral-700">
-          Manage your account and preferences
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+          <p className="mt-1 text-sm text-neutral-700">
+            Manage your account and preferences
+          </p>
+        </div>
+        {profileItems.length > 0 && (
+          <span className="rounded-full border border-black/10 bg-black/5 px-3 py-1 text-sm font-semibold tabular-nums text-neutral-800">
+            {profilePercent}% profile complete
+          </span>
+        )}
       </div>
 
-      {/* Identity verification — status from profiles.kyc_status; update via IdV webhook / admin */}
+      {profileItems.length > 0 && (
+        <ProfileCompletionCard percent={profilePercent} items={profileItems} />
+      )}
+
       <div
         id="identity-verification"
         className="scroll-mt-24 rounded-xl border border-black/10 bg-white p-4 sm:p-6"
       >
-        <h2 className="text-lg font-medium text-neutral-950">Identity verification</h2>
-        <p className="mt-1 text-sm text-neutral-700">
-          Liveness and document checks must pass before you can add vault assets.
-        </p>
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-lg font-medium text-neutral-950">Identity verification</h2>
+          {kycStatus !== null && <KycStatusBadge status={kycStatus} />}
+        </div>
+        <div className="mt-4">
           {kycStatus !== null ? (
-            <KycStatusBadge status={kycStatus} />
+            <ManualIdentityVerification
+              kycStatus={kycStatus}
+              onStatusChange={(status) => {
+                setKycStatus(status);
+                void refreshCompletion();
+              }}
+            />
           ) : (
-            <span className="inline-block h-7 w-32 animate-pulse rounded-full bg-black/10" />
-          )}
-          {kycStatus !== "verified" && (
-            <button
-              type="button"
-              className="w-full rounded-lg border border-black/10 bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-60 sm:w-auto"
-              onClick={startVerification}
-              disabled={verifying || kycStatus === "pending"}
-              title="Start verification"
-            >
-              {verifying ? "Opening…" : kycStatus === "pending" ? "Review in progress" : "Start verification"}
-
-            </button>
+            <span className="inline-block h-24 w-full animate-pulse rounded-lg bg-black/5" />
           )}
         </div>
       </div>
@@ -266,7 +233,7 @@ export default function SettingsPage() {
               onChange={(e) => setLicensingNotes(e.target.value)}
               maxLength={4000}
               rows={5}
-              placeholder="e.g., Minimum fee, channels you won’t do, typical turnaround, link to your rate card…"
+              placeholder="e.g., Minimum fee, channels you won’t do, typical turnaround, link to your fee card…"
               className="w-full resize-y rounded-lg border border-black/10 bg-white px-4 py-2.5 text-sm text-neutral-950 outline-none focus:border-black/15"
             />
             <p className="mt-1 text-xs text-neutral-600">
@@ -314,7 +281,16 @@ export default function SettingsPage() {
       {/* Security */}
       <div className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
         <h2 className="text-lg font-medium text-neutral-950">Security</h2>
-        <div className="mt-4 space-y-4">
+        <div className="mt-4 space-y-8">
+          <div id="complete-profile" className="scroll-mt-24">
+            <h3 className="text-base font-medium text-neutral-950">Complete your profile</h3>
+            <p className="mt-1 text-sm text-neutral-700">
+              Character photos, measurements, and licensing setup for brand matching.
+            </p>
+            <div className="mt-4">
+              <CompleteProfileSection onUpdated={() => void refreshCompletion()} />
+            </div>
+          </div>
           <div>
             <p className="text-sm font-medium text-neutral-950">Password</p>
             <p className="mt-1 text-sm text-neutral-700">

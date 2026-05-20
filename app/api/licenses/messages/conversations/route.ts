@@ -67,6 +67,24 @@ type LicenseConversationSummary = {
   merged_request_ids?: string[];
 };
 
+/** Creator inbox: lead with brand/company, not the contact person's name alone. */
+function creatorCounterparty(row: Pick<LicenseReqListRow, "brand_name" | "brand_company" | "brand_email">) {
+  const company = row.brand_company?.trim() || null;
+  const name = row.brand_name?.trim() || null;
+  const email = row.brand_email?.trim() || null;
+
+  if (company) {
+    return {
+      counterparty_label: company,
+      counterparty_detail: [name, email].filter(Boolean).join(" · ") || "Brand",
+    };
+  }
+  return {
+    counterparty_label: name || email || "Brand",
+    counterparty_detail: name && email ? email : name ? "License request" : "License request",
+  };
+}
+
 function latestPreviewAcrossRequests(
   requestIds: string[],
   latestByRequest: Map<string, { body: string; created_at: string; author_role: string }>
@@ -158,16 +176,7 @@ export async function GET() {
 
   for (const row of creatorRows) {
     const my_role: "creator" | "brand" = "creator";
-    const raw = row.creator_profile;
-    const p = Array.isArray(raw) ? raw[0] ?? null : raw;
-    const handle = p?.handle?.trim() || null;
-    const displayName =
-      (p?.display_name && p.display_name.trim()) ||
-      (handle ? (handle.startsWith("@") ? handle : `@${handle}`) : null);
-
-    const counterparty_label =
-      [row.brand_name, row.brand_company].filter(Boolean).join(" · ") || row.brand_email;
-    const counterparty_detail = row.brand_email;
+    const { counterparty_label, counterparty_detail } = creatorCounterparty(row);
     const workspace_href = `/licenses/requests/${row.id}`;
     const last = latestByRequest.get(row.id);
     const last_message_body = last?.body ?? null;

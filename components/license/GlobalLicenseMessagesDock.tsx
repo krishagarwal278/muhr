@@ -32,6 +32,36 @@ type ThreadMsg = {
 
 const FETCH_TIMEOUT_MS = 15_000;
 
+function isOutgoingMessage(authorRole: string, myRole: "creator" | "brand"): boolean {
+  return authorRole === myRole;
+}
+
+function listPreviewText(c: ConversationRow): string {
+  if (!c.last_message_body) return "No messages yet — say hello";
+  if (c.last_author_role && c.last_author_role === c.my_role) {
+    return `You: ${c.last_message_body}`;
+  }
+  return c.last_message_body;
+}
+
+function SentCheckIcon({ className, title = "Sent" }: { className?: string; title?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-label={title}
+      role="img"
+    >
+      <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
+    </svg>
+  );
+}
+
 async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const ac = new AbortController();
   const tid = setTimeout(() => ac.abort(), FETCH_TIMEOUT_MS);
@@ -276,8 +306,13 @@ export function GlobalLicenseMessagesDock() {
                             ) : null}
                           </div>
                           <p className="truncate text-xs text-neutral-500">{c.counterparty_detail}</p>
-                          <p className="mt-0.5 truncate text-xs text-neutral-700">
-                            {c.last_message_body ?? "No messages yet — say hello"}
+                          <p
+                            className={cx(
+                              "mt-0.5 truncate text-xs",
+                              c.last_author_role === c.my_role ? "text-neutral-500" : "text-neutral-700"
+                            )}
+                          >
+                            {listPreviewText(c)}
                           </p>
                           <div className="mt-1 flex flex-wrap items-center gap-1.5">
                             <span
@@ -320,27 +355,47 @@ export function GlobalLicenseMessagesDock() {
                     <div className="h-10 animate-pulse rounded-lg bg-neutral-100" />
                   </div>
                 ) : (
-                  <ul className="space-y-2 pb-2">
+                  <ul className="space-y-2.5 pb-2">
                     {thread.length === 0 ? (
                       <li className="py-6 text-center text-sm text-neutral-500">No messages yet.</li>
                     ) : (
-                      thread.map((m) => (
-                        <li
-                          key={m.id}
-                          className={cx(
-                            "rounded-xl px-3 py-2 text-sm",
-                            m.author_role === "brand"
-                              ? "ml-6 bg-neutral-100 text-neutral-900"
-                              : "mr-6 bg-emerald-50 text-emerald-950"
-                          )}
-                        >
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
-                            {m.author_role === "creator" ? "Creator" : "Brand"} ·{" "}
-                            {formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}
-                          </p>
-                          <p className="mt-1 whitespace-pre-wrap">{m.body}</p>
-                        </li>
-                      ))
+                      thread.map((m) => {
+                        const myRole = active?.my_role ?? "creator";
+                        const outgoing = isOutgoingMessage(m.author_role, myRole);
+                        return (
+                          <li
+                            key={m.id}
+                            className={cx("flex w-full", outgoing ? "justify-end" : "justify-start")}
+                          >
+                            <div
+                              className={cx(
+                                "relative max-w-[88%] min-w-0 px-3 py-2 text-sm shadow-sm",
+                                outgoing
+                                  ? "rounded-2xl rounded-br-sm bg-neutral-200 text-neutral-900"
+                                  : "rounded-2xl rounded-bl-sm border border-emerald-200/80 bg-emerald-50 text-emerald-950"
+                              )}
+                            >
+                              <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                              <div
+                                className={cx(
+                                  "mt-1 flex items-center gap-0.5",
+                                  outgoing ? "justify-end" : "justify-start"
+                                )}
+                              >
+                                <span className="text-[10px] text-neutral-500">
+                                  {formatDistanceToNow(new Date(m.created_at), { addSuffix: true })}
+                                </span>
+                                {outgoing ? (
+                                  <SentCheckIcon
+                                    className="h-3.5 w-3.5 shrink-0 text-neutral-500"
+                                    title="Sent"
+                                  />
+                                ) : null}
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })
                     )}
                   </ul>
                 )}

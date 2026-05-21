@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { SignedStorageImage } from "@/components/ui/SignedStorageImage";
 import type { VaultAsset } from "@/types";
 import type { CreatorSecurityState } from "@/types/vault";
 import { computeSecurityBadges } from "@/lib/vault/security";
@@ -58,7 +58,7 @@ export function VaultGridAssetCard({
             <p className="text-center text-[10px] text-violet-300/70">Password required</p>
           </div>
         ) : asset.signed_url && !asset.encryption_key_id ? (
-          <Image
+          <SignedStorageImage
             src={asset.signed_url}
             alt={asset.file_name}
             fill

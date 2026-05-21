@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { SignedStorageImage } from "@/components/ui/SignedStorageImage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MAX_CHARACTER_PHOTOS, MIN_CHARACTER_PHOTOS } from "@/lib/profile/completion";
 
@@ -312,13 +313,12 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
                     aria-label={`View photo ${slotIndex + 1}`}
                   >
                     {photo.signed_url ? (
-                      <Image
+                      <SignedStorageImage
                         src={photo.signed_url}
                         alt={`Character photo ${slotIndex + 1}`}
                         fill
                         sizes="64px"
                         className="object-cover"
-                        unoptimized
                       />
                     ) : (
                       <div className="flex h-full items-center justify-center text-[10px] text-neutral-400">
@@ -381,13 +381,12 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
                 Close
               </button>
               <div className="relative aspect-[3/4] w-[min(90vw,24rem)]">
-                <Image
+                <SignedStorageImage
                   src={viewPhoto.signed_url}
                   alt={viewPhoto.file_name}
                   fill
                   sizes="(max-width: 768px) 90vw, 24rem"
                   className="object-contain"
-                  unoptimized
                 />
               </div>
               <p className="truncate px-3 py-2 text-center text-xs text-neutral-400">{viewPhoto.file_name}</p>

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
+import { SignedStorageImage } from "@/components/ui/SignedStorageImage";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { DeleteAssetButton } from "../../../../components/vault/DeleteAssetButton";
@@ -104,7 +104,7 @@ export default async function AssetDetailPage({
           {/* Image */}
           {asset.signed_url && asset.asset_type === "face_photo" && !asset.encryption_key_id && (
             <div className="relative aspect-square w-full bg-black">
-              <Image
+              <SignedStorageImage
                 src={asset.signed_url}
                 alt={asset.file_name}
                 fill

@@ -2,7 +2,6 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getRouteHandlerUser } from "@/lib/auth/routeHandlerUser";
-import { readLicenseContractMigrationSql } from "@/lib/license/readContractMigrationSql";
 import { getLicenseWorkspaceAccess } from "@/lib/license/workspaceAccess";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import type { LicenseRequestRow } from "@/types/license";
@@ -98,40 +97,47 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
       .maybeSingle();
 
     if (error) {
-      console.error("workspace contract save (creator):", error);
       const missingContractSchema =
         error.message?.includes("contract_body") || error.code === "PGRST204";
+      console.error("[workspace contract save] creator path failed", {
+        requestId: id,
+        userId: user.id,
+        code: error.code,
+        message: error.message,
+        missingContractSchema,
+      });
       return NextResponse.json(
-        {
-          error: missingContractSchema ? "Missing contract_body column" : "Save failed",
-          detail: error.message,
-          ...(missingContractSchema
-            ? {
-                migration_sql: readLicenseContractMigrationSql(),
-                steps: [
-                  "Supabase Dashboard (same project as NEXT_PUBLIC_SUPABASE_URL)",
-                  "SQL Editor → New query",
-                  "Paste migration SQL for license contract, then Run",
-                ],
-              }
-            : {}),
-        },
+        { error: "We couldn’t save your changes right now. Please try again in a moment." },
         { status: 500 }
       );
     }
     if (!data) {
-      return NextResponse.json({ error: "Save did not return a row." }, { status: 500 });
+      console.error("[workspace contract save] creator update returned no row", {
+        requestId: id,
+        userId: user.id,
+      });
+      return NextResponse.json(
+        { error: "We couldn’t save your changes right now. Please try again in a moment." },
+        { status: 500 }
+      );
     }
     return NextResponse.json({ request: data });
   }
 
   const admin = createServiceRoleClient();
   if (!admin) {
-    return NextResponse.json({ error: "Server misconfigured (service role)" }, { status: 503 });
+    console.error("[workspace contract save] service role client unavailable", {
+      requestId: id,
+      userId: user.id,
+    });
+    return NextResponse.json(
+      { error: "Saving is temporarily unavailable. Please try again shortly." },
+      { status: 503 }
+    );
   }
   const brandEmail = user.email?.trim().toLowerCase();
   if (!brandEmail) {
-    return NextResponse.json({ error: "Brand account must have an email." }, { status: 400 });
+    return NextResponse.json({ error: "Your brand account must have an email." }, { status: 400 });
   }
 
   const { data, error } = await admin
@@ -143,11 +149,26 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     .maybeSingle();
 
   if (error) {
-    console.error("workspace contract save (brand):", error);
-    return NextResponse.json({ error: "Save failed", detail: error.message }, { status: 500 });
+    console.error("[workspace contract save] brand path failed", {
+      requestId: id,
+      userId: user.id,
+      code: error.code,
+      message: error.message,
+    });
+    return NextResponse.json(
+      { error: "We couldn’t save your changes right now. Please try again in a moment." },
+      { status: 500 }
+    );
   }
   if (!data) {
-    return NextResponse.json({ error: "Save did not return a row." }, { status: 500 });
+    console.error("[workspace contract save] brand update returned no row", {
+      requestId: id,
+      userId: user.id,
+    });
+    return NextResponse.json(
+      { error: "We couldn’t save your changes right now. Please try again in a moment." },
+      { status: 500 }
+    );
   }
   return NextResponse.json({ request: data });
 }

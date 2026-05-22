@@ -1,7 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { readLicenseContractMigrationSql } from "@/lib/license/readContractMigrationSql";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -72,7 +71,7 @@ export async function PATCH(
   if (fetchErr) {
     console.error("license contract prefetch:", fetchErr);
     return NextResponse.json(
-      { error: "Could not load this request", detail: fetchErr.message },
+      { error: "We couldn’t load this request right now. Please try again in a moment." },
       { status: 500 }
     );
   }
@@ -109,33 +108,28 @@ export async function PATCH(
       .maybeSingle();
 
     if (error) {
-      console.error("contract save:", error);
       const missingContractSchema =
         error.message?.includes("contract_body") || error.code === "PGRST204";
-      const hint = missingContractSchema
-        ? "Your Supabase project is missing license contract columns. Open Dashboard → SQL → paste the SQL below → Run. Then save again."
-        : "Save failed";
+      console.error("[contract save] failed", {
+        requestId: id,
+        userId: user.id,
+        code: error.code,
+        message: error.message,
+        missingContractSchema,
+      });
       return NextResponse.json(
         {
-          error: hint,
-          detail: error.message,
-          ...(missingContractSchema
-            ? {
-                migration_sql: readLicenseContractMigrationSql(),
-                steps: [
-                  "Supabase Dashboard (same project as NEXT_PUBLIC_SUPABASE_URL)",
-                  "SQL Editor → New query",
-                  "Paste all SQL from migration_sql, then Run",
-                  "Wait a few seconds (schema reload is included), then click Save now",
-                ],
-              }
-            : {}),
+          error: "We couldn’t save your changes right now. Please try again in a moment.",
         },
         { status: 500 }
       );
     }
     if (!data) {
-      return NextResponse.json({ error: "Save did not return a row. Check RLS policies." }, { status: 500 });
+      console.error("[contract save] update returned no row", { requestId: id, userId: user.id });
+      return NextResponse.json(
+        { error: "We couldn’t save your changes right now. Please try again in a moment." },
+        { status: 500 }
+      );
     }
     return NextResponse.json({ request: data });
   }

@@ -92,9 +92,14 @@ export async function loadBrandDashboard(): Promise<BrandDashboardPayload> {
     .order("created_at", { ascending: false });
 
   if (error) {
+    console.error("[loadBrandDashboard] failed", {
+      userId: user.id,
+      code: error.code,
+      message: error.message,
+    });
     return {
       ...empty,
-      error: error.message,
+      error: "load_failed",
     };
   }
 
@@ -186,7 +191,12 @@ export async function loadBrandLicenseList(): Promise<{ rows: BrandLicenseListIt
     .order("created_at", { ascending: false });
 
   if (error) {
-    return { rows: [], error: error.message };
+    console.error("[loadBrandLicenseList] failed", {
+      userId: user.id,
+      code: error.code,
+      message: error.message,
+    });
+    return { rows: [], error: "load_failed" };
   }
 
   const list = (rows ?? []) as unknown as BrandLicenseRow[];

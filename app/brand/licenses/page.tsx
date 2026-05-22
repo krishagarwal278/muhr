@@ -60,8 +60,17 @@ export default async function BrandLicensesPage() {
           className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"
           role="alert"
         >
-          <p className="font-medium">Could not load licenses</p>
-          <p className="mt-1 text-red-800/90">{error}</p>
+          <p className="font-medium">We couldn’t load your licenses right now</p>
+          <p className="mt-1 text-red-800/90">
+            Refresh the page in a moment. If this keeps happening, reach us at{" "}
+            <a
+              href="mailto:support@muhr.app"
+              className="font-medium underline-offset-2 hover:underline"
+            >
+              support@muhr.app
+            </a>
+            .
+          </p>
         </div>
       ) : null}
 

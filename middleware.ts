@@ -11,6 +11,7 @@ import {
 
 const protectedPaths = [
   "/dashboard",
+  "/welcome",
   "/vault",
   "/consent",
   "/licenses",
@@ -137,6 +138,8 @@ export const config = {
   matcher: [
     "/",
     "/dashboard/:path*",
+    "/welcome",
+    "/welcome/:path*",
     "/vault/:path*",
     "/consent/:path*",
     "/licenses/:path*",

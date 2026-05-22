@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { FeeRecommendation } from "@/components/license/FeeRecommendation";
 
 const CHANNELS = [
   "Instagram",
@@ -28,6 +29,11 @@ type Props = {
   publicProfileUrl: string;
   /** When signed into the brand workspace, we bind the request to this email (read-only in the form). */
   signedInBrandEmail?: string | null;
+  /**
+   * Creator-stated minimum fee, used to anchor the fee recommendation. Optional —
+   * the engine has sensible defaults when this isn't available.
+   */
+  creatorMinLicenseFeeInr?: number | null;
 };
 
 export function LicenseRequestPanel({
@@ -37,6 +43,7 @@ export function LicenseRequestPanel({
   licensingNotes,
   publicProfileUrl,
   signedInBrandEmail = null,
+  creatorMinLicenseFeeInr = null,
 }: Props) {
   const router = useRouter();
   const lockedBrandEmail = signedInBrandEmail?.trim() ?? "";
@@ -340,6 +347,18 @@ export function LicenseRequestPanel({
           placeholder="Leave blank to negotiate"
         />
       </div>
+
+      <FeeRecommendation
+        anchor={{ minLicenseFeeInr: creatorMinLicenseFeeInr }}
+        params={{
+          durationDays: durationDays,
+          channels: channels,
+          territories: territories,
+        }}
+        onUseMid={(inr) => setBudgetInr(String(inr))}
+        onUseLow={(inr) => setBudgetInr(String(inr))}
+        onUseHigh={(inr) => setBudgetInr(String(inr))}
+      />
 
       <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-black/10 bg-neutral-50 p-3 text-sm text-neutral-900">
         <input

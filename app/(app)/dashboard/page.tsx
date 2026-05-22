@@ -8,6 +8,7 @@ import { ghostButtonVariants } from "@/components/ui/button-recipes";
 import { appPageHeaderVariants, appPageTitleVariants } from "@/components/ui/page-header";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
 import { PublicProfileShare } from "./_components/PublicProfileShare";
+import { CreatorFeeCard } from "./CreatorFeeCard";
 import { startNavTour } from "@/lib/tour/navTour";
 import type { KycStatus } from "@/types";
 
@@ -17,6 +18,26 @@ interface DashboardStats {
   openCases: number;
   hasAssets: boolean;
   pendingLicenseRequests: number;
+}
+
+/** Parse JSON only for successful responses; avoid throwing on error HTML/text. */
+async function parseApiJson(
+  res: Response,
+  label: string
+): Promise<Record<string, unknown>> {
+  if (!res.ok) {
+    console.warn(`[dashboard] ${label} request failed`, res.status);
+    return {};
+  }
+  try {
+    const data: unknown = await res.json();
+    return data !== null && typeof data === "object" && !Array.isArray(data)
+      ? (data as Record<string, unknown>)
+      : {};
+  } catch {
+    console.warn(`[dashboard] ${label} returned invalid JSON`);
+    return {};
+  }
 }
 
 const quickActions = [
@@ -72,6 +93,8 @@ export default function DashboardPage() {
     pendingLicenseRequests: 0,
   });
   const [kycStatus, setKycStatus] = useState<KycStatus | null>(null);
+  const [minLicenseFeeInr, setMinLicenseFeeInr] = useState<number | null>(null);
+  const [followerCount, setFollowerCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -86,35 +109,55 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [vaultRes, licensesRes, enforcementRes, identityRes] = await Promise.all([
+        const [vaultRes, licensesRes, enforcementRes, identityRes, profileRes] = await Promise.all([
           fetch("/api/vault"),
           fetch("/api/licenses"),
           fetch("/api/enforcement"),
           fetch("/api/identity"),
+          fetch("/api/profile"),
         ]);
 
-        const vaultData = await vaultRes.json();
-        const licensesData = await licensesRes.json();
-        const enforcementData = await enforcementRes.json();
-        const identityData = identityRes.ok ? await identityRes.json() : {};
+        const [vaultData, licensesData, enforcementData, identityData, profileData] =
+          await Promise.all([
+            parseApiJson(vaultRes, "vault"),
+            parseApiJson(licensesRes, "licenses"),
+            parseApiJson(enforcementRes, "enforcement"),
+            parseApiJson(identityRes, "identity"),
+            parseApiJson(profileRes, "profile"),
+          ]);
 
         const counts = licensesData.counts as { pending?: number; accepted?: number } | undefined;
         const pendingFromCounts = typeof counts?.pending === "number" ? counts.pending : undefined;
         const pendingLen = Array.isArray(licensesData.incomingRequests)
           ? licensesData.incomingRequests.length
           : 0;
+        const vaultAssetCount = Array.isArray(vaultData.assets) ? vaultData.assets.length : 0;
+        const activeLicenseCount = Array.isArray(licensesData.active)
+          ? licensesData.active.length
+          : 0;
+        const openCaseCount = Array.isArray(enforcementData.open)
+          ? enforcementData.open.length
+          : 0;
 
         setStats({
-          vaultAssets: vaultData.assets?.length || 0,
+          vaultAssets: vaultAssetCount,
           activeLicenses:
-            typeof counts?.accepted === "number"
-              ? counts.accepted
-              : licensesData.active?.length || 0,
-          openCases: enforcementData.open?.length || 0,
-          hasAssets: (vaultData.assets?.length || 0) > 0,
+            typeof counts?.accepted === "number" ? counts.accepted : activeLicenseCount,
+          openCases: openCaseCount,
+          hasAssets: vaultAssetCount > 0,
           pendingLicenseRequests: pendingFromCounts ?? pendingLen,
         });
-        setKycStatus((identityData.kycStatus as KycStatus) ?? "unverified");
+        setKycStatus(
+          typeof identityData.kycStatus === "string"
+            ? (identityData.kycStatus as KycStatus)
+            : "unverified"
+        );
+        setMinLicenseFeeInr(
+          typeof profileData.minLicenseFeeInr === "number" ? profileData.minLicenseFeeInr : null
+        );
+        setFollowerCount(
+          typeof profileData.followerCount === "number" ? profileData.followerCount : null
+        );
       } catch (error) {
         console.error("Failed to fetch dashboard stats:", error);
       } finally {
@@ -154,7 +197,23 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-        <div className="flex shrink-0 items-center lg:pt-1">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 lg:pt-1">
+          <Link
+            href="/welcome"
+            className={ghostButtonVariants()}
+          >
+            <svg
+              className="h-4 w-4 text-neutral-600 transition group-hover:text-neutral-900"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              aria-hidden
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+            </svg>
+            View overview
+          </Link>
           <button
             type="button"
             onClick={() => startNavTour()}
@@ -180,6 +239,14 @@ export default function DashboardPage() {
       </header>
 
       {!loading && <PublicProfileShare />}
+
+      {/* Fee recommendation card */}
+      {!loading && (
+        <CreatorFeeCard
+          minLicenseFeeInr={minLicenseFeeInr}
+          initialFollowerCount={followerCount}
+        />
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -127,20 +127,17 @@ export default async function BrandDashboardPage() {
           className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"
           role="alert"
         >
-          <p className="font-medium">Could not load license data</p>
-          <p className="mt-1 text-red-800/90">{error}</p>
-          <p className="mt-2 text-xs text-red-800/80">
-            If license rows fail to load, apply brand RLS migrations to your Supabase project:{" "}
-            <code className="rounded bg-red-100/80 px-1 font-mono text-[11px]">009_brand_dashboard_rls.sql</code>{" "}
-            (email-matched reads), and if you applied{" "}
-            <code className="rounded bg-red-100/80 px-1 font-mono text-[11px]">012_license_requests_brand_user_id.sql</code>{" "}
-            then{" "}
-            <code className="rounded bg-red-100/80 px-1 font-mono text-[11px]">
-              013_restore_brand_email_license_policies.sql
-            </code>{" "}
-            restores messaging and dashboard access for all requests where your login email matches{" "}
-            <span className="font-mono">brand_email</span>, not only rows with{" "}
-            <span className="font-mono">brand_user_id</span> set.
+          <p className="font-medium">We couldn’t load your license data right now</p>
+          <p className="mt-1 text-red-800/90">
+            Refresh the page in a moment. If this keeps happening, the Muhr team has been notified
+            and is looking into it — you can reach us at{" "}
+            <a
+              href="mailto:support@muhr.app"
+              className="font-medium underline-offset-2 hover:underline"
+            >
+              support@muhr.app
+            </a>
+            .
           </p>
         </div>
       ) : null}

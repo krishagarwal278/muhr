@@ -125,8 +125,14 @@ export async function GET() {
     .limit(120);
 
   if (error) {
-    console.error("conversations list:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[conversations list] select failed", {
+      code: error.code,
+      message: error.message,
+    });
+    return NextResponse.json(
+      { error: "We couldn’t load your conversations right now. Please try again in a moment." },
+      { status: 500 }
+    );
   }
 
   const list = (rows ?? []) as LicenseReqListRow[];

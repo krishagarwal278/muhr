@@ -67,8 +67,15 @@ export async function GET(request: Request, ctx: { params: Promise<{ id: string 
         .eq("license_request_id", id)
         .order("created_at", { ascending: true });
       if (error) {
-        console.error("workspace GET embed messages:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error("[workspace GET] embed messages failed", {
+          requestId: id,
+          code: error.code,
+          message: error.message,
+        });
+        return NextResponse.json(
+          { error: "We couldn’t load the messages right now. Please try again in a moment." },
+          { status: 500 }
+        );
       }
       messages = data ?? [];
     }

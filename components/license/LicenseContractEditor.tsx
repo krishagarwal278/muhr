@@ -34,8 +34,6 @@ export function LicenseContractEditor({
   const [mounted, setMounted] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [migrationSql, setMigrationSql] = useState<string | null>(null);
-  const [migrationSteps, setMigrationSteps] = useState<string[] | null>(null);
   const [restoredNotice, setRestoredNotice] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -72,8 +70,6 @@ export function LicenseContractEditor({
       if (readOnly) return false;
       setSaveState("saving");
       setSaveError(null);
-      setMigrationSql(null);
-      setMigrationSteps(null);
       try {
         const res = await fetch(`/api/licenses/incoming/${request.id}/contract`, {
           method: "PATCH",
@@ -82,28 +78,17 @@ export function LicenseContractEditor({
         });
         const data = (await res.json().catch(() => ({}))) as {
           error?: string;
-          detail?: string;
-          migration_sql?: string | null;
-          steps?: string[];
           request?: LicenseRequestRow;
         };
         if (!res.ok) {
           setSaveState("error");
           const msg =
-            typeof data.error === "string"
-              ? data.detail
-                ? `${data.error} (${data.detail})`
-                : data.error
-              : "Save failed";
+            typeof data.error === "string" && data.error.trim().length > 0
+              ? data.error
+              : "We couldn’t save your changes. Please try again in a moment.";
           setSaveError(msg);
-          if (typeof data.migration_sql === "string" && data.migration_sql.length > 0) {
-            setMigrationSql(data.migration_sql);
-            setMigrationSteps(Array.isArray(data.steps) ? data.steps : null);
-          }
           return false;
         }
-        setMigrationSql(null);
-        setMigrationSteps(null);
         if (data.request) {
           onRequestUpdated(data.request);
           const updated = data.request;
@@ -340,34 +325,13 @@ export function LicenseContractEditor({
       ) : null}
 
       {saveError ? (
-        <div className="space-y-3 rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-950">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm text-red-950">
           <p>{saveError}</p>
-          {migrationSql ? (
-            <div className="space-y-2 border-t border-red-200 pt-3 text-red-900">
-              {migrationSteps?.length ? (
-                <ol className="list-decimal space-y-1 pl-4 text-xs text-red-900/90">
-                  {migrationSteps.map((s) => (
-                    <li key={s}>{s}</li>
-                  ))}
-                </ol>
-              ) : null}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-medium uppercase tracking-wide text-red-800">
-                  SQL to run in Supabase
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void navigator.clipboard.writeText(migrationSql)}
-                  className="rounded-md border border-red-300 bg-white px-2 py-1 text-xs text-red-900 hover:bg-red-50"
-                >
-                  Copy SQL
-                </button>
-              </div>
-              <pre className="max-h-48 overflow-auto rounded-md border border-red-200 bg-white p-2 text-[11px] leading-relaxed text-red-950">
-                {migrationSql}
-              </pre>
-            </div>
-          ) : null}
+          <p className="mt-1 text-xs text-red-900/80">
+            Your edits are kept locally in this browser, so you won’t lose them. Try{" "}
+            <span className="font-medium">Save now</span> again — if the problem persists, our team has
+            already been alerted.
+          </p>
         </div>
       ) : null}
 
@@ -495,10 +459,8 @@ export function LicenseContractEditor({
         </p>
         {!readOnly ? (
           <p className="mt-2 text-xs leading-relaxed text-neutral-700">
-            Saves require column <span className="font-mono">contract_body</span> on{" "}
-            <span className="font-mono">license_requests</span>. If the red box shows SQL, run it in your
-            Supabase project (same URL as <span className="font-mono">NEXT_PUBLIC_SUPABASE_URL</span>), then
-            save again.
+            Drafts auto-save as you edit. We also keep a local backup in this browser, so you won’t
+            lose work if the network drops mid-edit.
           </p>
         ) : null}
       </div>

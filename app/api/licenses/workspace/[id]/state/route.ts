@@ -89,7 +89,17 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
       .from("license_requests")
       .update({ brand_payment_cleared_at: new Date().toISOString() })
       .eq("id", id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("[workspace state] mark_payment failed", {
+        requestId: id,
+        code: error.code,
+        message: error.message,
+      });
+      return NextResponse.json(
+        { error: "We couldn’t record the payment step right now. Please try again in a moment." },
+        { status: 500 }
+      );
+    }
     await applyEffectiveIfComplete(admin, id);
     const { data: next } = await admin.from("license_requests").select("*").eq("id", id).single();
     return NextResponse.json({ request: next });
@@ -111,7 +121,17 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
       .update({ agreed_budget_inr: Math.round(n) })
       .eq("id", id)
       .eq("creator_id", user.id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("[workspace state] set_agreed_budget failed", {
+        requestId: id,
+        code: error.code,
+        message: error.message,
+      });
+      return NextResponse.json(
+        { error: "We couldn’t save the agreed budget right now. Please try again in a moment." },
+        { status: 500 }
+      );
+    }
     const { data: next } = await admin.from("license_requests").select("*").eq("id", id).single();
     return NextResponse.json({ request: next });
   }
@@ -155,7 +175,18 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
         : { brand_signed_contract_at: now, brand_signatory_name: name };
 
     const { error } = await admin.from("license_requests").update(patch).eq("id", id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      console.error("[workspace state] sign failed", {
+        requestId: id,
+        side,
+        code: error.code,
+        message: error.message,
+      });
+      return NextResponse.json(
+        { error: "We couldn’t record your signature right now. Please try again in a moment." },
+        { status: 500 }
+      );
+    }
     await applyEffectiveIfComplete(admin, id);
     const { data: next } = await admin.from("license_requests").select("*").eq("id", id).single();
     return NextResponse.json({ request: next });

@@ -49,8 +49,15 @@ export async function GET(_request: Request, ctx: { params: Promise<{ id: string
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.error("license_request_messages:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("[workspace messages] select failed", {
+      requestId: id,
+      code: error.code,
+      message: error.message,
+    });
+    return NextResponse.json(
+      { error: "We couldn’t load the messages right now. Please try again in a moment." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ messages: data ?? [], role: access.role });
@@ -97,9 +104,14 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     .single();
 
   if (error) {
-    console.error("license_request_messages insert:", error);
+    console.error("[workspace messages] insert failed", {
+      requestId: id,
+      authorRole: author_role,
+      code: error.code,
+      message: error.message,
+    });
     return NextResponse.json(
-      { error: error.message.includes("does not exist") ? "Run migration 011_license_workspace_messages.sql" : error.message },
+      { error: "We couldn’t send that message right now. Please try again in a moment." },
       { status: 500 }
     );
   }

@@ -41,7 +41,7 @@ export async function GET() {
     return NextResponse.json({
       channels: [],
       territories: [],
-      blockedCategories: ["politics", "adult"],
+      blockedCategories: ["politics"],
       allowVoiceSynthesis: false,
       allowFaceReenactment: false,
       requireApprovalPerUse: true,
@@ -52,7 +52,7 @@ export async function GET() {
   return NextResponse.json({
     channels: rules.channels || [],
     territories: rules.territories || [],
-    blockedCategories: rules.blocked_categories || ["politics", "adult"],
+    blockedCategories: rules.blocked_categories || ["politics"],
     allowVoiceSynthesis: rules.allow_voice_synthesis || false,
     allowFaceReenactment: rules.allow_face_reenactment || false,
     requireApprovalPerUse: rules.require_approval_per_use ?? true,

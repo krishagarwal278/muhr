@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import { SignedStorageImage } from "@/components/ui/SignedStorageImage";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MAX_CHARACTER_PHOTOS, MIN_CHARACTER_PHOTOS } from "@/lib/profile/completion";
+import { recommendFee } from "@/lib/pricing/recommend";
 
 interface CharacterPhoto {
   id: string;
@@ -502,6 +503,7 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
               placeholder="e.g. 50000"
               className="w-full max-w-xs rounded-lg border border-black/10 px-4 py-2 text-sm outline-none"
             />
+            <MinFeeTierHint minFee={minFee} />
           </div>
           <label className="flex items-center gap-3 text-sm">
             <input
@@ -531,5 +533,44 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
         </div>
       </div>
     </div>
+  );
+}
+
+function MinFeeTierHint({ minFee }: { minFee: string }) {
+  const parsed = useMemo(() => {
+    const n = Number.parseInt(minFee, 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [minFee]);
+
+  const recommendation = useMemo(() => {
+    if (parsed == null) return null;
+    return recommendFee(
+      { minLicenseFeeInr: parsed },
+      { durationDays: 30, channels: ["Instagram", "Facebook"], territories: ["India"] }
+    );
+  }, [parsed]);
+
+  if (!parsed) {
+    return (
+      <p className="mt-1.5 text-xs text-neutral-500">
+        Set the lowest amount you’d accept for a 30-day Instagram + Facebook campaign in India.
+        We’ll use it to anchor the suggested range brands see.
+      </p>
+    );
+  }
+
+  if (!recommendation) return null;
+
+  return (
+    <p className="mt-1.5 text-xs text-neutral-600">
+      <span className="font-medium text-neutral-900">{recommendation.tier.label}</span> ·{" "}
+      {recommendation.tier.followerBand}. Brands choosing a 30-day Instagram + Facebook campaign in
+      India will see roughly{" "}
+      <span className="font-medium tabular-nums text-neutral-900">
+        ₹{recommendation.lowInr.toLocaleString("en-IN")} – ₹
+        {recommendation.highInr.toLocaleString("en-IN")}
+      </span>{" "}
+      as a starting range (mid ₹{recommendation.midInr.toLocaleString("en-IN")}). Estimate only.
+    </p>
   );
 }

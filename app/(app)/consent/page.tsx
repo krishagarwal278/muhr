@@ -38,7 +38,6 @@ const blockedCategoryOptions = [
   { id: "alcohol", label: "Alcohol" },
   { id: "gambling", label: "Gambling" },
   { id: "tobacco", label: "Tobacco" },
-  { id: "adult", label: "Adult content" },
   { id: "cryptocurrency", label: "Cryptocurrency" },
 ];
 
@@ -46,7 +45,7 @@ export default function ConsentPage() {
   const [rules, setRules] = useState<ConsentRules>({
     channels: [],
     territories: [],
-    blockedCategories: ["politics", "adult"],
+    blockedCategories: ["politics"],
     allowVoiceSynthesis: false,
     allowFaceReenactment: false,
     requireApprovalPerUse: true,

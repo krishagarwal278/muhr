@@ -66,8 +66,15 @@ export async function GET(request: Request) {
     .in("id", ids);
 
   if (rowErr) {
-    console.error("merged messages rows:", rowErr);
-    return NextResponse.json({ error: rowErr.message }, { status: 500 });
+    console.error("[merged messages] rows fetch failed", {
+      ids,
+      code: rowErr.code,
+      message: rowErr.message,
+    });
+    return NextResponse.json(
+      { error: "We couldn’t load this thread right now. Please try again in a moment." },
+      { status: 500 }
+    );
   }
 
   const list = rows ?? [];
@@ -94,8 +101,15 @@ export async function GET(request: Request) {
     .order("created_at", { ascending: true });
 
   if (msgErr) {
-    console.error("merged messages:", msgErr);
-    return NextResponse.json({ error: msgErr.message }, { status: 500 });
+    console.error("[merged messages] messages fetch failed", {
+      ids,
+      code: msgErr.code,
+      message: msgErr.message,
+    });
+    return NextResponse.json(
+      { error: "We couldn’t load this thread right now. Please try again in a moment." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ messages: messages ?? [] });

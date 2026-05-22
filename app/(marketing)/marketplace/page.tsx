@@ -22,6 +22,13 @@ export default async function MarketplacePage() {
     p_offset: 0,
   });
 
+  if (error) {
+    console.error("[marketplace] list_public_creators failed", {
+      code: error.code,
+      message: error.message,
+    });
+  }
+
   const rows: RpcRow[] = Array.isArray(data) ? (data as RpcRow[]) : [];
 
   return (
@@ -52,11 +59,16 @@ export default async function MarketplacePage() {
           className="mt-8 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
           role="status"
         >
-          <p className="font-medium">Directory unavailable</p>
-          <p className="mt-1 text-amber-950/90">{error.message}</p>
-          <p className="mt-2 text-xs text-amber-950/80">
-            Apply migration <code className="rounded bg-amber-100/80 px-1 font-mono">010_list_public_creators.sql</code>{" "}
-            in Supabase, then refresh.
+          <p className="font-medium">The creator directory is temporarily unavailable</p>
+          <p className="mt-1 text-amber-950/90">
+            Refresh the page in a moment. If it keeps happening, reach us at{" "}
+            <a
+              href="mailto:support@muhr.app"
+              className="font-medium underline-offset-2 hover:underline"
+            >
+              support@muhr.app
+            </a>
+            .
           </p>
         </div>
       ) : rows.length === 0 ? (

@@ -17,6 +17,7 @@ type PublicRow = {
   displayName: string;
   acceptingRequests: boolean;
   licensingNotes: string | null;
+  minLicenseFeeInr: number | null;
 };
 
 export function PublicCreatorClient({
@@ -159,6 +160,7 @@ export function PublicCreatorClient({
               licensingNotes={profile.licensingNotes}
               publicProfileUrl={publicProfileUrl}
               signedInBrandEmail={signedInBrandEmail}
+              creatorMinLicenseFeeInr={profile.minLicenseFeeInr}
             />
           </div>
         ) : null}

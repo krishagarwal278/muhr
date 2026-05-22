@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { LicenseCancelDialog } from "@/components/license/LicenseCancelDialog";
 import { LicenseContractEditor } from "@/components/license/LicenseContractEditor";
+import { CounterOfferForm } from "@/components/license/CounterOfferForm";
+import { CounterOffersList } from "@/components/license/CounterOffersList";
 import { cancellationReasonLabel } from "@/lib/license/cancellationReasons";
 import { ghostButtonVariants, primaryButtonVariants } from "@/components/ui/button-recipes";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
@@ -18,6 +20,19 @@ type VaultAssetRow = {
   mime_type?: string | null;
   signed_url?: string | null;
   created_at?: string;
+};
+
+type CounterOfferRow = {
+  id: string;
+  license_request_id: string;
+  channels: string[];
+  territories: string[];
+  duration_days: number;
+  proposed_budget_inr: number;
+  note: string | null;
+  status: "pending" | "accepted" | "declined";
+  created_at: string;
+  responded_at: string | null;
 };
 
 function formatInr(n: number | null | undefined): string {
@@ -79,11 +94,15 @@ export function LicenseRequestWorkspace({
   const [message, setMessage] = useState<string | null>(null);
   const [declineReason, setDeclineReason] = useState("");
   const [showDecline, setShowDecline] = useState(false);
+  const [showCounterOffer, setShowCounterOffer] = useState(false);
+  const [creatorMinLicenseFeeInr, setCreatorMinLicenseFeeInr] = useState<number | null>(null);
   const [emailBody, setEmailBody] = useState("");
   const [emailSending, setEmailSending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [assets, setAssets] = useState<VaultAssetRow[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(true);
+  const [counterOffers, setCounterOffers] = useState<CounterOfferRow[]>([]);
+  const [counterOffersLoading, setCounterOffersLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [brandSignatoryName, setBrandSignatoryName] = useState("");
 
@@ -102,23 +121,56 @@ export function LicenseRequestWorkspace({
     if (data.request) setRequest(data.request as LicenseRequestRow);
   }, [request.id, isBrand]);
 
+  const loadCounterOffers = useCallback(async () => {
+    setCounterOffersLoading(true);
+    try {
+      const res = await fetch(`/api/licenses/requests/${request.id}/counter-offers`);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && Array.isArray(data.counterOffers)) {
+        setCounterOffers(data.counterOffers as CounterOfferRow[]);
+      } else if (!res.ok && res.status !== 503) {
+        console.warn("[license workspace] counter-offers load failed", res.status);
+      }
+    } catch (e) {
+      console.warn("[license workspace] counter-offers load error", e);
+    } finally {
+      setCounterOffersLoading(false);
+    }
+  }, [request.id]);
+
   const isPending = request.status === "pending";
   const isWithdrawn = request.status === "withdrawn";
   const canEmailBrand =
     !isBrand && (request.status === "accepted" || request.status === "declined");
+  
   useEffect(() => {
     if (isBrand) {
       setAssetsLoading(false);
-      return;
     }
+    void loadCounterOffers();
+    
+    if (isBrand) return;
+    
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/vault");
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled && Array.isArray(data.assets)) {
-          setAssets(data.assets as VaultAssetRow[]);
+        const [vaultRes, profileRes] = await Promise.all([
+          fetch("/api/vault"),
+          fetch("/api/profile"),
+        ]);
+        if (!cancelled) {
+          if (vaultRes.ok) {
+            const vaultData = await vaultRes.json();
+            if (Array.isArray(vaultData.assets)) {
+              setAssets(vaultData.assets as VaultAssetRow[]);
+            }
+          }
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            if (typeof profileData.minLicenseFeeInr === "number") {
+              setCreatorMinLicenseFeeInr(profileData.minLicenseFeeInr);
+            }
+          }
         }
       } finally {
         if (!cancelled) setAssetsLoading(false);
@@ -127,7 +179,7 @@ export function LicenseRequestWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [isBrand]);
+  }, [isBrand, loadCounterOffers]);
 
   async function respond(action: "accept" | "decline") {
     setMessage(null);
@@ -150,6 +202,61 @@ export function LicenseRequestWorkspace({
       setDeclineReason("");
       setMessage(action === "accept" ? "Request accepted." : "Request declined.");
       await reloadRequest();
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitCounterOffer(offer: {
+    channels: string[];
+    territories: string[];
+    durationDays: number;
+    proposedBudgetInr: number;
+    note: string;
+  }) {
+    setMessage(null);
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/licenses/incoming/${request.id}/counter-offer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(offer),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(typeof data.error === "string" ? data.error : "Could not submit counter-offer");
+        return;
+      }
+      setShowCounterOffer(false);
+      setMessage("Counter-offer sent to the brand. They can accept or decline it.");
+      await Promise.all([reloadRequest(), loadCounterOffers()]);
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function respondToCounterOffer(counterOfferId: string, action: "accept" | "decline") {
+    setMessage(null);
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/licenses/counter-offers/${counterOfferId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(typeof data.error === "string" ? data.error : "Could not respond to counter-offer");
+        return;
+      }
+      setMessage(
+        action === "accept"
+          ? "Counter-offer accepted. The license terms have been updated."
+          : "Counter-offer declined."
+      );
+      await Promise.all([reloadRequest(), loadCounterOffers()]);
       router.refresh();
     } finally {
       setBusy(false);
@@ -378,13 +485,26 @@ export function LicenseRequestWorkspace({
         </div>
       </section>
 
+      {/* Counter-offers */}
+      {!counterOffersLoading && counterOffers.length > 0 && (
+        <CounterOffersList
+          counterOffers={counterOffers}
+          viewerRole={viewerRole}
+          onAccept={isBrand ? (id) => void respondToCounterOffer(id, "accept") : undefined}
+          onDecline={isBrand ? (id) => void respondToCounterOffer(id, "decline") : undefined}
+          busy={busy}
+        />
+      )}
+
       {isPending && !isBrand && (
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Respond</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-sm text-neutral-800">
-              Accept to move forward with payment, messaging, and delivering assets from this page.
-            </p>
+            {!showDecline && !showCounterOffer && (
+              <p className="text-sm text-neutral-800">
+                Accept to move forward, negotiate revised terms, or decline this request.
+              </p>
+            )}
             {showDecline ? (
               <div className="space-y-2">
                 <textarea
@@ -416,6 +536,17 @@ export function LicenseRequestWorkspace({
                   </button>
                 </div>
               </div>
+            ) : showCounterOffer ? (
+              <CounterOfferForm
+                creatorMinLicenseFeeInr={creatorMinLicenseFeeInr}
+                originalChannels={request.channels ?? []}
+                originalTerritories={request.territories ?? []}
+                originalDurationDays={request.duration_days ?? 30}
+                originalBudgetInr={request.budget_inr}
+                onSubmit={submitCounterOffer}
+                onCancel={() => setShowCounterOffer(false)}
+                busy={busy}
+              />
             ) : (
               <div className="flex flex-wrap gap-2">
                 <button
@@ -425,6 +556,14 @@ export function LicenseRequestWorkspace({
                   className={primaryButtonVariants()}
                 >
                   Accept request
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setShowCounterOffer(true)}
+                  className="rounded-lg border border-purple-300 bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-900 transition hover:bg-purple-200 disabled:opacity-50"
+                >
+                  Negotiate terms
                 </button>
                 <button
                   type="button"
@@ -621,15 +760,11 @@ export function LicenseRequestWorkspace({
           <h2 className="text-lg font-medium">Message the brand</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
             <p className="text-sm text-neutral-800">
-              Delivers to <span className="font-mono text-sm text-neutral-900">{request.brand_email}</span>{" "}
-              <span className="text-neutral-600">from</span>{" "}
-              <span className="font-mono text-sm text-neutral-900">communication@muhr.app</span>
-              <span className="text-neutral-600">
-                {" "}
-                (set <span className="font-mono text-xs">RESEND_FROM_EMAIL</span> if you use another verified sender).
-              </span>{" "}
-              The email quotes your text as “The creator said: …”. Requires{" "}
-              <span className="font-mono text-xs">RESEND_API_KEY</span> and a verified domain in Resend.
+              We’ll deliver your message to{" "}
+              <span className="font-mono text-sm text-neutral-900">{request.brand_email}</span> from{" "}
+              <span className="font-mono text-sm text-neutral-900">communication@muhr.app</span>. The
+              brand can reply directly to that address — replies route back to you. Your text appears
+              as a quote (“The creator said: …”) so the context is clear on their end.
             </p>
             <textarea
               value={emailBody}

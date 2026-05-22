@@ -13,6 +13,8 @@ type RpcRow = {
   profile_accepting_requests: boolean;
   /** Present after migration `007_profiles_licensing_notes_and_request_terms.sql`; older RPC rows omit this. */
   profile_licensing_notes?: string | null;
+  /** Present after migration `020_public_profile_min_fee.sql`; older RPC rows omit this. */
+  profile_min_license_fee_inr?: number | null;
 };
 
 function normalizeRpcRow(data: unknown): RpcRow | null {
@@ -56,6 +58,11 @@ export default async function PublicCreatorPage({
     displayName: row.profile_display_name || row.profile_handle,
     acceptingRequests: row.profile_accepting_requests !== false,
     licensingNotes: row.profile_licensing_notes?.trim() || null,
+    minLicenseFeeInr:
+      typeof row.profile_min_license_fee_inr === "number" &&
+      row.profile_min_license_fee_inr > 0
+        ? row.profile_min_license_fee_inr
+        : null,
   };
 
   const h = await headers();

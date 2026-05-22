@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS consent_rules (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
   channels TEXT[] DEFAULT '{}',
   territories TEXT[] DEFAULT '{}',
-  blocked_categories TEXT[] DEFAULT ARRAY['politics', 'adult'],
+  blocked_categories TEXT[] DEFAULT ARRAY['politics'],
   allow_voice_synthesis BOOLEAN DEFAULT FALSE,
   allow_face_reenactment BOOLEAN DEFAULT FALSE,
   require_approval_per_use BOOLEAN DEFAULT TRUE,

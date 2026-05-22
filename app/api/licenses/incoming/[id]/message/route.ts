@@ -99,9 +99,13 @@ ${appUrl}
   try {
     await resendSendEmail(row.brand_email, subject, text);
   } catch (e) {
-    console.error("Resend:", e);
+    console.error("[brand email send] failed", {
+      requestId: row.id,
+      brandEmail: row.brand_email,
+      message: e instanceof Error ? e.message : String(e),
+    });
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : "Could not send email" },
+      { error: "We couldn’t send that email right now. Please try again in a moment." },
       { status: 502 }
     );
   }

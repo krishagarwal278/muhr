@@ -111,15 +111,14 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     .maybeSingle();
 
   if (updErr) {
-    console.error("license cancel:", updErr);
+    console.error("[license cancel] update failed", {
+      requestId: id,
+      userId: user.id,
+      code: updErr.code,
+      message: updErr.message,
+    });
     return NextResponse.json(
-      {
-        error:
-          updErr.message?.includes("withdrawn") || updErr.code === "23514"
-            ? "Database may be missing withdrawal support. Apply migration 006_license_cancellation.sql in Supabase."
-            : "Could not withdraw license",
-        detail: updErr.message,
-      },
+      { error: "We couldn’t withdraw this license right now. Please try again in a moment." },
       { status: 500 }
     );
   }

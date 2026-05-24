@@ -1,7 +1,7 @@
 import type { KycStatus } from "@/types";
 
 export const MIN_CHARACTER_PHOTOS = 5;
-export const MAX_CHARACTER_PHOTOS = 7;
+export const MAX_CHARACTER_PHOTOS = 5;
 
 export type ProfileCompletionItemId =
   | "identity"
@@ -41,13 +41,13 @@ export function buildProfileCompletionItems(
   return [
     {
       id: "identity",
-      label: "Identity verification",
+      label: "Identity review",
       complete: identityComplete,
       href: "/settings#identity-verification",
     },
     {
       id: "character_photos",
-      label: `Upload character photos (${MIN_CHARACTER_PHOTOS}–${MAX_CHARACTER_PHOTOS} angles)`,
+      label: `Upload ${MIN_CHARACTER_PHOTOS} high-quality character photos`,
       complete: data.characterPhotoCount >= MIN_CHARACTER_PHOTOS,
       href: "/settings#complete-profile",
     },

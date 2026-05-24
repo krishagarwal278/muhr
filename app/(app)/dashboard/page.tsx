@@ -288,9 +288,10 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <h3 className="font-medium text-amber-950">Complete identity verification</h3>
+              <h3 className="font-medium text-amber-950">Submit identity review</h3>
               <p className="mt-1 text-sm text-amber-900/80">
-                Finish liveness and identity checks before uploading vault assets or using licensing workflows.
+                Set your profile overview and Instagram handle, then submit for review to unlock vault uploads.
+                No document uploads required.
               </p>
               <Link
                 href="/settings#identity-verification"

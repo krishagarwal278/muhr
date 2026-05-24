@@ -232,8 +232,8 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
       <div className="rounded-xl border border-black/10 bg-neutral-50/50 p-5 lg:col-span-2">
         <h3 className="font-semibold text-neutral-950">Upload character photos</h3>
         <p className="mt-1 text-sm text-neutral-600">
-          Upload {MIN_CHARACTER_PHOTOS}–{MAX_CHARACTER_PHOTOS} solo photos from different angles, similar to the example
-          below.
+          Upload {MIN_CHARACTER_PHOTOS} high-quality solo photos from different angles, similar to the example below.
+          Quality matters more than quantity — sharp, well-lit shots work best.
         </p>
 
         <div className="mt-4 overflow-hidden rounded-xl border border-black/10 bg-white p-3">
@@ -251,9 +251,9 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
         <div className="mt-4 rounded-lg border border-sky-200/80 bg-sky-50/80 p-3 text-xs text-sky-950">
           <p className="font-medium">Tips</p>
           <ul className="mt-2 list-inside list-disc space-y-1 text-sky-900/90">
-            <li>Solo shots only, good lighting, plain background</li>
-            <li>Include front, both profiles, and back (close-up and waist-up if possible)</li>
-            <li>High resolution (min 1080p)</li>
+            <li>High quality only — sharp focus, good lighting, plain background</li>
+            <li>Solo shots from different angles: front, both profiles, and back</li>
+            <li>Minimum 1080p resolution; avoid filters or heavy editing</li>
           </ul>
         </div>
 
@@ -444,15 +444,15 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
           </span>
         </div>
         <p className="mt-3 text-center text-sm text-neutral-700">
-          {photoCount} of {MIN_CHARACTER_PHOTOS}–{MAX_CHARACTER_PHOTOS} photos uploaded
+          {photoCount} of {MIN_CHARACTER_PHOTOS} photos uploaded
         </p>
 
         {verificationNotice && (
           <div className="mt-4 rounded-lg border border-black/10 bg-neutral-50 px-4 py-3 text-sm text-neutral-800">
             <p className="font-medium text-neutral-950">Photos received</p>
             <p className="mt-1 text-neutral-700">
-              Verification typically takes up to <strong>24 hours</strong>. If approved, we will process your character
-              sheet for brand matching and licensing.
+              We&apos;ll use these for your character sheet when you&apos;re ready for brand matching. Our team may
+              reach out if anything needs a higher-quality retake.
             </p>
           </div>
         )}

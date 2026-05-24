@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { KycStatusBadge } from "@/components/KycStatusBadge";
 import { ManualIdentityVerification } from "@/components/identity/ManualIdentityVerification";
 import { CompleteProfileSection } from "@/components/profile/CompleteProfileSection";
+import { ProfileOverviewSection } from "@/components/profile/ProfileOverviewSection";
 import { ProfileCompletionCard } from "@/components/profile/ProfileCompletionCard";
 import type { ProfileCompletionItem } from "@/lib/profile/completion";
 import type { KycStatus } from "@/types";
@@ -148,13 +149,17 @@ export default function SettingsPage() {
         <ProfileCompletionCard percent={profilePercent} items={profileItems} />
       )}
 
+      <ProfileOverviewSection onUpdated={() => void refreshCompletion()} />
+
       <div
         id="identity-verification"
         className="scroll-mt-24 rounded-xl border border-black/10 bg-white p-4 sm:p-6"
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-lg font-medium text-neutral-950">Identity verification</h2>
-          {kycStatus !== null && <KycStatusBadge status={kycStatus} />}
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-medium text-neutral-950">Identity review</h2>
+            {kycStatus !== null && <KycStatusBadge status={kycStatus} />}
+          </div>
         </div>
         <div className="mt-4">
           {kycStatus !== null ? (
@@ -199,7 +204,6 @@ export default function SettingsPage() {
               placeholder="e.g. priya_sharma"
               maxLength={30}
             />
-            <p className="mt-1 text-xs text-neutral-600">3–30 chars: lowercase letters, numbers, underscores</p>
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-neutral-900">Display name (public)</label>
@@ -284,9 +288,6 @@ export default function SettingsPage() {
         <div className="mt-4 space-y-8">
           <div id="complete-profile" className="scroll-mt-24">
             <h3 className="text-base font-medium text-neutral-950">Complete your profile</h3>
-            <p className="mt-1 text-sm text-neutral-700">
-              Character photos, measurements, and licensing setup for brand matching.
-            </p>
             <div className="mt-4">
               <CompleteProfileSection onUpdated={() => void refreshCompletion()} />
             </div>

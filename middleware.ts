@@ -11,6 +11,7 @@ import {
 
 const protectedPaths = [
   "/dashboard",
+  "/onboarding",
   "/welcome",
   "/vault",
   "/consent",
@@ -137,7 +138,9 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/",
+    "/dashboard",
     "/dashboard/:path*",
+    "/onboarding",
     "/welcome",
     "/welcome/:path*",
     "/vault/:path*",

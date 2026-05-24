@@ -4,27 +4,16 @@ import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
 
 import { sendIdentityVerificationAdminNotification } from "@/lib/email/sendIdentityVerificationAdminNotification";
-import { signIdentityVerificationFiles } from "@/lib/identity/signedVerificationFileUrls";
 import { logger } from "@/lib/logger";
+import { formatProfileAddress, isProfileBasicsComplete } from "@/lib/profile/basics";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import type { IdentityVerificationFileKind } from "@/types";
 
-const FILE_KINDS: IdentityVerificationFileKind[] = [
-  "liveness_front",
-  "liveness_left",
-  "liveness_right",
-  "social_followers",
-  "social_age",
-  "social_location",
-];
-
-const bodySchema = z.object({
-  full_name: z.string().trim().min(1).max(120),
-  phone: z.string().trim().min(5).max(40),
-  address: z.string().trim().min(3).max(500),
-  social_platform: z.string().trim().default("instagram"),
-  social_username: z.string().trim().min(1).max(80),
-});
+const bodySchema = z
+  .object({
+    social_platform: z.string().trim().optional(),
+    social_username: z.string().trim().optional(),
+  })
+  .optional();
 
 async function supabaseFromCookies() {
   const cookieStore = await cookies();
@@ -59,7 +48,9 @@ export async function POST(request: Request) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("kyc_status")
+    .select(
+      "kyc_status, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code, handle, social_platform, social_username, follower_count"
+    )
     .eq("id", user.id)
     .maybeSingle();
 
@@ -70,22 +61,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Verification already under review" }, { status: 400 });
   }
 
-  let formData: FormData;
-  try {
-    formData = await request.formData();
-  } catch {
-    return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
+  if (!isProfileBasicsComplete(profile)) {
+    return NextResponse.json(
+      { error: "Complete your profile overview (name, phone, address, followers) first." },
+      { status: 400 }
+    );
   }
 
-  const parsed = bodySchema.safeParse({
-    full_name: formData.get("full_name"),
-    phone: formData.get("phone"),
-    address: formData.get("address"),
-    social_platform: formData.get("social_platform") ?? "instagram",
-    social_username: formData.get("social_username"),
-  });
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Please complete all personal and social details." }, { status: 400 });
+  const handle =
+    typeof profile?.handle === "string" && profile.handle.trim() ? profile.handle.trim() : null;
+  if (!handle) {
+    return NextResponse.json(
+      { error: "Set your public Instagram handle in Settings before requesting review." },
+      { status: 400 }
+    );
+  }
+
+  let body: z.infer<typeof bodySchema> = {};
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    try {
+      const raw = await request.json();
+      const parsed = bodySchema.safeParse(raw);
+      if (!parsed.success) {
+        return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+      }
+      body = parsed.data ?? {};
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
   }
 
   const admin = createServiceRoleClient();
@@ -97,60 +101,19 @@ export async function POST(request: Request) {
     );
   }
 
-  const uploadedFiles: { file_kind: string; file_path: string; file_name: string }[] = [];
+  const socialPlatform =
+    body?.social_platform?.trim() ||
+    (typeof profile?.social_platform === "string" && profile.social_platform.trim()) ||
+    "instagram";
+  const socialUsername =
+    body?.social_username?.replace(/^@/, "").trim() ||
+    handle;
 
-  for (const kind of FILE_KINDS) {
-    const file = formData.get(kind);
-    if (!(file instanceof File) || file.size === 0) {
-      return NextResponse.json({ error: `Missing upload: ${kind.replace(/_/g, " ")}` }, { status: 400 });
-    }
-    if (!file.type.startsWith("image/")) {
-      return NextResponse.json({ error: "All uploads must be images." }, { status: 400 });
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: "Each image must be under 10MB." }, { status: 400 });
-    }
-
-    const ext = file.name.split(".").pop() || "jpg";
-    const filePath = `${user.id}/identity-verification/${kind}-${Date.now()}.${ext}`;
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    const { error: uploadError } = await supabase.storage.from("assets").upload(filePath, buffer, {
-      contentType: file.type,
-      upsert: true,
-    });
-    if (uploadError) {
-      console.error("identity upload:", uploadError);
-      return NextResponse.json({ error: "Failed to upload verification files." }, { status: 500 });
-    }
-
-    const { error: rowError } = await supabase.from("identity_verification_files").upsert(
-      {
-        user_id: user.id,
-        file_kind: kind,
-        file_path: filePath,
-        file_name: file.name,
-        file_size: file.size,
-        mime_type: file.type,
-      },
-      { onConflict: "user_id,file_kind" }
-    );
-    if (rowError) {
-      console.error("identity file row:", rowError);
-      return NextResponse.json({ error: "Failed to save verification record." }, { status: 500 });
-    }
-
-    uploadedFiles.push({ file_kind: kind, file_path: filePath, file_name: file.name });
-  }
-
-  const details = parsed.data;
+  const submittedAtIso = new Date().toISOString();
   const profileUpdate = {
-    full_name: details.full_name,
-    phone: details.phone,
-    address: details.address,
-    social_platform: details.social_platform,
-    social_username: details.social_username.replace(/^@/, ""),
-    identity_submitted_at: new Date().toISOString(),
+    social_platform: socialPlatform,
+    social_username: socialUsername,
+    identity_submitted_at: submittedAtIso,
     kyc_status: "pending" as const,
   };
 
@@ -164,19 +127,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to submit verification." }, { status: 500 });
   }
 
-  const submittedAtIso = profileUpdate.identity_submitted_at;
   try {
-    const filesWithUrls = await signIdentityVerificationFiles(admin, uploadedFiles);
     await sendIdentityVerificationAdminNotification({
       userId: user.id,
       userEmail: user.email ?? null,
-      fullName: details.full_name,
-      phone: details.phone,
-      address: details.address,
-      socialPlatform: details.social_platform,
-      socialUsername: profileUpdate.social_username,
+      fullName: profile!.full_name!.trim(),
+      phone: profile!.phone!.trim(),
+      address: formatProfileAddress(profile),
+      socialPlatform,
+      socialUsername,
       submittedAtIso,
-      files: filesWithUrls,
+      files: [],
+      manualReview: true,
+      followerCount:
+        typeof profile?.follower_count === "number" ? profile.follower_count : null,
+      publicProfileUrl: `/k/${handle}`,
     });
   } catch (e) {
     logger.error("identity_verification_admin_email_failed", {
@@ -188,6 +153,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     success: true,
     kycStatus: "pending",
-    message: "Your profile is being verified. We'll email you within 24 hours.",
+    message:
+      "Thanks — our team will review your profile and public handle. We may contact you if we need anything else.",
   });
 }

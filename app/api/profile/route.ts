@@ -5,6 +5,16 @@ import { NextResponse } from "next/server";
 import { getRouteHandlerUser } from "@/lib/auth/routeHandlerUser";
 import { normalizeHandle, validateHandle } from "@/lib/profile/handle";
 import { muidFromUserId } from "@/lib/profile/muid";
+import {
+  buildAddressDbFields,
+  formatProfileAddress,
+  isProfileBasicsComplete,
+  isProfileBasicsPatch,
+  isValidPhoneE164,
+  normalizePhoneE164,
+  validateAddressInput,
+  validateProfileBasicsInput,
+} from "@/lib/profile/basics";
 
 type ProfileRow = {
   handle: string | null;
@@ -13,13 +23,29 @@ type ProfileRow = {
   licensing_notes: string | null;
   min_license_fee_inr?: number | null;
   follower_count?: number | null;
+  full_name?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  address_line1?: string | null;
+  address_line2?: string | null;
+  address_city?: string | null;
+  address_pin_code?: string | null;
 };
 
 function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
   if (error.code === "42703" || error.code === "PGRST204") return true;
   const msg = error.message?.toLowerCase() ?? "";
-  return msg.includes("follower_count") || msg.includes("min_license_fee_inr");
+  return (
+    msg.includes("follower_count") ||
+    msg.includes("min_license_fee_inr") ||
+    msg.includes("full_name") ||
+    msg.includes("phone") ||
+    msg.includes("address") ||
+    msg.includes("address_line1") ||
+    msg.includes("address_city") ||
+    msg.includes("address_pin_code")
+  );
 }
 
 function profileJsonFromRow(
@@ -40,6 +66,30 @@ function profileJsonFromRow(
       typeof profile?.follower_count === "number" && profile.follower_count > 0
         ? profile.follower_count
         : null,
+    fullName:
+      typeof profile?.full_name === "string" && profile.full_name.trim()
+        ? profile.full_name.trim()
+        : null,
+    phone:
+      typeof profile?.phone === "string" && profile.phone.trim() ? profile.phone.trim() : null,
+    address: formatProfileAddress(profile) || null,
+    addressLine1:
+      typeof profile?.address_line1 === "string" && profile.address_line1.trim()
+        ? profile.address_line1.trim()
+        : null,
+    addressLine2:
+      typeof profile?.address_line2 === "string" && profile.address_line2.trim()
+        ? profile.address_line2.trim()
+        : null,
+    addressCity:
+      typeof profile?.address_city === "string" && profile.address_city.trim()
+        ? profile.address_city.trim()
+        : null,
+    addressPinCode:
+      typeof profile?.address_pin_code === "string" && profile.address_pin_code.trim()
+        ? profile.address_pin_code.trim()
+        : null,
+    profileBasicsComplete: isProfileBasicsComplete(profile),
     muid: muidFromUserId(userId),
     email: email ?? null,
   };
@@ -52,7 +102,7 @@ async function loadProfileRow(
   const full = await supabase
     .from("profiles")
     .select(
-      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count"
+      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code"
     )
     .eq("id", userId)
     .maybeSingle();
@@ -62,6 +112,21 @@ async function loadProfileRow(
   }
   if (!isMissingColumnError(full.error)) {
     return { data: null, error: full.error };
+  }
+
+  const withFollowers = await supabase
+    .from("profiles")
+    .select(
+      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count"
+    )
+    .eq("id", userId)
+    .maybeSingle();
+
+  if (!withFollowers.error) {
+    return { data: withFollowers.data as ProfileRow | null, error: null };
+  }
+  if (!isMissingColumnError(withFollowers.error)) {
+    return { data: null, error: withFollowers.error };
   }
 
   const fallback = await supabase
@@ -133,6 +198,13 @@ export async function PATCH(request: Request) {
     accepting_requests?: boolean;
     licensing_notes?: string | null;
     follower_count?: number | null;
+    full_name?: string;
+    phone?: string;
+    address?: string;
+    address_line1?: string;
+    address_line2?: string | null;
+    address_city?: string;
+    address_pin_code?: string;
   } = {};
 
   if ("handle" in body) {
@@ -166,12 +238,118 @@ export async function PATCH(request: Request) {
 
   if ("followerCount" in body) {
     const v = body.followerCount;
+    const basicsSave = isProfileBasicsPatch(body);
     if (v === null || v === "") {
+      if (basicsSave) {
+        return NextResponse.json({ error: "Follower count is required." }, { status: 400 });
+      }
       updates.follower_count = null;
     } else if (typeof v === "number" && Number.isFinite(v) && v > 0) {
       updates.follower_count = Math.min(Math.round(v), 500_000_000);
     } else {
-      return NextResponse.json({ error: "followerCount must be a positive number" }, { status: 400 });
+      return NextResponse.json(
+        { error: basicsSave ? "Follower count is required." : "followerCount must be a positive number" },
+        { status: 400 }
+      );
+    }
+  }
+
+  if ("fullName" in body) {
+    const v = body.fullName;
+    if (v === null || v === "") {
+      return NextResponse.json({ error: "fullName cannot be empty" }, { status: 400 });
+    }
+    if (typeof v !== "string") {
+      return NextResponse.json({ error: "Invalid fullName" }, { status: 400 });
+    }
+    const t = v.trim().slice(0, 120);
+    if (!t) return NextResponse.json({ error: "fullName cannot be empty" }, { status: 400 });
+    updates.full_name = t;
+    updates.display_name = t;
+  }
+
+  if ("phone" in body) {
+    const v = body.phone;
+    if (typeof v !== "string") {
+      return NextResponse.json({ error: "Invalid phone" }, { status: 400 });
+    }
+    if (!v.trim()) {
+      return NextResponse.json({ error: "Phone number is required." }, { status: 400 });
+    }
+    const normalized = normalizePhoneE164(v);
+    if (!normalized || !isValidPhoneE164(normalized)) {
+      return NextResponse.json({ error: "Enter a valid phone number with country code." }, { status: 400 });
+    }
+    updates.phone = normalized;
+  }
+
+  const hasStructuredAddress =
+    "addressLine1" in body ||
+    "addressLine2" in body ||
+    "addressCity" in body ||
+    "addressPinCode" in body;
+
+  if (hasStructuredAddress) {
+    const addressLine1 = typeof body.addressLine1 === "string" ? body.addressLine1 : "";
+    const addressLine2 = typeof body.addressLine2 === "string" ? body.addressLine2 : "";
+    const addressCity = typeof body.addressCity === "string" ? body.addressCity : "";
+    const addressPinCode = typeof body.addressPinCode === "string" ? body.addressPinCode : "";
+    const addressError = validateAddressInput({
+      addressLine1,
+      addressLine2,
+      addressCity,
+      addressPinCode,
+    });
+    if (addressError) {
+      return NextResponse.json({ error: addressError }, { status: 400 });
+    }
+    Object.assign(
+      updates,
+      buildAddressDbFields({
+        addressLine1,
+        addressLine2,
+        addressCity,
+        addressPinCode,
+      })
+    );
+  } else if ("address" in body) {
+    const v = body.address;
+    if (typeof v !== "string") {
+      return NextResponse.json({ error: "Invalid address" }, { status: 400 });
+    }
+    const t = v.trim();
+    if (t.length < 3) {
+      return NextResponse.json({ error: "Address is required." }, { status: 400 });
+    }
+    if (t.length > 500) {
+      return NextResponse.json({ error: "Address must be at most 500 characters." }, { status: 400 });
+    }
+    updates.address = t;
+  }
+
+  if (isProfileBasicsPatch(body)) {
+    const fullName = typeof body.fullName === "string" ? body.fullName : "";
+    const phone = typeof body.phone === "string" ? body.phone : "";
+    const addressLine1 = typeof body.addressLine1 === "string" ? body.addressLine1 : "";
+    const addressLine2 = typeof body.addressLine2 === "string" ? body.addressLine2 : "";
+    const addressCity = typeof body.addressCity === "string" ? body.addressCity : "";
+    const addressPinCode = typeof body.addressPinCode === "string" ? body.addressPinCode : "";
+    const followerCount =
+      typeof body.followerCount === "number" && Number.isFinite(body.followerCount)
+        ? body.followerCount
+        : 0;
+    const normalizedPhone = normalizePhoneE164(phone.trim()) ?? phone.trim();
+    const basicsError = validateProfileBasicsInput({
+      fullName,
+      phone: normalizedPhone,
+      addressLine1,
+      addressLine2,
+      addressCity,
+      addressPinCode,
+      followerCount,
+    });
+    if (basicsError) {
+      return NextResponse.json({ error: basicsError }, { status: 400 });
     }
   }
 
@@ -199,7 +377,7 @@ export async function PATCH(request: Request) {
     .update(updates)
     .eq("id", user.id)
     .select(
-      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count"
+      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code"
     )
     .single();
 
@@ -207,7 +385,16 @@ export async function PATCH(request: Request) {
     if (error.code === "23505") {
       return NextResponse.json({ error: "That handle is already taken." }, { status: 409 });
     }
-    if (isMissingColumnError(error) && "follower_count" in updates) {
+    if (
+      isMissingColumnError(error) &&
+      ("follower_count" in updates ||
+        "full_name" in updates ||
+        "phone" in updates ||
+        "address" in updates ||
+        "address_line1" in updates ||
+        "address_city" in updates ||
+        "address_pin_code" in updates)
+    ) {
       console.error("[profile PATCH] follower_count column missing", {
         userId: user.id,
         code: error.code,

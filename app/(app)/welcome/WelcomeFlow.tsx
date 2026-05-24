@@ -252,7 +252,7 @@ function FactCard({ title, body }: { title: string; body: string }) {
 const HOW_IT_WORKS_STEPS = [
   {
     title: "Upload your character photos",
-    body: "Add 5–7 solo photos from different angles. Encrypted and stored in your Vault — only you can access them.",
+    body: "Add 5 high-quality solo photos from different angles. Encrypted and stored in your Vault — only you can access them.",
     duration: "~5 min",
   },
   {
@@ -466,7 +466,7 @@ function ScreenEarnings({
 function ScreenGetStarted() {
   const items = [
     { title: "Verify your identity", href: "/settings#identity-verification", duration: "~2 min" },
-    { title: "Upload character photos (5–7)", href: "/settings#complete-profile", duration: "~5 min" },
+    { title: "Upload 5 character photos", href: "/settings#complete-profile", duration: "~5 min" },
     { title: "Set your consent rules", href: "/consent", duration: "~3 min" },
     { title: "Set your minimum license fee", href: "/settings#complete-profile", duration: "~1 min" },
   ];

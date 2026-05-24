@@ -19,6 +19,10 @@ export type IdentityVerificationAdminEmailPayload = {
   socialUsername: string;
   submittedAtIso: string;
   files: IdentityVerificationFileRow[];
+  /** No uploads — team reviews public profile and contact details. */
+  manualReview?: boolean;
+  followerCount?: number | null;
+  publicProfileUrl?: string | null;
 };
 
 function supabaseDashboardStorageUrl(): string | null {
@@ -81,8 +85,16 @@ export async function sendIdentityVerificationAdminNotification(
     ["Phone", payload.phone],
     ["Address", payload.address],
     ["Social", `${payload.socialPlatform} @${handle}`],
+    ...(payload.followerCount != null ?
+      [["Followers", payload.followerCount.toLocaleString("en-IN")] as [string, string]]
+    : []),
+    ...(payload.publicProfileUrl ?
+      [["Public profile", payload.publicProfileUrl] as [string, string]]
+    : []),
     ["Submitted (UTC)", payload.submittedAtIso],
   ];
+
+  const manual = payload.manualReview === true || payload.files.length === 0;
 
   const fileLines = payload.files.map((f) => {
     const label = fileKindLabel(f.file_kind);
@@ -91,19 +103,27 @@ export async function sendIdentityVerificationAdminNotification(
   });
 
   const text = [
-    "New Muhr identity verification submission",
+    manual ?
+      "New Muhr manual identity review request (no uploads)"
+    : "New Muhr identity verification submission",
     "",
     ...profileRows.map(([k, v]) => `${k}: ${v}`),
     "",
-    "View links (expire in 7 days) or open Supabase Storage:",
-    ...fileLines,
+    manual ?
+      "Review by cross-checking their public profile and contacting them if needed. No verification files were uploaded."
+    : "View links (expire in 7 days) or open Supabase Storage:",
+    ...(manual ? [] : fileLines),
     "",
-    `1. Table Editor → identity_verification_files (filter user_id = ${payload.userId})`,
-    `2. Storage → assets → ${payload.userId}/identity-verification/`,
-    storageUrl ? `   Storage dashboard: ${storageUrl}` : "",
-    typeof editorHint === "string" && editorHint.startsWith("http") ?
-      `   Table editor: ${editorHint}`
-    : `   ${editorHint}`,
+    manual ?
+      `Open Supabase → admin_notifications (filter user_id = ${payload.userId}) or profiles table → set kyc_status to verified or failed.`
+    : `1. Table Editor → identity_verification_files (filter user_id = ${payload.userId})`,
+    ...(manual ? [] : [
+      `2. Storage → assets → ${payload.userId}/identity-verification/`,
+      storageUrl ? `   Storage dashboard: ${storageUrl}` : "",
+      typeof editorHint === "string" && editorHint.startsWith("http") ?
+        `   Table editor: ${editorHint}`
+      : `   ${editorHint}`,
+    ]),
     "",
     "Set profiles.kyc_status to verified or failed after review.",
   ]
@@ -133,17 +153,19 @@ export async function sendIdentityVerificationAdminNotification(
 
   const html = `<!DOCTYPE html>
 <html><body style="color:#111;line-height:1.5;font-family:system-ui,sans-serif;">
-<p style="font-size:16px;font-weight:600;">Identity verification submitted</p>
-<p>A creator finished the manual verification flow. Use the <strong>view links</strong> below (expire in 7 days) or open Supabase Storage to review.</p>
+<p style="font-size:16px;font-weight:600;">${manual ? "Manual identity review requested" : "Identity verification submitted"}</p>
+<p>${manual ?
+    "A creator requested manual review. Cross-check their public profile and contact details — no verification files were uploaded."
+  : "A creator finished the manual verification flow. Use the <strong>view links</strong> below (expire in 7 days) or open Supabase Storage to review."}</p>
 <table style="border-collapse:collapse;font-size:14px;max-width:640px;margin:16px 0;">${profileTable}</table>
-<p style="font-weight:600;margin-top:20px;">Files to review</p>
+${manual ? "" : `<p style="font-weight:600;margin-top:20px;">Files to review</p>
 <ul style="padding-left:20px;">${filesList}</ul>
 <p style="margin-top:20px;font-size:14px;">
   <strong>Where to look:</strong><br/>
   Table <code>identity_verification_files</code> · Storage <code>assets/${escapeHtml(payload.userId)}/identity-verification/</code>
 </p>
-${storageLink}
-<p style="font-size:12px;color:#666;margin-top:24px;">After review, update <code>profiles.kyc_status</code> to <code>verified</code> or <code>failed</code>.</p>
+${storageLink}`}
+<p style="font-size:12px;color:#666;margin-top:24px;">After review, update <code>profiles.kyc_status</code> to <code>verified</code> or <code>failed</code>. Pending requests also appear in <code>admin_notifications</code>.</p>
 </body></html>`;
 
   const from = process.env.RESEND_FROM_EMAIL?.trim() || "Muhr <communication@muhr.app>";

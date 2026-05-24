@@ -19,7 +19,7 @@ interface UserProfile {
   email: string;
 }
 
-type NavIconName = "home" | "users" | "key" | "photo" | "card" | "settings";
+type NavIconName = "home" | "users" | "key" | "photo" | "card" | "user";
 
 function NavIcon({ name, className }: { name: NavIconName; className?: string }) {
   const icons: Record<NavIconName, React.ReactNode> = {
@@ -68,7 +68,7 @@ function NavIcon({ name, className }: { name: NavIconName; className?: string })
         />
       </svg>
     ),
-    settings: (
+    user: (
       <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
         <path
           strokeLinecap="round"
@@ -262,14 +262,14 @@ export default function BrandLayout({ children }: { children: React.ReactNode })
           Billing
         </Link>
         <Link
-          href="/brand/settings"
+          href="/brand/profile"
           className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-            pathname.startsWith("/brand/settings")
+            pathname.startsWith("/brand/profile")
               ? "bg-black/5 text-neutral-950"
               : "text-neutral-800 hover:bg-black/5 hover:text-neutral-950"
           }`}
         >
-          Settings
+          Profile
         </Link>
       </nav>
 
@@ -310,15 +310,15 @@ export default function BrandLayout({ children }: { children: React.ReactNode })
             <NavIcon name="card" className="h-5 w-5 shrink-0" />
             Billing
           </Link>
-          <Link href="/brand/settings" className={navLinkClass(pathname.startsWith("/brand/settings"))}>
-            <NavIcon name="settings" className="h-5 w-5 shrink-0" />
-            Settings
+          <Link href="/brand/profile" className={navLinkClass(pathname.startsWith("/brand/profile"))}>
+            <NavIcon name="user" className="h-5 w-5 shrink-0" />
+            Profile
           </Link>
         </nav>
         <div className="border-t border-neutral-200/80 bg-neutral-50/50 p-4">
           <div className="flex items-center gap-1">
             <Link
-              href="/brand/settings"
+              href="/brand/profile"
               className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 -m-2 transition hover:bg-black/5"
             >
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-600 text-sm font-semibold text-white">

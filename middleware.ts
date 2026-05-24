@@ -17,7 +17,7 @@ const protectedPaths = [
   "/consent",
   "/licenses",
   "/enforcement",
-  "/settings",
+  "/profile",
   "/update-password",
   "/brand",
 ];
@@ -147,7 +147,7 @@ export const config = {
     "/consent/:path*",
     "/licenses/:path*",
     "/enforcement/:path*",
-    "/settings/:path*",
+    "/profile/:path*",
     "/update-password",
     "/brand",
     "/brand/:path*",

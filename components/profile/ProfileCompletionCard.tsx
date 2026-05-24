@@ -70,7 +70,7 @@ export function ProfileCompletionCard({ percent, items, compact }: ProfileComple
         <p className="mt-2 text-sm text-neutral-700">
           {incomplete.length} task{incomplete.length !== 1 ? "s" : ""} remaining —{" "}
           <Link
-            href="/settings#complete-profile"
+            href="/profile#complete-profile"
             className="font-medium text-neutral-950 underline-offset-2 hover:underline"
           >
             Continue setup

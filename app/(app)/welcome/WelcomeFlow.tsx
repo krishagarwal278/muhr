@@ -465,10 +465,10 @@ function ScreenEarnings({
 
 function ScreenGetStarted() {
   const items = [
-    { title: "Verify your identity", href: "/settings#identity-verification", duration: "~2 min" },
-    { title: "Upload 5 character photos", href: "/settings#complete-profile", duration: "~5 min" },
+    { title: "Verify your identity", href: "/profile#identity-verification", duration: "~2 min" },
+    { title: "Upload 5 character photos", href: "/profile#complete-profile", duration: "~5 min" },
     { title: "Set your consent rules", href: "/consent", duration: "~3 min" },
-    { title: "Set your minimum license fee", href: "/settings#complete-profile", duration: "~1 min" },
+    { title: "Set your minimum license fee", href: "/profile#complete-profile", duration: "~1 min" },
   ];
 
   return (

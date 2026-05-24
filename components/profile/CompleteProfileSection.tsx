@@ -24,19 +24,43 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
   const [photoActionId, setPhotoActionId] = useState<string | null>(null);
   const [viewPhoto, setViewPhoto] = useState<CharacterPhoto | null>(null);
   const [savingMeasures, setSavingMeasures] = useState(false);
+  const [measurementsEditing, setMeasurementsEditing] = useState(false);
+  const [measurementsSaveOk, setMeasurementsSaveOk] = useState(false);
+  const [measurementsSaveError, setMeasurementsSaveError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [verificationNotice, setVerificationNotice] = useState(false);
 
-  const [height, setHeight] = useState("");
-  const [weight, setWeight] = useState("");
-  const [chest, setChest] = useState("");
-  const [waist, setWaist] = useState("");
-  const [hips, setHips] = useState("");
-  const [shoeSize, setShoeSize] = useState("");
-  const [minFee, setMinFee] = useState("");
-  const [consentVideo, setConsentVideo] = useState(false);
-  const [licenseSigned, setLicenseSigned] = useState(false);
+  const [savedMeasurements, setSavedMeasurements] = useState({
+    height: "",
+    weight: "",
+    chest: "",
+    waist: "",
+    hips: "",
+    shoeSize: "",
+  });
+  const [editMeasurements, setEditMeasurements] = useState({
+    height: "",
+    weight: "",
+    chest: "",
+    waist: "",
+    hips: "",
+    shoeSize: "",
+  });
+  const [savedSetup, setSavedSetup] = useState({
+    minFee: "",
+    consentVideo: false,
+    licenseSigned: false,
+  });
+  const [editSetup, setEditSetup] = useState({
+    minFee: "",
+    consentVideo: false,
+    licenseSigned: false,
+  });
+  const [setupEditing, setSetupEditing] = useState(false);
+  const [setupSaveOk, setSetupSaveOk] = useState(false);
+  const [setupSaveError, setSetupSaveError] = useState<string | null>(null);
+  const [savingSetup, setSavingSetup] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,15 +92,23 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
     }
     if (measuresRes.ok) {
       const m = await measuresRes.json();
-      setHeight(m.height ?? "");
-      setWeight(m.weight ?? "");
-      setChest(m.chest ?? "");
-      setWaist(m.waist ?? "");
-      setHips(m.hips ?? "");
-      setShoeSize(m.shoeSize ?? "");
-      setMinFee(m.minLicenseFeeInr != null ? String(m.minLicenseFeeInr) : "");
-      setConsentVideo(m.consentVideoCompleted === true);
-      setLicenseSigned(m.platformLicenseSigned === true);
+      const measurements = {
+        height: m.height ?? "",
+        weight: m.weight ?? "",
+        chest: m.chest ?? "",
+        waist: m.waist ?? "",
+        hips: m.hips ?? "",
+        shoeSize: m.shoeSize ?? "",
+      };
+      setSavedMeasurements(measurements);
+      setEditMeasurements(measurements);
+      const setup = {
+        minFee: m.minLicenseFeeInr != null ? String(m.minLicenseFeeInr) : "",
+        consentVideo: m.consentVideoCompleted === true,
+        licenseSigned: m.platformLicenseSigned === true,
+      };
+      setSavedSetup(setup);
+      setEditSetup(setup);
     }
   }, []);
 
@@ -180,40 +212,80 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
     }
   }
 
-  async function saveMeasurements(e: React.FormEvent) {
-    e.preventDefault();
+  function startMeasurementsEdit() {
+    setEditMeasurements({ ...savedMeasurements });
+    setMeasurementsSaveError(null);
+    setMeasurementsSaveOk(false);
+    setMeasurementsEditing(true);
+  }
+
+  async function saveMeasurements() {
     setSavingMeasures(true);
-    setError(null);
+    setMeasurementsSaveError(null);
+    setMeasurementsSaveOk(false);
     try {
       const res = await fetch("/api/profile/measurements", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ height, weight, chest, waist, hips, shoe_size: shoeSize }),
+        body: JSON.stringify({
+          height: editMeasurements.height,
+          weight: editMeasurements.weight,
+          chest: editMeasurements.chest,
+          waist: editMeasurements.waist,
+          hips: editMeasurements.hips,
+          shoe_size: editMeasurements.shoeSize,
+        }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(typeof data.error === "string" ? data.error : "Could not save");
+        setMeasurementsSaveError(typeof data.error === "string" ? data.error : "Could not save");
         return;
       }
-      setOk("Measurements saved");
+      setSavedMeasurements({ ...editMeasurements });
+      setMeasurementsEditing(false);
+      setMeasurementsSaveOk(true);
+      setTimeout(() => setMeasurementsSaveOk(false), 2500);
       onUpdated?.();
     } finally {
       setSavingMeasures(false);
     }
   }
 
-  async function saveOnboardingFlags() {
-    const fee = minFee.trim() ? parseInt(minFee, 10) : undefined;
-    await fetch("/api/profile/onboarding", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...(fee && fee > 0 ? { minLicenseFeeInr: fee } : {}),
-        consentVideoCompleted: consentVideo,
-        platformLicenseSigned: licenseSigned,
-      }),
-    });
-    onUpdated?.();
+  function startSetupEdit() {
+    setEditSetup({ ...savedSetup });
+    setSetupSaveError(null);
+    setSetupSaveOk(false);
+    setSetupEditing(true);
+  }
+
+  async function saveSetup() {
+    setSavingSetup(true);
+    setSetupSaveError(null);
+    setSetupSaveOk(false);
+    try {
+      const fee = editSetup.minFee.trim() ? parseInt(editSetup.minFee, 10) : undefined;
+      const res = await fetch("/api/profile/onboarding", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(fee && fee > 0 ? { minLicenseFeeInr: fee } : {}),
+          consentVideoCompleted: editSetup.consentVideo,
+          platformLicenseSigned: editSetup.licenseSigned,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setSetupSaveError(typeof data.error === "string" ? data.error : "Could not save");
+        return;
+      }
+      setSavedSetup({ ...editSetup });
+      setSetupEditing(false);
+      setSetupSaveOk(true);
+      setTimeout(() => setSetupSaveOk(false), 2500);
+      onUpdated?.();
+    } finally {
+      setSavingSetup(false);
+    }
   }
 
   return (
@@ -458,80 +530,213 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
         )}
       </div>
 
-      <form onSubmit={(e) => void saveMeasurements(e)} className="rounded-xl border border-black/10 bg-neutral-50/50 p-5">
-        <h3 className="font-semibold text-neutral-950">Physical measurements</h3>
-        <p className="mt-1 text-sm text-neutral-600">Help brands find the right fit</p>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          {[
-            { label: "Height", value: height, set: setHeight, ph: "5'10\"" },
-            { label: "Weight", value: weight, set: setWeight, ph: "165 lbs" },
-            { label: "Chest", value: chest, set: setChest, ph: '38"' },
-            { label: "Waist", value: waist, set: setWaist, ph: '32"' },
-            { label: "Hips", value: hips, set: setHips, ph: '36"' },
-            { label: "Shoe size", value: shoeSize, set: setShoeSize, ph: "10 US" },
-          ].map((field) => (
-            <div key={field.label}>
-              <label className="mb-1 block text-xs font-medium text-neutral-700">{field.label}</label>
-              <input
-                value={field.value}
-                onChange={(e) => field.set(e.target.value)}
-                placeholder={field.ph}
-                className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/20"
-              />
-            </div>
-          ))}
-        </div>
-        <button
-          type="submit"
-          disabled={savingMeasures}
-          className="mt-4 w-full rounded-lg bg-neutral-950 py-2.5 text-sm font-medium text-white disabled:opacity-60"
-        >
-          {savingMeasures ? "Saving…" : "Save measurements"}
-        </button>
-      </form>
-
-      <div className="lg:col-span-2 rounded-xl border border-black/10 bg-white p-5">
-        <h3 className="font-medium text-neutral-950">Additional setup</h3>
-        <div className="mt-4 space-y-4">
+      <div className="rounded-xl border border-black/10 bg-white p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <label className="mb-1.5 block text-sm font-medium">Minimum license fee (INR)</label>
-            <input
-              type="number"
-              min={1}
-              value={minFee}
-              onChange={(e) => setMinFee(e.target.value)}
-              placeholder="e.g. 50000"
-              className="w-full max-w-xs rounded-lg border border-black/10 px-4 py-2 text-sm outline-none"
-            />
-            <MinFeeTierHint minFee={minFee} />
+            <h3 className="font-semibold text-neutral-950">Physical measurements</h3>
+            <p className="mt-1 text-sm text-neutral-600">Help brands find the right fit</p>
           </div>
-          <label className="flex items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={consentVideo}
-              onChange={(e) => setConsentVideo(e.target.checked)}
-              className="accent-neutral-950"
-            />
-            I have recorded my consent video (or will upload soon)
-          </label>
-          <label className="flex items-center gap-3 text-sm">
-            <input
-              type="checkbox"
-              checked={licenseSigned}
-              onChange={(e) => setLicenseSigned(e.target.checked)}
-              className="accent-neutral-950"
-            />
-            I agree to the Muhr platform license terms
-          </label>
-          <button
-            type="button"
-            onClick={() => void saveOnboardingFlags()}
-            className="rounded-lg border border-black/10 px-4 py-2 text-sm font-medium hover:bg-neutral-50"
-          >
-            Save additional setup
-          </button>
+          {!measurementsEditing && (
+            <button
+              type="button"
+              onClick={startMeasurementsEdit}
+              className="rounded-lg border border-black/10 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+
+        {measurementsSaveError && (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+            {measurementsSaveError}
+          </p>
+        )}
+        {measurementsSaveOk && (
+          <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+            Measurements saved.
+          </p>
+        )}
+
+        <div className="mt-4">
+          {measurementsEditing ? (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "Height", key: "height" as const, ph: "5'10\"" },
+                  { label: "Weight", key: "weight" as const, ph: "75 kgs" },
+                  { label: "Chest", key: "chest" as const, ph: '38"' },
+                  { label: "Waist", key: "waist" as const, ph: '32"' },
+                  { label: "Hips", key: "hips" as const, ph: '36"' },
+                  { label: "Shoe size", key: "shoeSize" as const, ph: "10 US" },
+                ].map((field) => (
+                  <div key={field.label}>
+                    <label className="mb-1 block text-xs font-medium text-neutral-700">{field.label}</label>
+                    <input
+                      value={editMeasurements[field.key]}
+                      onChange={(e) => setEditMeasurements({ ...editMeasurements, [field.key]: e.target.value })}
+                      placeholder={field.ph}
+                      className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/20"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void saveMeasurements()}
+                  disabled={savingMeasures}
+                  className="rounded-lg bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-60"
+                >
+                  {savingMeasures ? "Saving…" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMeasurementsEditing(false);
+                    setMeasurementsSaveError(null);
+                    setEditMeasurements({ ...savedMeasurements });
+                  }}
+                  className="text-sm font-medium text-neutral-600 underline-offset-2 hover:text-neutral-900 hover:underline"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <dl className="grid grid-cols-2 gap-4">
+              <MeasurementItem label="Height" value={savedMeasurements.height || "—"} />
+              <MeasurementItem label="Weight" value={savedMeasurements.weight || "—"} />
+              <MeasurementItem label="Chest" value={savedMeasurements.chest || "—"} />
+              <MeasurementItem label="Waist" value={savedMeasurements.waist || "—"} />
+              <MeasurementItem label="Hips" value={savedMeasurements.hips || "—"} />
+              <MeasurementItem label="Shoe size" value={savedMeasurements.shoeSize || "—"} />
+            </dl>
+          )}
         </div>
       </div>
+
+      <div className="lg:col-span-2 rounded-xl border border-black/10 bg-white p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-medium text-neutral-950">Additional setup</h3>
+            <p className="mt-1 text-sm text-neutral-600">Licensing preferences and agreements</p>
+          </div>
+          {!setupEditing && (
+            <button
+              type="button"
+              onClick={startSetupEdit}
+              className="rounded-lg border border-black/10 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+
+        {setupSaveError && (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+            {setupSaveError}
+          </p>
+        )}
+        {setupSaveOk && (
+          <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+            Setup saved.
+          </p>
+        )}
+
+        <div className="mt-4">
+          {setupEditing ? (
+            <>
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium">Minimum license fee (INR)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={editSetup.minFee}
+                    onChange={(e) => setEditSetup({ ...editSetup, minFee: e.target.value })}
+                    placeholder="e.g. 50000"
+                    className="w-full max-w-xs rounded-lg border border-black/10 px-4 py-2 text-sm outline-none"
+                  />
+                  <MinFeeTierHint minFee={editSetup.minFee} />
+                </div>
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={editSetup.consentVideo}
+                    onChange={(e) => setEditSetup({ ...editSetup, consentVideo: e.target.checked })}
+                    className="accent-neutral-950"
+                  />
+                  I have recorded my consent video (or will upload soon)
+                </label>
+                <label className="flex items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={editSetup.licenseSigned}
+                    onChange={(e) => setEditSetup({ ...editSetup, licenseSigned: e.target.checked })}
+                    className="accent-neutral-950"
+                  />
+                  I agree to the Muhr platform license terms
+                </label>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void saveSetup()}
+                  disabled={savingSetup}
+                  className="rounded-lg bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-60"
+                >
+                  {savingSetup ? "Saving…" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSetupEditing(false);
+                    setSetupSaveError(null);
+                    setEditSetup({ ...savedSetup });
+                  }}
+                  className="text-sm font-medium text-neutral-600 underline-offset-2 hover:text-neutral-900 hover:underline"
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          ) : (
+            <dl className="space-y-3">
+              <SetupItem
+                label="Minimum license fee"
+                value={savedSetup.minFee ? `₹${parseInt(savedSetup.minFee, 10).toLocaleString("en-IN")}` : "—"}
+              />
+              <SetupItem
+                label="Consent video recorded"
+                value={savedSetup.consentVideo ? "Yes" : "No"}
+              />
+              <SetupItem
+                label="Platform license terms"
+                value={savedSetup.licenseSigned ? "Agreed" : "Not agreed"}
+              />
+            </dl>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MeasurementItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{label}</dt>
+      <dd className="mt-1 text-sm text-neutral-950">{value}</dd>
+    </div>
+  );
+}
+
+function SetupItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <dt className="text-sm text-neutral-700">{label}</dt>
+      <dd className="text-sm font-medium text-neutral-950">{value}</dd>
     </div>
   );
 }
@@ -564,13 +769,13 @@ function MinFeeTierHint({ minFee }: { minFee: string }) {
   return (
     <p className="mt-1.5 text-xs text-neutral-600">
       <span className="font-medium text-neutral-900">{recommendation.tier.label}</span> ·{" "}
-      {recommendation.tier.followerBand}. Brands choosing a 30-day Instagram + Facebook campaign in
-      India will see roughly{" "}
+      {recommendation.tier.followerBand}. 30-day Insta + FB campaign in
+      India will roughly see{" "}
       <span className="font-medium tabular-nums text-neutral-900">
         ₹{recommendation.lowInr.toLocaleString("en-IN")} – ₹
         {recommendation.highInr.toLocaleString("en-IN")}
       </span>{" "}
-      as a starting range (mid ₹{recommendation.midInr.toLocaleString("en-IN")}). Estimate only.
+      between (mid ₹{recommendation.midInr.toLocaleString("en-IN")}). Estimate only.
     </p>
   );
 }

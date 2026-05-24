@@ -19,7 +19,7 @@ describe("profile basics", () => {
     expect(buildPhoneE164("+1", "4155550100")).toBe("+14155550100");
   });
 
-  it("validates complete profile rows with structured address", () => {
+  it("validates complete profile rows with structured address and license consent", () => {
     expect(
       isProfileBasicsComplete({
         full_name: "Priya Sharma",
@@ -28,14 +28,27 @@ describe("profile basics", () => {
         address_city: "Mumbai",
         address_pin_code: "400001",
         follower_count: 25000,
+        platform_license_signed: true,
       })
     ).toBe(true);
     expect(
       isProfileBasicsComplete({
         full_name: "Priya Sharma",
         phone: "+919876543210",
+        address_line1: "12 Marine Drive",
+        address_city: "Mumbai",
+        address_pin_code: "400001",
+        follower_count: 25000,
+        platform_license_signed: false,
+      })
+    ).toBe(false);
+    expect(
+      isProfileBasicsComplete({
+        full_name: "Priya Sharma",
+        phone: "+919876543210",
         address: "Mumbai, Maharashtra, India",
         follower_count: 25000,
+        platform_license_signed: true,
       })
     ).toBe(false);
     expect(
@@ -46,6 +59,7 @@ describe("profile basics", () => {
         address_city: "Mumbai",
         address_pin_code: "400001",
         follower_count: null,
+        platform_license_signed: true,
       })
     ).toBe(false);
   });

@@ -20,9 +20,12 @@
 
 export type PricingTierId =
   | "emerging"
+  | "rising"
   | "established"
   | "mid_tier"
+  | "growing"
   | "major"
+  | "notable"
   | "top_tier";
 
 export interface PricingTier {
@@ -42,19 +45,30 @@ export const PRICING_TIERS: Record<PricingTierId, PricingTier> = {
   emerging: {
     id: "emerging",
     label: "Emerging creator",
-    followerBand: "Under ~10K followers",
-    baseInr: 11_000,
+    followerBand: "Under 30K followers",
+    baseInr: 7_000,
     description: "Growing audience with strong authenticity in a niche community.",
     comparables: [
       "Comparable to user-generated content campaigns",
       "Higher trust per impression than paid social",
     ],
   },
+  rising: {
+    id: "rising",
+    label: "Rising creator",
+    followerBand: "30K–50K followers",
+    baseInr: 12_000,
+    description: "Building momentum with consistent engagement and growing reach.",
+    comparables: [
+      "Comparable to niche micro-influencer campaigns",
+      "Strong community engagement metrics",
+    ],
+  },
   established: {
     id: "established",
     label: "Established creator",
-    followerBand: "~10K–100K followers",
-    baseInr: 32_000,
+    followerBand: "50K–100K followers",
+    baseInr: 19_000,
     description: "Proven track record with engaged followers and prior brand work.",
     comparables: [
       "Standard micro-influencer rates in India",
@@ -64,30 +78,52 @@ export const PRICING_TIERS: Record<PricingTierId, PricingTier> = {
   mid_tier: {
     id: "mid_tier",
     label: "Mid-tier creator",
-    followerBand: "~100K–500K followers",
-    baseInr: 88_000,
+    followerBand: "100K–250K followers",
+    baseInr: 38_000,
     description: "Recognised name with professional-grade content and significant reach.",
     comparables: [
       "Comparable to regional print and out-of-home placements",
       "Standard for professional influencer campaigns",
     ],
   },
+  growing: {
+    id: "growing",
+    label: "Growing creator",
+    followerBand: "250K–500K followers",
+    baseInr: 65_000,
+    description: "Substantial audience with strong brand partnership potential.",
+    comparables: [
+      "Comparable to regional digital campaigns",
+      "Mid-range influencer marketing rates",
+    ],
+  },
   major: {
     id: "major",
     label: "Major creator",
-    followerBand: "~500K–1M followers",
-    baseInr: 210_000,
+    followerBand: "500K–800K followers",
+    baseInr: 100_000,
     description: "Major digital personality with mass reach and brand-association value.",
     comparables: [
       "Comparable to regional TV spots and metro billboards",
       "Higher than typical influencer-marketing averages",
     ],
   },
+  notable: {
+    id: "notable",
+    label: "Notable creator",
+    followerBand: "800K–1.3M followers",
+    baseInr: 160_000,
+    description: "High-profile creator with significant cultural influence.",
+    comparables: [
+      "Comparable to premium digital campaigns",
+      "Near-celebrity endorsement value",
+    ],
+  },
   top_tier: {
     id: "top_tier",
     label: "Top-tier creator",
-    followerBand: "1M+ followers",
-    baseInr: 525_000,
+    followerBand: "1.3M–2M+ followers",
+    baseInr: 250_000,
     description: "National reach; brand association carries reputational weight.",
     comparables: [
       "Comparable to celebrity endorsement rates",
@@ -98,9 +134,12 @@ export const PRICING_TIERS: Record<PricingTierId, PricingTier> = {
 
 export const PRICING_TIER_ORDER: PricingTierId[] = [
   "emerging",
+  "rising",
   "established",
   "mid_tier",
+  "growing",
   "major",
+  "notable",
   "top_tier",
 ];
 
@@ -168,10 +207,13 @@ export const NON_GLOBAL_MULTIPLIER_CAP = 1.65;
  */
 export const RANGE_WIDTH_BY_TIER: Record<PricingTierId, number> = {
   emerging: 0.35,
+  rising: 0.32,
   established: 0.3,
-  mid_tier: 0.25,
+  mid_tier: 0.27,
+  growing: 0.25,
   major: 0.22,
-  top_tier: 0.2,
+  notable: 0.2,
+  top_tier: 0.18,
 };
 
 /** Round recommended amounts to the nearest multiple of this (₹). */
@@ -180,10 +222,13 @@ export const ROUNDING_UNIT_INR = 1_000;
 /** Classify a creator's self-stated minimum fee into a tier. */
 export function tierFromMinFeeInr(minFeeInr: number | null | undefined): PricingTierId {
   if (!minFeeInr || minFeeInr <= 0) return DEFAULT_TIER_ID;
-  if (minFeeInr < 20_000) return "emerging";
-  if (minFeeInr < 75_000) return "established";
-  if (minFeeInr < 2_50_000) return "mid_tier";
-  if (minFeeInr < 7_50_000) return "major";
+  if (minFeeInr < 10_000) return "emerging";
+  if (minFeeInr < 15_000) return "rising";
+  if (minFeeInr < 28_000) return "established";
+  if (minFeeInr < 50_000) return "mid_tier";
+  if (minFeeInr < 80_000) return "growing";
+  if (minFeeInr < 130_000) return "major";
+  if (minFeeInr < 200_000) return "notable";
   return "top_tier";
 }
 
@@ -194,9 +239,12 @@ export function tierFromMinFeeInr(minFeeInr: number | null | undefined): Pricing
  */
 export function tierFromFollowerCount(followers: number | null | undefined): PricingTierId | null {
   if (!followers || followers <= 0) return null;
-  if (followers >= 1_000_000) return "top_tier";
+  if (followers >= 1_300_000) return "top_tier";
+  if (followers >= 800_000) return "notable";
   if (followers >= 500_000) return "major";
+  if (followers >= 250_000) return "growing";
   if (followers >= 100_000) return "mid_tier";
-  if (followers >= 10_000) return "established";
+  if (followers >= 50_000) return "established";
+  if (followers >= 30_000) return "rising";
   return "emerging";
 }

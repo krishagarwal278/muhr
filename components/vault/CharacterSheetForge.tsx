@@ -197,13 +197,13 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
             <h2 className="text-2xl font-semibold tracking-tight">Build your character sheet</h2>
             <p className="text-sm" style={{ color: t.textMuted }}>
               {sealed
-                ? "Your encrypted sheet is in the Vault. Regenerate anytime to rebuild from your latest photos and measurements in Settings."
+                ? "Your encrypted sheet is in the Vault. Regenerate anytime to rebuild from your latest photos and measurements in Profile."
                 : "Turn your photos and measurements into a brand-ready reference sheet. Export it for outreach, then seal an encrypted copy in your Vault."}
             </p>
 
             {sealed && (
               <p className="text-xs" style={{ color: t.textDim }}>
-                {status.photoCount}/{status.minPhotos} photos · {status.hasMeasurements ? "Stats synced" : "Add measurements in Settings"}
+                {status.photoCount}/{status.minPhotos} photos · {status.hasMeasurements ? "Stats synced" : "Add measurements in Profile"}
               </p>
             )}
 
@@ -245,7 +245,7 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
               </>
             ) : locked ? (
               <Link
-                href="/settings#complete-profile"
+                href="/profile#complete-profile"
                 className="rounded-lg border border-white/15 bg-white/5 px-5 py-2.5 text-center text-sm font-medium transition hover:bg-white/10"
               >
                 Complete profile first
@@ -300,7 +300,7 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
                 </h3>
                 <p className="mt-2 max-w-sm text-sm" style={{ color: t.textMuted }}>
                   {isRegenerate
-                    ? "Loading your latest photos from Settings and composing a new sheet."
+                    ? "Loading your latest photos from Profile and composing a new sheet."
                     : "Composing your reference angles and measurements."}
                 </p>
                 <div className="mt-6 h-2 w-64 overflow-hidden rounded-full" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>

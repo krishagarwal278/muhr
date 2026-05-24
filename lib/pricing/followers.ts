@@ -1,11 +1,11 @@
 import { tierFromFollowerCount, type PricingTierId } from "./tiers";
 
-/** Slider floor (1K) and ceiling (2M) for dashboard estimates. */
-export const FOLLOWER_SLIDER_MIN = 1_000;
+/** Slider floor (10K) and ceiling (2M) for dashboard estimates. */
+export const FOLLOWER_SLIDER_MIN = 10_000;
 export const FOLLOWER_SLIDER_MAX = 2_000_000;
 
 /** Default when the creator has not set a count yet (~mid established band). */
-export const FOLLOWER_SLIDER_DEFAULT = 25_000;
+export const FOLLOWER_SLIDER_DEFAULT = 75_000;
 
 /** Tier band lower bounds for the spectrum UI (inclusive). */
 export const FOLLOWER_TIER_BANDS: Array<{
@@ -13,11 +13,14 @@ export const FOLLOWER_TIER_BANDS: Array<{
   minFollowers: number;
   label: string;
 }> = [
-  { tierId: "emerging", minFollowers: 0, label: "<10K" },
-  { tierId: "established", minFollowers: 10_000, label: "10K–100K" },
-  { tierId: "mid_tier", minFollowers: 100_000, label: "100K–500K" },
-  { tierId: "major", minFollowers: 500_000, label: "500K–1M" },
-  { tierId: "top_tier", minFollowers: 1_000_000, label: "1M+" },
+  { tierId: "emerging", minFollowers: 0, label: "<30K" },
+  { tierId: "rising", minFollowers: 30_000, label: "30K–50K" },
+  { tierId: "established", minFollowers: 50_000, label: "50K–100K" },
+  { tierId: "mid_tier", minFollowers: 100_000, label: "100K–250K" },
+  { tierId: "growing", minFollowers: 250_000, label: "250K–500K" },
+  { tierId: "major", minFollowers: 500_000, label: "500K–800K" },
+  { tierId: "notable", minFollowers: 800_000, label: "800K–1.3M" },
+  { tierId: "top_tier", minFollowers: 1_300_000, label: "1.3M+" },
 ];
 
 export function formatFollowerCount(n: number): string {

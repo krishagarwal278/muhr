@@ -195,7 +195,7 @@ export default function VaultUploadPage() {
             Vault uploads are unlocked after your identity and liveness checks succeed.
           </p>
           <Link
-            href="/settings#identity-verification"
+            href="/profile#identity-verification"
             className="mt-6 inline-flex rounded-lg border border-black/10 bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-neutral-900"
           >
             Go to verification

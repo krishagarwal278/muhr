@@ -294,7 +294,7 @@ export default function DashboardPage() {
                 No document uploads required.
               </p>
               <Link
-                href="/settings#identity-verification"
+                href="/profile#identity-verification"
                 className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-amber-900 underline-offset-2 hover:text-amber-800"
               >
                 Verification details

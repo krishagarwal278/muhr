@@ -321,7 +321,7 @@ export function CreatorFeeCard({
           Real deals vary by brand, exclusivity, and channels. Brands see a custom estimate when they
           request your license. Set your{" "}
           <Link
-            href="/settings"
+            href="/profile"
             className="font-medium text-purple-950 underline-offset-2 hover:underline"
           >
             minimum fee

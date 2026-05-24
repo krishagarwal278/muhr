@@ -105,7 +105,7 @@ export default function VaultPage() {
             </Link>
           ) : (
             <Link
-              href="/settings#identity-verification"
+              href="/profile#identity-verification"
               className="flex items-center justify-center gap-2 rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-amber-100"
             >
               Verify identity first
@@ -222,7 +222,7 @@ export default function VaultPage() {
             </Link>
           ) : (
             <Link
-              href="/settings#identity-verification"
+              href="/profile#identity-verification"
               className="mt-6 rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-amber-100"
             >
               Complete verification to upload
@@ -238,8 +238,8 @@ export default function VaultPage() {
                 <p className="mb-4 text-sm text-neutral-600">
                   Vault uploads are visible here. Your character sheet is stored encrypted — open it and enter your
                   vault password to view or download. Reference photos for building the sheet are in{" "}
-                  <Link href="/settings#complete-profile" className="font-medium text-violet-700 underline-offset-2 hover:underline">
-                    Settings
+                  <Link href="/profile#complete-profile" className="font-medium text-violet-700 underline-offset-2 hover:underline">
+                    Profile
                   </Link>
                   .
                 </p>

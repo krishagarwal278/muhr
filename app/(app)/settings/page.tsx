@@ -12,14 +12,6 @@ import { createClient } from "@/lib/supabase/client";
 import { buildPasswordResetRedirectTo } from "@/lib/auth/passwordResetRedirect";
 
 export default function SettingsPage() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [handle, setHandle] = useState("");
-  const [acceptingRequests, setAcceptingRequests] = useState(true);
-  const [licensingNotes, setLicensingNotes] = useState("");
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveOk, setSaveOk] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [kycStatus, setKycStatus] = useState<KycStatus | null>(null);
   const [profilePercent, setProfilePercent] = useState(0);
   const [profileItems, setProfileItems] = useState<ProfileCompletionItem[]>([]);
@@ -40,24 +32,13 @@ export default function SettingsPage() {
     let cancelled = false;
     (async () => {
       try {
-        const [idRes, profileRes, completionRes] = await Promise.all([
+        const [idRes, completionRes] = await Promise.all([
           fetch("/api/identity"),
-          fetch("/api/profile"),
           fetch("/api/profile/completion"),
         ]);
         const idData = idRes.ok ? await idRes.json() : {};
         if (!cancelled) {
           setKycStatus((idData.kycStatus as KycStatus) ?? "unverified");
-        }
-        if (profileRes.ok) {
-          const p = await profileRes.json();
-          if (!cancelled) {
-            setHandle(typeof p.handle === "string" ? p.handle : "");
-            setName(typeof p.displayName === "string" ? p.displayName : "");
-            setEmail(typeof p.email === "string" ? p.email : "");
-            setAcceptingRequests(p.acceptingRequests !== false);
-            setLicensingNotes(typeof p.licensingNotes === "string" ? p.licensingNotes : "");
-          }
         }
         if (completionRes.ok && !cancelled) {
           const c = await completionRes.json();
@@ -73,36 +54,6 @@ export default function SettingsPage() {
     };
   }, []);
 
-  async function handleSave() {
-    setSaveError(null);
-    setSaveOk(false);
-    setSaving(true);
-    try {
-      const res = await fetch("/api/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          handle: handle.trim() || null,
-          displayName: name.trim(),
-          acceptingRequests,
-          licensingNotes: licensingNotes.trim() || null,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setSaveError(typeof data.error === "string" ? data.error : "Could not save");
-        return;
-      }
-      if (typeof data.handle === "string") setHandle(data.handle);
-      if (typeof data.licensingNotes === "string") setLicensingNotes(data.licensingNotes);
-      setSaveOk(true);
-      setTimeout(() => setSaveOk(false), 2500);
-    } catch {
-      setSaveError("Network error");
-    } finally {
-      setSaving(false);
-    }
-  }
   async function sendPasswordReset() {
     setResetBusy(true);
     setResetMsg(null);
@@ -114,7 +65,7 @@ export default function SettingsPage() {
         error: userErr,
       } = await supabase.auth.getUser();
       if (userErr || !user?.email) {
-        setResetErr("Could not load your account email. Sign out and use “Forgot password?” on the login page.");
+        setResetErr("Could not load your account email. Sign out and use \"Forgot password?\" on the login page.");
         return;
       }
       const redirectTo = buildPasswordResetRedirectTo(window.location.origin);
@@ -133,9 +84,9 @@ export default function SettingsPage() {
     <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6 sm:px-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
           <p className="mt-1 text-sm text-neutral-700">
-            Manage your account and preferences
+            Manage your profile and account settings
           </p>
         </div>
         {profileItems.length > 0 && (
@@ -173,90 +124,6 @@ export default function SettingsPage() {
           ) : (
             <span className="inline-block h-24 w-full animate-pulse rounded-lg bg-black/5" />
           )}
-        </div>
-      </div>
-
-      {/* Profile */}
-      <div className="rounded-xl border border-black/10 bg-white p-4 sm:p-6">
-        <h2 className="text-lg font-medium text-neutral-950">Profile</h2>
-        <p className="mt-1 text-sm text-neutral-700">
-          Your handle powers your public URL:{" "}
-          <span className="font-mono font-medium text-neutral-900">/k/your_handle</span>
-        </p>
-        {saveError && (
-          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
-            {saveError}
-          </p>
-        )}
-        {saveOk && (
-          <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
-            Profile saved.
-          </p>
-        )}
-        <div className="mt-4 space-y-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-neutral-900">Instagram handle</label>
-            <input
-              type="text"
-              value={handle}
-              onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
-              className="w-full rounded-lg border border-black/10 bg-white px-4 py-2.5 font-mono text-base text-neutral-950 outline-none focus:border-black/15 sm:text-sm"
-              placeholder="e.g. priya_sharma"
-              maxLength={30}
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-neutral-900">Display name (public)</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-black/10 bg-white px-4 py-2.5 text-base text-neutral-950 outline-none focus:border-black/15 sm:text-sm"
-              placeholder="Your name"
-              maxLength={120}
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-neutral-900">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-black/10 bg-white px-4 py-2.5 text-base text-neutral-950 outline-none sm:text-sm"
-              placeholder="Managed via your login provider"
-              disabled
-            />
-            <p className="mt-1 text-xs text-neutral-600">Email changes are not wired here yet.</p>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-neutral-900">
-              Licensing notes (shown to brands)
-            </label>
-            <textarea
-              value={licensingNotes}
-              onChange={(e) => setLicensingNotes(e.target.value)}
-              maxLength={4000}
-              rows={5}
-              placeholder="e.g., Minimum fee, channels you won’t do, typical turnaround, link to your fee card…"
-              className="w-full resize-y rounded-lg border border-black/10 bg-white px-4 py-2.5 text-sm text-neutral-950 outline-none focus:border-black/15"
-            />
-            <p className="mt-1 text-xs text-neutral-600">
-              Optional. Shown on your public page (<span className="font-mono">/k/your_handle</span>) before brands
-              submit a license request. Muhr Terms still apply; this is extra guidance from you.
-            </p>
-          </div>
-          <label className="flex cursor-pointer items-center gap-3">
-            <input
-              type="checkbox"
-              checked={acceptingRequests}
-              onChange={(e) => setAcceptingRequests(e.target.checked)}
-              className="accent-neutral-950"
-            />
-            <span>
-              <span className="block text-sm font-medium text-neutral-950">Accept license requests</span>
-              <span className="text-xs text-neutral-600">Turn off to show brands you are not taking new requests</span>
-            </span>
-          </label>
         </div>
       </div>
 
@@ -330,17 +197,6 @@ export default function SettingsPage() {
             Delete account
           </button>
         </div>
-      </div>
-
-      {/* Save button */}
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full rounded-lg bg-neutral-950 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-900 disabled:opacity-60 sm:w-auto"
-        >
-          {saving ? "Saving..." : "Save changes"}
-        </button>
       </div>
     </div>
   );

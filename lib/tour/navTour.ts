@@ -78,8 +78,8 @@ const NAV_META: { key: string; title: string; description: string }[] = [
       "Open and track cases when you need to report misuse or protect your identity.",
   },
   {
-    key: "settings",
-    title: "Settings",
+    key: "profile",
+    title: "Profile",
     description:
       "Complete identity verification, set your public instagram handle, and tune account preferences.",
   },

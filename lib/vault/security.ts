@@ -16,7 +16,7 @@ function livenessBadge(
       key: "liveness",
       state: "missing",
       label: "Liveness",
-      tooltip: "Complete identity verification in Settings to enable this badge.",
+      tooltip: "Complete identity verification in Profile to enable this badge.",
     };
   }
 

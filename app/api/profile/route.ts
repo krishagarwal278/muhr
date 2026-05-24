@@ -30,6 +30,7 @@ type ProfileRow = {
   address_line2?: string | null;
   address_city?: string | null;
   address_pin_code?: string | null;
+  platform_license_signed?: boolean | null;
 };
 
 function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
@@ -89,6 +90,7 @@ function profileJsonFromRow(
       typeof profile?.address_pin_code === "string" && profile.address_pin_code.trim()
         ? profile.address_pin_code.trim()
         : null,
+    platformLicenseSigned: profile?.platform_license_signed === true,
     profileBasicsComplete: isProfileBasicsComplete(profile),
     muid: muidFromUserId(userId),
     email: email ?? null,
@@ -102,7 +104,7 @@ async function loadProfileRow(
   const full = await supabase
     .from("profiles")
     .select(
-      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code"
+      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code, platform_license_signed"
     )
     .eq("id", userId)
     .maybeSingle();
@@ -377,7 +379,7 @@ export async function PATCH(request: Request) {
     .update(updates)
     .eq("id", user.id)
     .select(
-      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code"
+      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code, platform_license_signed"
     )
     .single();
 

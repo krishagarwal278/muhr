@@ -75,10 +75,10 @@ export function PublicProfileShare() {
       <div className={surfaceCardVariants()}>
         <h2 className="text-lg font-semibold tracking-tight text-neutral-950">Public profile link</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-neutral-700">
-          Choose a handle in Settings to get a shareable URL for bios and outreach.
+          Choose a handle in Profile to get a shareable URL for bios and outreach.
         </p>
-        <Link href="/settings" className={cx(primaryButtonVariants(), "mt-5")}>
-          Open settings
+        <Link href="/profile" className={cx(primaryButtonVariants(), "mt-5")}>
+          Open profile
         </Link>
       </div>
     );

@@ -99,7 +99,7 @@ export function ManualIdentityVerification({
         <p className="font-medium">Identity verification — no document uploads</p>
         <p className="mt-1 text-sky-900/90">
           We verify creators by checking your public profile, Instagram handle, and the details in{" "}
-          <Link href="/settings#profile-overview" className="font-medium underline-offset-2 hover:underline">
+          <Link href="/profile#profile-overview" className="font-medium underline-offset-2 hover:underline">
             Profile overview
           </Link>
           . We may reach out by phone or email if we need anything else — no selfies or screenshot uploads
@@ -119,7 +119,7 @@ export function ManualIdentityVerification({
         <ChecklistItem
           done={handle != null}
           label="Public Instagram handle set"
-          hint={handle ? `@${handle}` : "Add in Settings → Profile"}
+          hint={handle ? `@${handle}` : "Add in Profile → Profile"}
         />
       </ul>
 
@@ -140,7 +140,7 @@ export function ManualIdentityVerification({
         </button>
       ) : (
         <Link
-          href="/settings#profile-overview"
+          href="/profile#profile-overview"
           className="inline-flex rounded-lg border border-black/10 px-4 py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
         >
           Complete profile overview

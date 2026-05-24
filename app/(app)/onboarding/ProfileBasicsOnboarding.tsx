@@ -72,6 +72,7 @@ export function ProfileBasicsOnboarding({ userId }: { userId: string }) {
     addressCity: string;
     addressPinCode: string;
     followerCount: number;
+    platformLicenseSigned?: boolean;
   }) {
     const res = await fetch("/api/profile", {
       method: "PATCH",
@@ -90,6 +91,15 @@ export function ProfileBasicsOnboarding({ userId }: { userId: string }) {
     if (!res.ok) {
       throw new Error(typeof data.error === "string" ? data.error : "Could not save");
     }
+
+    if (values.platformLicenseSigned) {
+      await fetch("/api/profile/onboarding", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ platformLicenseSigned: true }),
+      });
+    }
+
     router.replace("/dashboard");
     router.refresh();
   }
@@ -104,7 +114,7 @@ export function ProfileBasicsOnboarding({ userId }: { userId: string }) {
           Tell us about yourself
         </h1>
         <p className="mt-2 text-sm text-neutral-700">
-          We need a few details before your guided tour. You can update these anytime in Settings.
+          We need a few details before your guided tour. You can update these anytime in Profile.
         </p>
       </div>
 
@@ -118,6 +128,7 @@ export function ProfileBasicsOnboarding({ userId }: { userId: string }) {
             initial={initial}
             submitLabel="Save and continue"
             onSubmit={handleSubmit}
+            showLicenseCheckbox
           />
         ) : (
           <div className="space-y-3 py-6">

@@ -92,7 +92,7 @@ export async function generateCharacterSheet(
   if (!status.eligible || !status.stats) {
     return {
       ok: false,
-      error: `Upload ${status.minPhotos}+ character photos and save all measurements in Settings first.`,
+      error: `Upload ${status.minPhotos}+ character photos and save all measurements in Profile first.`,
     };
   }
 

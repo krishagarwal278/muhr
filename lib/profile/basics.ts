@@ -26,6 +26,7 @@ export type ProfileBasicsRow = {
   address_city?: string | null;
   address_pin_code?: string | null;
   follower_count?: number | null;
+  platform_license_signed?: boolean | null;
 };
 
 export function formatProfileAddress(row: ProfileBasicsRow | null | undefined): string {
@@ -100,12 +101,14 @@ export function isProfileBasicsComplete(row: ProfileBasicsRow | null | undefined
   const name = typeof row.full_name === "string" ? row.full_name.trim() : "";
   const phone = typeof row.phone === "string" ? row.phone.trim() : "";
   const followers = row.follower_count;
+  const licenseSigned = row.platform_license_signed === true;
   return (
     name.length > 0 &&
     isValidPhoneE164(phone) &&
     isAddressComplete(row) &&
     typeof followers === "number" &&
-    followers > 0
+    followers > 0 &&
+    licenseSigned
   );
 }
 

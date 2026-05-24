@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     typeof profile?.handle === "string" && profile.handle.trim() ? profile.handle.trim() : null;
   if (!handle) {
     return NextResponse.json(
-      { error: "Set your public Instagram handle in Settings before requesting review." },
+      { error: "Set your public Instagram handle in Profile before requesting review." },
       { status: 400 }
     );
   }

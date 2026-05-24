@@ -17,6 +17,7 @@ export type ProfileBasicsValues = {
   addressCity: string;
   addressPinCode: string;
   followerCount: number | null;
+  platformLicenseSigned?: boolean;
 };
 
 interface ProfileBasicsFormProps {
@@ -30,8 +31,10 @@ interface ProfileBasicsFormProps {
     addressCity: string;
     addressPinCode: string;
     followerCount: number;
+    platformLicenseSigned?: boolean;
   }) => Promise<void>;
   busy?: boolean;
+  showLicenseCheckbox?: boolean;
 }
 
 export function ProfileBasicsForm({
@@ -39,6 +42,7 @@ export function ProfileBasicsForm({
   submitLabel = "Continue",
   onSubmit,
   busy = false,
+  showLicenseCheckbox = false,
 }: ProfileBasicsFormProps) {
   const [fullName, setFullName] = useState(initial?.fullName ?? "");
   const [countryCode, setCountryCode] = useState("+91");
@@ -48,6 +52,7 @@ export function ProfileBasicsForm({
   const [addressCity, setAddressCity] = useState(initial?.addressCity ?? "");
   const [addressPinCode, setAddressPinCode] = useState(initial?.addressPinCode ?? "");
   const [followerText, setFollowerText] = useState("");
+  const [licenseSigned, setLicenseSigned] = useState(initial?.platformLicenseSigned ?? false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -57,6 +62,7 @@ export function ProfileBasicsForm({
     setAddressLine2(initial?.addressLine2 ?? "");
     setAddressCity(initial?.addressCity ?? "");
     setAddressPinCode(initial?.addressPinCode ?? "");
+    setLicenseSigned(initial?.platformLicenseSigned ?? false);
     if (initial?.phone) {
       const parsed = parsePhoneE164(initial.phone);
       setCountryCode(parsed.countryCode);
@@ -74,6 +80,7 @@ export function ProfileBasicsForm({
     initial?.addressCity,
     initial?.addressPinCode,
     initial?.followerCount,
+    initial?.platformLicenseSigned,
   ]);
 
   function parseFollowerInput(raw: string): number | null {
@@ -129,6 +136,11 @@ export function ProfileBasicsForm({
       return;
     }
 
+    if (showLicenseCheckbox && !licenseSigned) {
+      setError("Please accept the platform license terms to continue.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       await onSubmit({
@@ -139,6 +151,7 @@ export function ProfileBasicsForm({
         addressCity: addressCity.trim(),
         addressPinCode: addressPinCode.trim(),
         followerCount,
+        ...(showLicenseCheckbox ? { platformLicenseSigned: licenseSigned } : {}),
       });
     } catch {
       setError("Could not save your details. Please try again.");
@@ -259,6 +272,30 @@ export function ProfileBasicsForm({
           Your primary social audience size — powers fee estimates on your dashboard.
         </p>
       </Field>
+
+      {showLicenseCheckbox && (
+        <label className="flex items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={licenseSigned}
+            onChange={(e) => setLicenseSigned(e.target.checked)}
+            className="mt-0.5 accent-neutral-950"
+            disabled={disabled}
+          />
+          <span className="text-neutral-700">
+            I agree to the{" "}
+            <a
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-neutral-950 underline underline-offset-2 hover:no-underline"
+            >
+              Muhr platform license terms
+            </a>
+            <span className="text-red-600"> *</span>
+          </span>
+        </label>
+      )}
 
       <button
         type="submit"

@@ -98,7 +98,7 @@ export default function Terms() {
               <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Update or modify your Profile Content at any time</li>
               <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Set your profile to "unavailable" to pause new licensing opportunities</li>
               <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Request removal of specific Profile Content</li>
-              <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Deactivate your account (subject to Section 12)</li>
+              <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Deactivate your account (subject to Section 13)</li>
             </ul>
           </section>
 
@@ -288,7 +288,7 @@ export default function Terms() {
             <ul className="mt-3 space-y-2 pl-4">
               <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Your right to use the Platform immediately ceases</li>
               <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>We may delete your Profile Content from our systems (subject to backup retention policies and legal requirements)</li>
-              <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Sections 8, 10, 11, 12, and 14 survive termination</li>
+              <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Sections 8, 10, 11, 12, 14, and 15 survive termination</li>
             </ul>
           </section>
 

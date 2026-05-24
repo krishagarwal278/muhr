@@ -20,7 +20,7 @@ export default function PrivacyPolicy() {
 
       <main className="mx-auto max-w-4xl px-6 pb-24 pt-8 lg:px-10">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Privacy Policy</h1>
-        <p className="mt-3 text-sm text-neutral-900/50">Last updated: May 13, 2026</p>
+        <p className="mt-3 text-sm text-neutral-900/50">Last updated: May 23, 2026</p>
 
         <div className="mt-10 space-y-10 text-sm leading-7 text-neutral-900/70">
           <section>
@@ -46,6 +46,18 @@ export default function PrivacyPolicy() {
               with your explicit consent and is subject to enhanced protections under the Digital
               Personal Data Protection Act 2023.
             </p>
+            <h3 className="mb-2 mt-4 text-sm font-semibold text-neutral-950">Identity verification data</h3>
+            <p>When you create a Talent profile, our identity verification process collects:</p>
+            <ul className="mt-3 space-y-2 pl-4">
+              <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Government-issued identification documents (passport, driver's license, or national ID)</li>
+              <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Personal information including legal name, date of birth, and contact information</li>
+            </ul>
+            <h3 className="mb-2 mt-4 text-sm font-semibold text-neutral-950">Profile content</h3>
+            <p>When you create a profile, we collect:</p>
+            <ul className="mt-3 space-y-2 pl-4">
+              <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Name (or stage name), photographs, videos, and voice recordings you upload</li>
+              <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Demographic information (age range, ethnicity, physical characteristics) for searchable attributes</li>
+            </ul>
           </section>
 
           <section>
@@ -59,12 +71,18 @@ export default function PrivacyPolicy() {
           </section>
 
           <section>
-            <h2 className="mb-3 text-base font-semibold text-neutral-950">4. Data storage</h2>
+            <h2 className="mb-3 text-base font-semibold text-neutral-950">4. Data storage and security</h2>
             <p>
               Your data is stored securely using Supabase (PostgreSQL), hosted on infrastructure
               compliant with industry security standards. We do not sell your personal data to
               third parties.
             </p>
+            <p className="mt-3">We implement industry-standard security measures to protect your data, including:</p>
+            <ul className="mt-3 space-y-2 pl-4">
+              <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Encrypted storage of Profile Content and identity assets</li>
+              <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Secure transmission of payment information via Stripe Connect</li>
+              <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Access controls limiting who can view sensitive identity verification data</li>
+            </ul>
           </section>
 
           <section>

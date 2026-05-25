@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { KycStatusBadge } from "@/components/KycStatusBadge";
 import { ManualIdentityVerification } from "@/components/identity/ManualIdentityVerification";
 import { CompleteProfileSection } from "@/components/profile/CompleteProfileSection";
@@ -11,14 +12,17 @@ import type { KycStatus } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { buildPasswordResetRedirectTo } from "@/lib/auth/passwordResetRedirect";
 import { completionFromApiJson } from "@/lib/api/profilePayload";
+import { ghostButtonVariants } from "@/components/ui/button-recipes";
 
 export default function ProfilePage() {
+  const router = useRouter();
   const [kycStatus, setKycStatus] = useState<KycStatus | null>(null);
   const [profilePercent, setProfilePercent] = useState(0);
   const [profileItems, setProfileItems] = useState<ProfileCompletionItem[]>([]);
   const [resetBusy, setResetBusy] = useState(false);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [resetErr, setResetErr] = useState<string | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const refreshCompletion = useCallback(async () => {
     const res = await fetch("/api/profile/completion");
@@ -84,6 +88,25 @@ export default function ProfilePage() {
     } finally {
       setResetBusy(false);
     }
+  }
+
+  async function handleLogout() {
+    if (
+      !window.confirm(
+        "Log out of Muhr? You will need to sign in again to access your account."
+      )
+    ) {
+      return;
+    }
+    setLoggingOut(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } catch {
+      // e.g. missing env in dev
+    }
+    router.push("/login");
+    router.refresh();
   }
 
   return (
@@ -193,16 +216,30 @@ export default function ProfilePage() {
       </div>
 
       {/* Danger zone */}
-      <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 sm:p-6">
-        <h2 className="text-lg font-medium text-red-900">Danger zone</h2>
-        <p className="mt-1 text-sm text-red-900/75">
-          Irreversible and destructive actions
-        </p>
-        <div className="mt-4">
-          <button className="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-900 hover:bg-red-100">
+      <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-medium text-red-900">Danger zone</h2>
+            <p className="text-xs text-red-900/70">Irreversible actions</p>
+          </div>
+          <button
+            type="button"
+            className="shrink-0 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-900 hover:bg-red-100"
+          >
             Delete account
           </button>
         </div>
+      </div>
+
+      <div>
+        <button
+          type="button"
+          onClick={() => void handleLogout()}
+          disabled={loggingOut}
+          className={ghostButtonVariants()}
+        >
+          {loggingOut ? "Signing out…" : "Log out"}
+        </button>
       </div>
     </div>
   );

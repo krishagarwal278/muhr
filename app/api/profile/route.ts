@@ -1,10 +1,8 @@
-import { createServerClient } from "@supabase/ssr";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
-import { getRouteHandlerUser } from "@/lib/auth/routeHandlerUser";
-import { normalizeHandle, validateHandle } from "@/lib/profile/handle";
-import { muidFromUserId } from "@/lib/profile/muid";
+
+import { requireUser } from "@/lib/auth/requireUser";
+import { toApiError } from "@/lib/errors/apiError";
+import { logger } from "@/lib/logger";
 import {
   buildAddressDbFields,
   formatProfileAddress,
@@ -15,6 +13,12 @@ import {
   validateAddressInput,
   validateProfileBasicsInput,
 } from "@/lib/profile/basics";
+import { normalizeHandle, validateHandle } from "@/lib/profile/handle";
+import { muidFromUserId } from "@/lib/profile/muid";
+import { createRouteClient } from "@/lib/supabase/route";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 type ProfileRow = {
   handle: string | null;
@@ -143,272 +147,346 @@ async function loadProfileRow(
   };
 }
 
-async function supabaseFromCookies() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore
-          }
-        },
-      },
-    }
-  );
-}
-
 export async function GET() {
-  const supabase = await supabaseFromCookies();
-  const user = await getRouteHandlerUser(supabase);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const user = await requireUser();
+    const supabase = await createRouteClient();
 
-  const { data: profile, error } = await loadProfileRow(supabase, user.id);
+    const { data: profile, error } = await loadProfileRow(supabase, user.id);
 
-  if (error) {
-    console.error("[profile GET] failed", { userId: user.id, code: error.code, message: error.message });
-    return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });
+    if (error) {
+      logger.error("profile_get_error", { userId: user.id, code: error.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Failed to load profile" } },
+        { status: 500 }
+      );
+    }
+
+    return Response.json({
+      ok: true,
+      data: profileJsonFromRow(profile, user.id, user.email),
+    });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
-
-  return NextResponse.json(profileJsonFromRow(profile, user.id, user.email));
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await supabaseFromCookies();
-  const user = await getRouteHandlerUser(supabase);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  let body: Record<string, unknown>;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+    const user = await requireUser();
+    const supabase = await createRouteClient();
 
-  const updates: {
-    handle?: string | null;
-    display_name?: string;
-    accepting_requests?: boolean;
-    licensing_notes?: string | null;
-    follower_count?: number | null;
-    full_name?: string;
-    phone?: string;
-    address?: string;
-    address_line1?: string;
-    address_line2?: string | null;
-    address_city?: string;
-    address_pin_code?: string;
-  } = {};
-
-  if ("handle" in body) {
-    const raw = body.handle;
-    if (raw === null || raw === "") {
-      updates.handle = null;
-    } else if (typeof raw === "string") {
-      const err = validateHandle(raw);
-      if (err) return NextResponse.json({ error: err }, { status: 400 });
-      updates.handle = normalizeHandle(raw);
-    } else {
-      return NextResponse.json({ error: "Invalid handle" }, { status: 400 });
-    }
-  }
-
-  if ("displayName" in body) {
-    const v = body.displayName;
-    if (v === null || v === "") updates.display_name = "";
-    else if (typeof v === "string") {
-      const t = v.trim().slice(0, 120);
-      updates.display_name = t;
-    } else return NextResponse.json({ error: "Invalid displayName" }, { status: 400 });
-  }
-
-  if ("acceptingRequests" in body) {
-    if (typeof body.acceptingRequests !== "boolean") {
-      return NextResponse.json({ error: "acceptingRequests must be boolean" }, { status: 400 });
-    }
-    updates.accepting_requests = body.acceptingRequests;
-  }
-
-  if ("followerCount" in body) {
-    const v = body.followerCount;
-    const basicsSave = isProfileBasicsPatch(body);
-    if (v === null || v === "") {
-      if (basicsSave) {
-        return NextResponse.json({ error: "Follower count is required." }, { status: 400 });
-      }
-      updates.follower_count = null;
-    } else if (typeof v === "number" && Number.isFinite(v) && v > 0) {
-      updates.follower_count = Math.min(Math.round(v), 500_000_000);
-    } else {
-      return NextResponse.json(
-        { error: basicsSave ? "Follower count is required." : "followerCount must be a positive number" },
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        { ok: false, error: { code: "invalid_json", message: "Invalid JSON" } },
         { status: 400 }
       );
     }
-  }
 
-  if ("fullName" in body) {
-    const v = body.fullName;
-    if (v === null || v === "") {
-      return NextResponse.json({ error: "fullName cannot be empty" }, { status: 400 });
-    }
-    if (typeof v !== "string") {
-      return NextResponse.json({ error: "Invalid fullName" }, { status: 400 });
-    }
-    const t = v.trim().slice(0, 120);
-    if (!t) return NextResponse.json({ error: "fullName cannot be empty" }, { status: 400 });
-    updates.full_name = t;
-    updates.display_name = t;
-  }
+    const updates: {
+      handle?: string | null;
+      display_name?: string;
+      accepting_requests?: boolean;
+      licensing_notes?: string | null;
+      follower_count?: number | null;
+      full_name?: string;
+      phone?: string;
+      address?: string;
+      address_line1?: string;
+      address_line2?: string | null;
+      address_city?: string;
+      address_pin_code?: string;
+    } = {};
 
-  if ("phone" in body) {
-    const v = body.phone;
-    if (typeof v !== "string") {
-      return NextResponse.json({ error: "Invalid phone" }, { status: 400 });
+    if ("handle" in body) {
+      const raw = body.handle;
+      if (raw === null || raw === "") {
+        updates.handle = null;
+      } else if (typeof raw === "string") {
+        const err = validateHandle(raw);
+        if (err) {
+          return Response.json(
+            { ok: false, error: { code: "invalid_handle", message: err } },
+            { status: 400 }
+          );
+        }
+        updates.handle = normalizeHandle(raw);
+      } else {
+        return Response.json(
+          { ok: false, error: { code: "invalid_handle", message: "Invalid handle" } },
+          { status: 400 }
+        );
+      }
     }
-    if (!v.trim()) {
-      return NextResponse.json({ error: "Phone number is required." }, { status: 400 });
-    }
-    const normalized = normalizePhoneE164(v);
-    if (!normalized || !isValidPhoneE164(normalized)) {
-      return NextResponse.json({ error: "Enter a valid phone number with country code." }, { status: 400 });
-    }
-    updates.phone = normalized;
-  }
 
-  const hasStructuredAddress =
-    "addressLine1" in body ||
-    "addressLine2" in body ||
-    "addressCity" in body ||
-    "addressPinCode" in body;
-
-  if (hasStructuredAddress) {
-    const addressLine1 = typeof body.addressLine1 === "string" ? body.addressLine1 : "";
-    const addressLine2 = typeof body.addressLine2 === "string" ? body.addressLine2 : "";
-    const addressCity = typeof body.addressCity === "string" ? body.addressCity : "";
-    const addressPinCode = typeof body.addressPinCode === "string" ? body.addressPinCode : "";
-    const addressError = validateAddressInput({
-      addressLine1,
-      addressLine2,
-      addressCity,
-      addressPinCode,
-    });
-    if (addressError) {
-      return NextResponse.json({ error: addressError }, { status: 400 });
+    if ("displayName" in body) {
+      const v = body.displayName;
+      if (v === null || v === "") updates.display_name = "";
+      else if (typeof v === "string") {
+        const t = v.trim().slice(0, 120);
+        updates.display_name = t;
+      } else {
+        return Response.json(
+          { ok: false, error: { code: "invalid_input", message: "Invalid displayName" } },
+          { status: 400 }
+        );
+      }
     }
-    Object.assign(
-      updates,
-      buildAddressDbFields({
+
+    if ("acceptingRequests" in body) {
+      if (typeof body.acceptingRequests !== "boolean") {
+        return Response.json(
+          { ok: false, error: { code: "invalid_input", message: "acceptingRequests must be boolean" } },
+          { status: 400 }
+        );
+      }
+      updates.accepting_requests = body.acceptingRequests;
+    }
+
+    if ("followerCount" in body) {
+      const v = body.followerCount;
+      const basicsSave = isProfileBasicsPatch(body);
+      if (v === null || v === "") {
+        if (basicsSave) {
+          return Response.json(
+            { ok: false, error: { code: "validation_error", message: "Follower count is required." } },
+            { status: 400 }
+          );
+        }
+        updates.follower_count = null;
+      } else if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+        updates.follower_count = Math.min(Math.round(v), 500_000_000);
+      } else {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code: "validation_error",
+              message: basicsSave ? "Follower count is required." : "followerCount must be a positive number",
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    if ("fullName" in body) {
+      const v = body.fullName;
+      if (v === null || v === "") {
+        return Response.json(
+          { ok: false, error: { code: "validation_error", message: "fullName cannot be empty" } },
+          { status: 400 }
+        );
+      }
+      if (typeof v !== "string") {
+        return Response.json(
+          { ok: false, error: { code: "invalid_input", message: "Invalid fullName" } },
+          { status: 400 }
+        );
+      }
+      const t = v.trim().slice(0, 120);
+      if (!t) {
+        return Response.json(
+          { ok: false, error: { code: "validation_error", message: "fullName cannot be empty" } },
+          { status: 400 }
+        );
+      }
+      updates.full_name = t;
+      updates.display_name = t;
+    }
+
+    if ("phone" in body) {
+      const v = body.phone;
+      if (typeof v !== "string") {
+        return Response.json(
+          { ok: false, error: { code: "invalid_input", message: "Invalid phone" } },
+          { status: 400 }
+        );
+      }
+      if (!v.trim()) {
+        return Response.json(
+          { ok: false, error: { code: "validation_error", message: "Phone number is required." } },
+          { status: 400 }
+        );
+      }
+      const normalized = normalizePhoneE164(v);
+      if (!normalized || !isValidPhoneE164(normalized)) {
+        return Response.json(
+          { ok: false, error: { code: "validation_error", message: "Enter a valid phone number with country code." } },
+          { status: 400 }
+        );
+      }
+      updates.phone = normalized;
+    }
+
+    const hasStructuredAddress =
+      "addressLine1" in body ||
+      "addressLine2" in body ||
+      "addressCity" in body ||
+      "addressPinCode" in body;
+
+    if (hasStructuredAddress) {
+      const addressLine1 = typeof body.addressLine1 === "string" ? body.addressLine1 : "";
+      const addressLine2 = typeof body.addressLine2 === "string" ? body.addressLine2 : "";
+      const addressCity = typeof body.addressCity === "string" ? body.addressCity : "";
+      const addressPinCode = typeof body.addressPinCode === "string" ? body.addressPinCode : "";
+      const addressError = validateAddressInput({
         addressLine1,
         addressLine2,
         addressCity,
         addressPinCode,
-      })
-    );
-  } else if ("address" in body) {
-    const v = body.address;
-    if (typeof v !== "string") {
-      return NextResponse.json({ error: "Invalid address" }, { status: 400 });
-    }
-    const t = v.trim();
-    if (t.length < 3) {
-      return NextResponse.json({ error: "Address is required." }, { status: 400 });
-    }
-    if (t.length > 500) {
-      return NextResponse.json({ error: "Address must be at most 500 characters." }, { status: 400 });
-    }
-    updates.address = t;
-  }
-
-  if (isProfileBasicsPatch(body)) {
-    const fullName = typeof body.fullName === "string" ? body.fullName : "";
-    const phone = typeof body.phone === "string" ? body.phone : "";
-    const addressLine1 = typeof body.addressLine1 === "string" ? body.addressLine1 : "";
-    const addressLine2 = typeof body.addressLine2 === "string" ? body.addressLine2 : "";
-    const addressCity = typeof body.addressCity === "string" ? body.addressCity : "";
-    const addressPinCode = typeof body.addressPinCode === "string" ? body.addressPinCode : "";
-    const followerCount =
-      typeof body.followerCount === "number" && Number.isFinite(body.followerCount)
-        ? body.followerCount
-        : 0;
-    const normalizedPhone = normalizePhoneE164(phone.trim()) ?? phone.trim();
-    const basicsError = validateProfileBasicsInput({
-      fullName,
-      phone: normalizedPhone,
-      addressLine1,
-      addressLine2,
-      addressCity,
-      addressPinCode,
-      followerCount,
-    });
-    if (basicsError) {
-      return NextResponse.json({ error: basicsError }, { status: 400 });
-    }
-  }
-
-  if ("licensingNotes" in body) {
-    const v = body.licensingNotes;
-    if (v === null || v === "") {
-      updates.licensing_notes = null;
-    } else if (typeof v === "string") {
-      const t = v.trim();
-      if (t.length > 4000) {
-        return NextResponse.json({ error: "Licensing notes must be at most 4000 characters" }, { status: 400 });
-      }
-      updates.licensing_notes = t.length ? t : null;
-    } else {
-      return NextResponse.json({ error: "Invalid licensingNotes" }, { status: 400 });
-    }
-  }
-
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: "No valid fields" }, { status: 400 });
-  }
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .update(updates)
-    .eq("id", user.id)
-    .select(
-      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code, platform_license_signed"
-    )
-    .single();
-
-  if (error) {
-    if (error.code === "23505") {
-      return NextResponse.json({ error: "That handle is already taken." }, { status: 409 });
-    }
-    if (
-      isMissingColumnError(error) &&
-      ("follower_count" in updates ||
-        "full_name" in updates ||
-        "phone" in updates ||
-        "address" in updates ||
-        "address_line1" in updates ||
-        "address_city" in updates ||
-        "address_pin_code" in updates)
-    ) {
-      console.error("[profile PATCH] follower_count column missing", {
-        userId: user.id,
-        code: error.code,
       });
-      return NextResponse.json(
-        { error: "Follower count cannot be saved until the latest database migration is applied." },
-        { status: 503 }
+      if (addressError) {
+        return Response.json(
+          { ok: false, error: { code: "validation_error", message: addressError } },
+          { status: 400 }
+        );
+      }
+      Object.assign(
+        updates,
+        buildAddressDbFields({
+          addressLine1,
+          addressLine2,
+          addressCity,
+          addressPinCode,
+        })
+      );
+    } else if ("address" in body) {
+      const v = body.address;
+      if (typeof v !== "string") {
+        return Response.json(
+          { ok: false, error: { code: "invalid_input", message: "Invalid address" } },
+          { status: 400 }
+        );
+      }
+      const t = v.trim();
+      if (t.length < 3) {
+        return Response.json(
+          { ok: false, error: { code: "validation_error", message: "Address is required." } },
+          { status: 400 }
+        );
+      }
+      if (t.length > 500) {
+        return Response.json(
+          { ok: false, error: { code: "validation_error", message: "Address must be at most 500 characters." } },
+          { status: 400 }
+        );
+      }
+      updates.address = t;
+    }
+
+    if (isProfileBasicsPatch(body)) {
+      const fullName = typeof body.fullName === "string" ? body.fullName : "";
+      const phone = typeof body.phone === "string" ? body.phone : "";
+      const addressLine1 = typeof body.addressLine1 === "string" ? body.addressLine1 : "";
+      const addressLine2 = typeof body.addressLine2 === "string" ? body.addressLine2 : "";
+      const addressCity = typeof body.addressCity === "string" ? body.addressCity : "";
+      const addressPinCode = typeof body.addressPinCode === "string" ? body.addressPinCode : "";
+      const followerCount =
+        typeof body.followerCount === "number" && Number.isFinite(body.followerCount)
+          ? body.followerCount
+          : 0;
+      const normalizedPhone = normalizePhoneE164(phone.trim()) ?? phone.trim();
+      const basicsError = validateProfileBasicsInput({
+        fullName,
+        phone: normalizedPhone,
+        addressLine1,
+        addressLine2,
+        addressCity,
+        addressPinCode,
+        followerCount,
+      });
+      if (basicsError) {
+        return Response.json(
+          { ok: false, error: { code: "validation_error", message: basicsError } },
+          { status: 400 }
+        );
+      }
+    }
+
+    if ("licensingNotes" in body) {
+      const v = body.licensingNotes;
+      if (v === null || v === "") {
+        updates.licensing_notes = null;
+      } else if (typeof v === "string") {
+        const t = v.trim();
+        if (t.length > 4000) {
+          return Response.json(
+            { ok: false, error: { code: "validation_error", message: "Licensing notes must be at most 4000 characters" } },
+            { status: 400 }
+          );
+        }
+        updates.licensing_notes = t.length ? t : null;
+      } else {
+        return Response.json(
+          { ok: false, error: { code: "invalid_input", message: "Invalid licensingNotes" } },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return Response.json(
+        { ok: false, error: { code: "no_changes", message: "No valid fields" } },
+        { status: 400 }
       );
     }
-    console.error("[profile PATCH] failed", { userId: user.id, code: error.code, message: error.message });
-    return NextResponse.json({ error: "Could not save profile" }, { status: 500 });
-  }
 
-  return NextResponse.json(profileJsonFromRow(data as ProfileRow | null, user.id, user.email));
+    const { data, error } = await supabase
+      .from("profiles")
+      .update(updates)
+      .eq("id", user.id)
+      .select(
+        "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code, platform_license_signed"
+      )
+      .single();
+
+    if (error) {
+      if (error.code === "23505") {
+        return Response.json(
+          { ok: false, error: { code: "conflict", message: "That handle is already taken." } },
+          { status: 409 }
+        );
+      }
+      if (
+        isMissingColumnError(error) &&
+        ("follower_count" in updates ||
+          "full_name" in updates ||
+          "phone" in updates ||
+          "address" in updates ||
+          "address_line1" in updates ||
+          "address_city" in updates ||
+          "address_pin_code" in updates)
+      ) {
+        logger.error("profile_patch_missing_column", { userId: user.id, code: error.code });
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code: "unavailable",
+              message: "Follower count cannot be saved until the latest database migration is applied.",
+            },
+          },
+          { status: 503 }
+        );
+      }
+      logger.error("profile_patch_error", { userId: user.id, code: error.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Could not save profile" } },
+        { status: 500 }
+      );
+    }
+
+    return Response.json({
+      ok: true,
+      data: profileJsonFromRow(data as ProfileRow | null, user.id, user.email),
+    });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
+  }
 }

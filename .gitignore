@@ -42,8 +42,8 @@ yarn-error.log*
 .env.local
 .env.*.local
 
-# docs / media (stealth + large binaries)
-docs/**/*.pdf
+# docs 
+docs/**
 
 # Only app/favicon.ico is committed as a static browser asset; keep public/ local/private.
 /public/videos/**

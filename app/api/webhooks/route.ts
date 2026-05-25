@@ -1,11 +1,8 @@
-import { NextResponse } from "next/server";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-/**
- * Generic webhook receiver is disabled until signature verification and routing exist.
- * Do not return a success body for unsigned requests.
- */
 function disabled() {
-  return NextResponse.json(
+  return Response.json(
     {
       ok: false,
       error: {

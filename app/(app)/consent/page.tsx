@@ -2,8 +2,16 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { appPageHeaderVariants, appPageTitleVariants } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
+import { Alert } from "@/components/ui/alert";
+import { LoadingSpinner } from "@/components/ui/loading";
+import { ChipSelect, type ChipOption } from "@/components/ui/chip-select";
+import { ToggleField } from "@/components/ui/toggle";
+import { FormSelect } from "@/components/ui/form-select";
+import { FormField } from "@/components/ui/form-field";
 
-type ConsentRules = {
+interface ConsentRules {
   channels: string[];
   territories: string[];
   blockedCategories: string[];
@@ -11,9 +19,9 @@ type ConsentRules = {
   allowFaceReenactment: boolean;
   requireApprovalPerUse: boolean;
   defaultDurationDays: number;
-};
+}
 
-const channelOptions = [
+const channelOptions: ChipOption[] = [
   { id: "instagram", label: "Instagram" },
   { id: "youtube", label: "YouTube" },
   { id: "tiktok", label: "TikTok" },
@@ -25,7 +33,7 @@ const channelOptions = [
   { id: "print", label: "Print" },
 ];
 
-const territoryOptions = [
+const territoryOptions: ChipOption[] = [
   { id: "IN", label: "India" },
   { id: "US", label: "United States" },
   { id: "UK", label: "United Kingdom" },
@@ -33,7 +41,7 @@ const territoryOptions = [
   { id: "global", label: "Global" },
 ];
 
-const blockedCategoryOptions = [
+const blockedCategoryOptions: ChipOption[] = [
   { id: "politics", label: "Political content" },
   { id: "alcohol", label: "Alcohol" },
   { id: "gambling", label: "Gambling" },
@@ -41,27 +49,32 @@ const blockedCategoryOptions = [
   { id: "cryptocurrency", label: "Cryptocurrency" },
 ];
 
+const DEFAULT_RULES: ConsentRules = {
+  channels: [],
+  territories: [],
+  blockedCategories: ["politics"],
+  allowVoiceSynthesis: false,
+  allowFaceReenactment: false,
+  requireApprovalPerUse: true,
+  defaultDurationDays: 90,
+};
+
 export default function ConsentPage() {
-  const [rules, setRules] = useState<ConsentRules>({
-    channels: [],
-    territories: [],
-    blockedCategories: ["politics"],
-    allowVoiceSynthesis: false,
-    allowFaceReenactment: false,
-    requireApprovalPerUse: true,
-    defaultDurationDays: 90,
-  });
+  const [rules, setRules] = useState<ConsentRules>(DEFAULT_RULES);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [saved, setSaved] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadRules() {
       try {
         const res = await fetch("/api/consent");
-        const data = await res.json();
-        if (!data.error) {
-          setRules(data);
+        const json = await res.json();
+        if (json.ok && json.data) {
+          setRules(json.data);
+        } else if (!json.ok && json.error) {
+          console.error("Failed to load consent rules:", json.error);
         }
       } catch (error) {
         console.error("Failed to load consent rules:", error);
@@ -72,30 +85,33 @@ export default function ConsentPage() {
     loadRules();
   }, []);
 
-  function toggleArrayItem(key: keyof ConsentRules, item: string) {
-    const arr = rules[key] as string[];
-    setRules({
-      ...rules,
-      [key]: arr.includes(item) ? arr.filter((i) => i !== item) : [...arr, item],
-    });
-    setSaved(false);
+  function updateRules<K extends keyof ConsentRules>(key: K, value: ConsentRules[K]) {
+    setRules((prev) => ({ ...prev, [key]: value }));
+    setSaveSuccess(false);
+    setSaveError(null);
   }
 
   async function handleSave() {
     setSaving(true);
+    setSaveSuccess(false);
+    setSaveError(null);
+    
     try {
       const res = await fetch("/api/consent", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(rules),
       });
-      const data = await res.json();
-      if (data.success) {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+      const json = await res.json();
+      
+      if (json.ok) {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        setSaveError(json.error?.message || "Failed to save rules");
       }
-    } catch (error) {
-      console.error("Failed to save consent rules:", error);
+    } catch {
+      setSaveError("Network error. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -104,193 +120,127 @@ export default function ConsentPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-black/15 border-t-neutral-950" />
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <header className={appPageHeaderVariants()}>
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Consent rules</h1>
-          <p className="mt-1 text-sm text-neutral-900/60">
+          <h1 className={appPageTitleVariants()}>Consent rules</h1>
+          <p className="mt-1 text-sm text-neutral-700">
             Define how your identity can be used
           </p>
         </div>
         <Link
           href="/consent/history"
-          className="text-sm text-neutral-900/60 hover:text-neutral-950"
+          className="text-sm text-neutral-600 hover:text-neutral-950"
         >
           View history
         </Link>
-      </div>
+      </header>
 
       <div className="space-y-6">
-        {/* Allowed channels */}
-        <div className="rounded-xl border border-black/10 bg-white/70 p-6">
-          <h2 className="text-lg font-medium">Allowed channels</h2>
-          <p className="mt-1 text-sm text-neutral-900/55">
-            Select where your likeness can appear
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {channelOptions.map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => toggleArrayItem("channels", opt.id)}
-                className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                  rules.channels.includes(opt.id)
-                    ? "border-black/15 bg-black/5 text-neutral-950"
-                    : "border-black/10 bg-white/70 text-neutral-900/70 hover:border-black/15 hover:bg-white"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <SectionCard
+          title="Allowed channels"
+          description="Select where your likeness can appear"
+        >
+          <ChipSelect
+            options={channelOptions}
+            selected={rules.channels}
+            onChange={(channels) => updateRules("channels", channels)}
+          />
+        </SectionCard>
 
-        {/* Territories */}
-        <div className="rounded-xl border border-black/10 bg-white/70 p-6">
-          <h2 className="text-lg font-medium">Allowed territories</h2>
-          <p className="mt-1 text-sm text-neutral-900/55">
-            Geographic regions where your likeness can be used
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {territoryOptions.map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => toggleArrayItem("territories", opt.id)}
-                className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                  rules.territories.includes(opt.id)
-                    ? "border-black/15 bg-black/5 text-neutral-950"
-                    : "border-black/10 bg-white/70 text-neutral-900/70 hover:border-black/15 hover:bg-white"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <SectionCard
+          title="Allowed territories"
+          description="Geographic regions where your likeness can be used"
+        >
+          <ChipSelect
+            options={territoryOptions}
+            selected={rules.territories}
+            onChange={(territories) => updateRules("territories", territories)}
+          />
+        </SectionCard>
 
-        {/* Blocked categories */}
-        <div className="rounded-xl border border-black/10 bg-white/70 p-6">
-          <h2 className="text-lg font-medium">Blocked categories</h2>
-          <p className="mt-1 text-sm text-neutral-900/55">
-            Content types where your likeness cannot be used
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {blockedCategoryOptions.map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => toggleArrayItem("blockedCategories", opt.id)}
-                className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                  rules.blockedCategories.includes(opt.id)
-                    ? "border-red-500/30 bg-red-500/10 text-red-300"
-                    : "border-black/10 bg-white/70 text-neutral-900/70 hover:border-black/15 hover:bg-white"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <SectionCard
+          title="Blocked categories"
+          description="Content types where your likeness cannot be used"
+        >
+          <ChipSelect
+            options={blockedCategoryOptions}
+            selected={rules.blockedCategories}
+            onChange={(categories) => updateRules("blockedCategories", categories)}
+            variant="danger"
+          />
+        </SectionCard>
 
-        {/* AI permissions */}
-        <div className="rounded-xl border border-black/10 bg-white/70 p-6">
-          <h2 className="text-lg font-medium">AI permissions</h2>
-          <p className="mt-1 text-sm text-neutral-900/55">
-            Control AI-generated content using your identity
-          </p>
-          <div className="mt-4 space-y-4">
-            <label className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Voice synthesis</p>
-                <p className="text-sm text-neutral-900/55">Allow AI to clone your voice</p>
-              </div>
-              <button
-                onClick={() => setRules({ ...rules, allowVoiceSynthesis: !rules.allowVoiceSynthesis })}
-                className={`relative h-6 w-11 rounded-full transition ${
-                  rules.allowVoiceSynthesis ? "bg-emerald-500" : "bg-black/10"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${
-                    rules.allowVoiceSynthesis ? "left-[22px]" : "left-0.5"
-                  }`}
-                />
-              </button>
-            </label>
-            <label className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Face reenactment</p>
-                <p className="text-sm text-neutral-900/55">Allow AI to animate your face</p>
-              </div>
-              <button
-                onClick={() => setRules({ ...rules, allowFaceReenactment: !rules.allowFaceReenactment })}
-                className={`relative h-6 w-11 rounded-full transition ${
-                  rules.allowFaceReenactment ? "bg-emerald-500" : "bg-black/10"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${
-                    rules.allowFaceReenactment ? "left-[22px]" : "left-0.5"
-                  }`}
-                />
-              </button>
-            </label>
+        <SectionCard
+          title="AI permissions"
+          description="Control AI-generated content using your identity"
+        >
+          <div className="space-y-4">
+            <ToggleField
+              label="Voice synthesis"
+              description="Allow AI to clone your voice"
+              checked={rules.allowVoiceSynthesis}
+              onChange={(checked) => updateRules("allowVoiceSynthesis", checked)}
+            />
+            <ToggleField
+              label="Face reenactment"
+              description="Allow AI to animate your face"
+              checked={rules.allowFaceReenactment}
+              onChange={(checked) => updateRules("allowFaceReenactment", checked)}
+            />
           </div>
-        </div>
+        </SectionCard>
 
-        {/* Approval settings */}
-        <div className="rounded-xl border border-black/10 bg-white/70 p-6">
-          <h2 className="text-lg font-medium">Approval settings</h2>
-          <div className="mt-4 space-y-4">
-            <label className="flex items-center justify-between">
-              <div>
-                <p className="font-medium">Require approval per use</p>
-                <p className="text-sm text-neutral-900/55">Review each license request individually</p>
-              </div>
-              <button
-                onClick={() => setRules({ ...rules, requireApprovalPerUse: !rules.requireApprovalPerUse })}
-                className={`relative h-6 w-11 rounded-full transition ${
-                  rules.requireApprovalPerUse ? "bg-emerald-500" : "bg-black/10"
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${
-                    rules.requireApprovalPerUse ? "left-[22px]" : "left-0.5"
-                  }`}
-                />
-              </button>
-            </label>
-            <div>
-              <label className="font-medium">Default license duration</label>
-              <p className="text-sm text-neutral-900/55">How long licenses last by default</p>
-              <select
+        <SectionCard
+          title="Approval settings"
+        >
+          <div className="space-y-4">
+            <ToggleField
+              label="Require approval per use"
+              description="Review each license request individually"
+              checked={rules.requireApprovalPerUse}
+              onChange={(checked) => updateRules("requireApprovalPerUse", checked)}
+            />
+            <FormField
+              label="Default license duration"
+              description="How long licenses last by default"
+            >
+              <FormSelect
                 value={rules.defaultDurationDays}
-                onChange={(e) => setRules({ ...rules, defaultDurationDays: Number(e.target.value) })}
-                className="mt-2 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 outline-none focus:border-black/15"
+                onChange={(e) => updateRules("defaultDurationDays", Number(e.target.value))}
+                className="max-w-xs"
               >
                 <option value={30}>30 days</option>
                 <option value={60}>60 days</option>
                 <option value={90}>90 days</option>
                 <option value={180}>180 days</option>
                 <option value={365}>1 year</option>
-              </select>
-            </div>
+              </FormSelect>
+            </FormField>
           </div>
-        </div>
+        </SectionCard>
 
-        {/* Save button */}
-        <div className="flex items-center justify-end gap-3">
-          {saved && (
-            <span className="text-sm text-emerald-400">Rules saved successfully!</span>
+        <div className="flex items-center justify-end gap-4">
+          {saveSuccess && (
+            <Alert variant="success" icon={false} className="flex-1">
+              Rules saved successfully!
+            </Alert>
+          )}
+          {saveError && (
+            <Alert variant="error" icon={false} className="flex-1">
+              {saveError}
+            </Alert>
           )}
           <button
             onClick={handleSave}
             disabled={saving}
-            className="rounded-lg bg-neutral-950 px-6 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+            className="rounded-lg bg-neutral-950 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-900 disabled:opacity-60"
           >
             {saving ? "Saving..." : "Save rules"}
           </button>

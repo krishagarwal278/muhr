@@ -1,9 +1,14 @@
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
+import { requireUser } from "@/lib/auth/requireUser";
+import { createRouteClient } from "@/lib/supabase/route";
+import { parseJsonWithSchema } from "@/lib/api/parseJson";
+import { toApiError, ApiHttpError } from "@/lib/errors/apiError";
+import { logger } from "@/lib/logger";
 
-const schema = z.object({
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const MeasurementsSchema = z.object({
   height: z.string().trim().min(1).max(40),
   weight: z.string().trim().min(1).max(40),
   chest: z.string().trim().min(1).max(40),
@@ -12,96 +17,76 @@ const schema = z.object({
   shoe_size: z.string().trim().min(1).max(40),
 });
 
-async function supabaseFromCookies() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore
-          }
-        },
-      },
-    }
-  );
-}
-
 export async function GET() {
-  const supabase = await supabaseFromCookies();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const user = await requireUser();
+    const supabase = await createRouteClient();
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("height, weight, chest, waist, hips, shoe_size, min_license_fee_inr, consent_video_completed, platform_license_signed")
-    .eq("id", user.id)
-    .maybeSingle();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("height, weight, chest, waist, hips, shoe_size, min_license_fee_inr, consent_video_completed, platform_license_signed")
+      .eq("id", user.id)
+      .maybeSingle();
 
-  if (error) {
-    return NextResponse.json({ error: "Failed to load" }, { status: 500 });
+    if (error) {
+      logger.error("measurements_fetch_error", { userId: user.id, code: error.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Failed to load measurements" } },
+        { status: 500 }
+      );
+    }
+
+    return Response.json({
+      ok: true,
+      data: {
+        height: data?.height ?? "",
+        weight: data?.weight ?? "",
+        chest: data?.chest ?? "",
+        waist: data?.waist ?? "",
+        hips: data?.hips ?? "",
+        shoeSize: data?.shoe_size ?? "",
+        minLicenseFeeInr: data?.min_license_fee_inr ?? null,
+        consentVideoCompleted: data?.consent_video_completed ?? false,
+        platformLicenseSigned: data?.platform_license_signed ?? false,
+      },
+    });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
-
-  return NextResponse.json({
-    height: data?.height ?? "",
-    weight: data?.weight ?? "",
-    chest: data?.chest ?? "",
-    waist: data?.waist ?? "",
-    hips: data?.hips ?? "",
-    shoeSize: data?.shoe_size ?? "",
-    minLicenseFeeInr: data?.min_license_fee_inr ?? null,
-    consentVideoCompleted: data?.consent_video_completed ?? false,
-    platformLicenseSigned: data?.platform_license_signed ?? false,
-  });
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await supabaseFromCookies();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    const user = await requireUser();
+    const input = await parseJsonWithSchema(request, MeasurementsSchema).catch(() => {
+      throw new ApiHttpError(400, "validation_error", "Please fill in all measurement fields.");
+    });
+    const supabase = await createRouteClient();
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        height: input.height,
+        weight: input.weight,
+        chest: input.chest,
+        waist: input.waist,
+        hips: input.hips,
+        shoe_size: input.shoe_size,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      logger.error("measurements_save_error", { userId: user.id, code: error.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Could not save measurements" } },
+        { status: 500 }
+      );
+    }
+
+    return Response.json({ ok: true, message: "Measurements saved" });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
-
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Please fill in all measurement fields." }, { status: 400 });
-  }
-
-  const m = parsed.data;
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      height: m.height,
-      weight: m.weight,
-      chest: m.chest,
-      waist: m.waist,
-      hips: m.hips,
-      shoe_size: m.shoe_size,
-    })
-    .eq("id", user.id);
-
-  if (error) {
-    console.error("measurements PATCH:", error);
-    return NextResponse.json({ error: "Could not save measurements" }, { status: 500 });
-  }
-
-  return NextResponse.json({ success: true });
 }

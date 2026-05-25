@@ -24,9 +24,6 @@ export interface WaitlistResponse {
 }
 
 export type IdentityVerificationFileKind =
-  | "liveness_front"
-  | "liveness_left"
-  | "liveness_right"
   | "social_followers"
   | "social_age"
   | "social_location";

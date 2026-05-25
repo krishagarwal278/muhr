@@ -1,144 +1,133 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
-
+import { requireUser } from "@/lib/auth/requireUser";
+import { toApiError } from "@/lib/errors/apiError";
 import { resolveLicenseRequestAccess } from "@/lib/license/workspaceAccess";
+import { logger } from "@/lib/logger";
+import { createRouteClient } from "@/lib/supabase/route";
 import type { LicenseRequestRow } from "@/types/license";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(
   _request: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await ctx.params;
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore
-          }
-        },
-      },
+  try {
+    const { id } = await ctx.params;
+    const user = await requireUser();
+    const supabase = await createRouteClient();
+
+    const { data: row, error } = await supabase
+      .from("license_requests")
+      .select("*")
+      .eq("id", id)
+      .eq("creator_id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      logger.error("license_request_get_error", { requestId: id, code: error.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Fetch failed" } },
+        { status: 500 }
+      );
     }
-  );
+    if (!row) {
+      return Response.json(
+        { ok: false, error: { code: "not_found", message: "Not found" } },
+        { status: 404 }
+      );
+    }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const role = resolveLicenseRequestAccess(user, row as LicenseRequestRow);
+    if (role !== "creator") {
+      return Response.json(
+        { ok: false, error: { code: "not_found", message: "Not found" } },
+        { status: 404 }
+      );
+    }
 
-  const { data: row, error } = await supabase
-    .from("license_requests")
-    .select("*")
-    .eq("id", id)
-    .eq("creator_id", user.id)
-    .maybeSingle();
-
-  if (error) {
-    console.error("license_requests get:", error);
-    return NextResponse.json({ error: "Fetch failed" }, { status: 500 });
+    return Response.json({ ok: true, data: { request: row } });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
-  if (!row) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const role = resolveLicenseRequestAccess(user, row as LicenseRequestRow);
-  if (role !== "creator") {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return NextResponse.json({ request: row });
 }
 
 export async function PATCH(
   request: Request,
   ctx: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await ctx.params;
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore
-          }
-        },
-      },
-    }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  let body: { action?: string; decline_reason?: string | null };
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    const { id } = await ctx.params;
+    const user = await requireUser();
+    const supabase = await createRouteClient();
+
+    let body: { action?: string; decline_reason?: string | null };
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        { ok: false, error: { code: "invalid_json", message: "Invalid JSON" } },
+        { status: 400 }
+      );
+    }
+
+    if (body.action !== "accept" && body.action !== "decline") {
+      return Response.json(
+        { ok: false, error: { code: "invalid_input", message: "action must be accept or decline" } },
+        { status: 400 }
+      );
+    }
+
+    const declineReason =
+      typeof body.decline_reason === "string" ? body.decline_reason.trim().slice(0, 500) : null;
+
+    if (body.action === "decline" && declineReason === "") {
+      return Response.json(
+        { ok: false, error: { code: "invalid_input", message: "decline_reason optional but cannot be empty string" } },
+        { status: 400 }
+      );
+    }
+
+    const updates =
+      body.action === "accept"
+        ? {
+            status: "accepted" as const,
+            responded_at: new Date().toISOString(),
+            decline_reason: null,
+          }
+        : {
+            status: "declined" as const,
+            responded_at: new Date().toISOString(),
+            decline_reason: declineReason,
+          };
+
+    const { data, error } = await supabase
+      .from("license_requests")
+      .update(updates)
+      .eq("id", id)
+      .eq("creator_id", user.id)
+      .eq("status", "pending")
+      .select("id, status")
+      .maybeSingle();
+
+    if (error) {
+      logger.error("license_request_update_error", { requestId: id, code: error.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Update failed" } },
+        { status: 500 }
+      );
+    }
+    if (!data) {
+      return Response.json(
+        { ok: false, error: { code: "not_found", message: "Request not found or already handled" } },
+        { status: 404 }
+      );
+    }
+
+    return Response.json({ ok: true, data: { id: data.id, status: data.status } });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
-
-  if (body.action !== "accept" && body.action !== "decline") {
-    return NextResponse.json({ error: "action must be accept or decline" }, { status: 400 });
-  }
-
-  const declineReason =
-    typeof body.decline_reason === "string" ? body.decline_reason.trim().slice(0, 500) : null;
-
-  if (body.action === "decline" && declineReason === "") {
-    return NextResponse.json({ error: "decline_reason optional but cannot be empty string" }, { status: 400 });
-  }
-
-  const updates =
-    body.action === "accept"
-      ? {
-          status: "accepted" as const,
-          responded_at: new Date().toISOString(),
-          decline_reason: null,
-        }
-      : {
-          status: "declined" as const,
-          responded_at: new Date().toISOString(),
-          decline_reason: declineReason,
-        };
-
-  const { data, error } = await supabase
-    .from("license_requests")
-    .update(updates)
-    .eq("id", id)
-    .eq("creator_id", user.id)
-    .eq("status", "pending")
-    .select("id, status")
-    .maybeSingle();
-
-  if (error) {
-    console.error("license request update:", error);
-    return NextResponse.json({ error: "Update failed" }, { status: 500 });
-  }
-  if (!data) {
-    return NextResponse.json({ error: "Request not found or already handled" }, { status: 404 });
-  }
-
-  return NextResponse.json({ success: true, id: data.id, status: data.status });
 }

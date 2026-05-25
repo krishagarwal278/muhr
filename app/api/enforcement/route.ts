@@ -1,50 +1,17 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
-
-import { jsonApiError } from "@/lib/api/jsonResponse";
-import { RateLimitError } from "@/lib/errors/apiError";
+import { requireUser } from "@/lib/auth/requireUser";
+import { RateLimitError, toApiError } from "@/lib/errors/apiError";
 import { logger } from "@/lib/logger";
 import { rateLimit } from "@/lib/ratelimit";
 import { enforcementCreateBodySchema } from "@/lib/schemas/enforcement";
+import { createRouteClient } from "@/lib/supabase/route";
 
-async function supabaseFromCookies() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore
-          }
-        },
-      },
-    }
-  );
-}
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const supabase = await supabaseFromCookies();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { ok: false, error: { code: "unauthorized", message: "Unauthorized" } },
-        { status: 401 }
-      );
-    }
+    const user = await requireUser();
+    const supabase = await createRouteClient();
 
     await rateLimit({
       key: "enforcement_get",
@@ -61,8 +28,8 @@ export async function GET() {
 
     if (error) {
       logger.error("enforcement_cases_fetch", { errCode: error.code, message: error.message });
-      return NextResponse.json(
-        { ok: false, error: { code: "internal_error", message: "Failed to fetch cases." } },
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Failed to fetch cases." } },
         { status: 500 }
       );
     }
@@ -71,39 +38,31 @@ export async function GET() {
     const inProgress = cases?.filter((c) => c.status === "in_progress") || [];
     const resolved = cases?.filter((c) => c.status === "resolved" || c.status === "rejected") || [];
 
-    return NextResponse.json({
-      cases: cases || [],
-      open,
-      inProgress,
-      resolved,
+    return Response.json({
+      ok: true,
+      data: {
+        cases: cases || [],
+        open,
+        inProgress,
+        resolved,
+      },
     });
   } catch (err) {
     if (err instanceof RateLimitError) {
-      return jsonApiError(err);
+      return Response.json(
+        { ok: false, error: { code: "rate_limited", message: err.message } },
+        { status: 429 }
+      );
     }
-    logger.error("enforcement_get_unexpected", {
-      message: err instanceof Error ? err.message : "unknown",
-    });
-    return NextResponse.json(
-      { ok: false, error: { code: "internal_error", message: "Something went wrong." } },
-      { status: 500 }
-    );
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const supabase = await supabaseFromCookies();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json(
-        { ok: false, error: { code: "unauthorized", message: "Unauthorized" } },
-        { status: 401 }
-      );
-    }
+    const user = await requireUser();
+    const supabase = await createRouteClient();
 
     await rateLimit({
       key: "enforcement_post",
@@ -116,16 +75,16 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
-        { success: false, error: { code: "invalid_input", message: "Invalid JSON body." } },
+      return Response.json(
+        { ok: false, error: { code: "invalid_json", message: "Invalid JSON body." } },
         { status: 400 }
       );
     }
 
     const parsed = enforcementCreateBodySchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { success: false, error: { code: "invalid_input", message: "Invalid request fields." } },
+      return Response.json(
+        { ok: false, error: { code: "validation_error", message: "Invalid request fields." } },
         { status: 400 }
       );
     }
@@ -146,8 +105,8 @@ export async function POST(request: Request) {
 
     if (error) {
       logger.error("enforcement_case_create", { errCode: error.code, message: error.message });
-      return NextResponse.json(
-        { success: false, error: { code: "internal_error", message: "Failed to create case." } },
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Failed to create case." } },
         { status: 500 }
       );
     }
@@ -191,8 +150,6 @@ export async function POST(request: Request) {
             status: emailResponse.status,
             message: emailResult.message ?? "send_failed",
           });
-        } else {
-          logger.warn("enforcement_notify_sent", { id: emailResult.id });
         }
       } catch (emailError) {
         logger.error("enforcement_notify_error", {
@@ -203,21 +160,21 @@ export async function POST(request: Request) {
       logger.warn("enforcement_notify_skipped", { reason: "no_support_email" });
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Case created successfully",
-      case: newCase,
+    return Response.json({
+      ok: true,
+      data: {
+        message: "Case created successfully",
+        case: newCase,
+      },
     });
   } catch (err) {
     if (err instanceof RateLimitError) {
-      return jsonApiError(err);
+      return Response.json(
+        { ok: false, error: { code: "rate_limited", message: err.message } },
+        { status: 429 }
+      );
     }
-    logger.error("enforcement_post_unexpected", {
-      message: err instanceof Error ? err.message : "unknown",
-    });
-    return NextResponse.json(
-      { success: false, error: { code: "internal_error", message: "Something went wrong." } },
-      { status: 500 }
-    );
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
 }

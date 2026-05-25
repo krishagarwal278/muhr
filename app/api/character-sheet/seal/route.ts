@@ -1,10 +1,13 @@
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
 
+import { requireUser } from "@/lib/auth/requireUser";
 import { markCharacterSheetSealed } from "@/lib/character-sheet/server";
+import { toApiError } from "@/lib/errors/apiError";
+import { createRouteClient } from "@/lib/supabase/route";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const schema = z.object({
   vaultAssetId: z.string().uuid(),
@@ -12,84 +15,71 @@ const schema = z.object({
   replaceVaultAssetId: z.string().uuid().optional(),
 });
 
-async function supabaseFromCookies() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore
-          }
-        },
-      },
-    }
-  );
-}
-
 export async function POST(request: Request) {
-  const supabase = await supabaseFromCookies();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+    const user = await requireUser();
+    const supabase = await createRouteClient();
 
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid request" }, { status: 400 });
-  }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        { ok: false, error: { code: "invalid_json", message: "Invalid JSON" } },
+        { status: 400 }
+      );
+    }
 
-  const { data: asset } = await supabase
-    .from("vault_assets")
-    .select("id, asset_type")
-    .eq("id", parsed.data.vaultAssetId)
-    .eq("user_id", user.id)
-    .maybeSingle();
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      return Response.json(
+        { ok: false, error: { code: "validation_error", message: "Invalid request" } },
+        { status: 400 }
+      );
+    }
 
-  if (!asset || asset.asset_type !== "character_sheet") {
-    return NextResponse.json({ error: "Character sheet asset not found" }, { status: 404 });
-  }
-
-  await markCharacterSheetSealed(
-    supabase,
-    user.id,
-    parsed.data.vaultAssetId,
-    parsed.data.generationMode
-  );
-
-  const replaceId = parsed.data.replaceVaultAssetId;
-  if (replaceId && replaceId !== parsed.data.vaultAssetId) {
-    const { data: oldAsset } = await supabase
+    const { data: asset } = await supabase
       .from("vault_assets")
-      .select("id, file_path")
-      .eq("id", replaceId)
+      .select("id, asset_type")
+      .eq("id", parsed.data.vaultAssetId)
       .eq("user_id", user.id)
-      .eq("asset_type", "character_sheet")
       .maybeSingle();
 
-    if (oldAsset) {
-      const admin = createServiceRoleClient();
-      const storageClient = admin ?? supabase;
-      await storageClient.storage.from("assets").remove([oldAsset.file_path]);
-      await supabase.from("vault_assets").delete().eq("id", replaceId).eq("user_id", user.id);
+    if (!asset || asset.asset_type !== "character_sheet") {
+      return Response.json(
+        { ok: false, error: { code: "not_found", message: "Character sheet asset not found" } },
+        { status: 404 }
+      );
     }
-  }
 
-  return NextResponse.json({ success: true });
+    await markCharacterSheetSealed(
+      supabase,
+      user.id,
+      parsed.data.vaultAssetId,
+      parsed.data.generationMode
+    );
+
+    const replaceId = parsed.data.replaceVaultAssetId;
+    if (replaceId && replaceId !== parsed.data.vaultAssetId) {
+      const { data: oldAsset } = await supabase
+        .from("vault_assets")
+        .select("id, file_path")
+        .eq("id", replaceId)
+        .eq("user_id", user.id)
+        .eq("asset_type", "character_sheet")
+        .maybeSingle();
+
+      if (oldAsset) {
+        const admin = createServiceRoleClient();
+        const storageClient = admin ?? supabase;
+        await storageClient.storage.from("assets").remove([oldAsset.file_path]);
+        await supabase.from("vault_assets").delete().eq("id", replaceId).eq("user_id", user.id);
+      }
+    }
+
+    return Response.json({ ok: true });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
+  }
 }

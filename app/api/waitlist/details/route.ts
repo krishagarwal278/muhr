@@ -1,13 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
 import { start } from "workflow/api";
 import { z } from "zod";
 
 import { sendWaitlistWelcomeEmail } from "@/lib/email/waitlistWelcomeSend";
+import { RateLimitError, toApiError } from "@/lib/errors/apiError";
 import { logger } from "@/lib/logger";
 import { getRateLimitIp, rateLimit } from "@/lib/ratelimit";
 import { createAdminClient } from "@/lib/supabase/server";
-import type { UserType, WaitlistResponse } from "@/types";
+import type { UserType } from "@/types";
 import { waitlistWelcomeWorkflow } from "@/workflows/waitlist-welcome";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const detailsSchema = z.object({
   email: z.string().trim().email().max(255),
@@ -15,7 +18,7 @@ const detailsSchema = z.object({
   profession: z.string().trim().min(1).max(120),
 });
 
-export async function PATCH(request: NextRequest) {
+export async function PATCH(request: Request) {
   try {
     await rateLimit({
       key: "waitlist_details",
@@ -24,11 +27,20 @@ export async function PATCH(request: NextRequest) {
       window: "1h",
     });
 
-    const json = await request.json();
+    let json: unknown;
+    try {
+      json = await request.json();
+    } catch {
+      return Response.json(
+        { ok: false, error: { code: "invalid_json", message: "Invalid JSON" } },
+        { status: 400 }
+      );
+    }
+
     const parsed = detailsSchema.safeParse(json);
     if (!parsed.success) {
-      return NextResponse.json<WaitlistResponse>(
-        { success: false, message: "Please fill in your Instagram and profession.", code: "invalid_input" },
+      return Response.json(
+        { ok: false, error: { code: "invalid_input", message: "Please fill in your Instagram and profession." } },
         { status: 400 }
       );
     }
@@ -36,6 +48,14 @@ export async function PATCH(request: NextRequest) {
     const { email, instagram_profile, profession } = parsed.data;
     const normalized = email.toLowerCase();
     const supabase = createAdminClient();
+
+    if (!supabase) {
+      logger.error("waitlist_details_misconfigured", { reason: "missing_service_role_key" });
+      return Response.json(
+        { ok: false, error: { code: "unavailable", message: "Service temporarily unavailable." } },
+        { status: 503 }
+      );
+    }
 
     const { data: row, error } = await supabase
       .from("waitlist")
@@ -49,12 +69,15 @@ export async function PATCH(request: NextRequest) {
 
     if (error) {
       logger.error("waitlist_details_update", { errCode: error.code, message: error.message });
-      throw error;
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Failed to update details" } },
+        { status: 500 }
+      );
     }
 
     if (!row) {
-      return NextResponse.json<WaitlistResponse>(
-        { success: false, message: "Email not found on the waitlist. Try joining again.", code: "not_found" },
+      return Response.json(
+        { ok: false, error: { code: "not_found", message: "Email not found on the waitlist. Try joining again." } },
         { status: 404 }
       );
     }
@@ -79,17 +102,18 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    return NextResponse.json<WaitlistResponse>({
-      success: true,
-      message: "You're on the list. We'll be in touch.",
+    return Response.json({
+      ok: true,
+      data: { message: "You're on the list. We'll be in touch." },
     });
   } catch (err) {
-    logger.error("waitlist_details_error", {
-      message: err instanceof Error ? err.message : "unknown",
-    });
-    return NextResponse.json<WaitlistResponse>(
-      { success: false, message: "Something went wrong. Please try again.", code: "internal_error" },
-      { status: 500 }
-    );
+    if (err instanceof RateLimitError) {
+      return Response.json(
+        { ok: false, error: { code: "rate_limited", message: err.message } },
+        { status: 429 }
+      );
+    }
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
 }

@@ -3,10 +3,61 @@
 import { useCallback, useEffect, useState } from "react";
 import { formatFollowerCount } from "@/lib/pricing/followers";
 import { parsePhoneE164 } from "@/lib/profile/basics";
+import { SectionCard } from "@/components/ui/section-card";
+import { Alert } from "@/components/ui/alert";
+import { FormInput } from "@/components/ui/form-input";
+import { FormField } from "@/components/ui/form-field";
+import { FormTextarea } from "@/components/ui/form-textarea";
+import { FormCheckbox } from "@/components/ui/form-checkbox";
+import { FormSelect } from "@/components/ui/form-select";
+import { DataItem, DataItemsGrid } from "@/components/ui/data-item";
+import { LoadingSkeleton } from "@/components/ui/loading";
 
 interface ProfileOverviewSectionProps {
   onUpdated?: () => void;
 }
+
+interface OverviewState {
+  fullName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2: string;
+  addressCity: string;
+  addressPinCode: string;
+  followerCount: number | null;
+  handle: string;
+  email: string;
+  licensingNotes: string;
+  acceptingRequests: boolean;
+}
+
+interface EditState {
+  fullName: string;
+  countryCode: string;
+  localPhone: string;
+  addressLine1: string;
+  addressLine2: string;
+  addressCity: string;
+  addressPinCode: string;
+  followerText: string;
+  handle: string;
+  licensingNotes: string;
+  acceptingRequests: boolean;
+}
+
+const INITIAL_OVERVIEW: OverviewState = {
+  fullName: "",
+  phone: "",
+  addressLine1: "",
+  addressLine2: "",
+  addressCity: "",
+  addressPinCode: "",
+  followerCount: null,
+  handle: "",
+  email: "",
+  licensingNotes: "",
+  acceptingRequests: true,
+};
 
 export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProps) {
   const [loading, setLoading] = useState(true);
@@ -14,22 +65,8 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState(false);
-
-  const [overview, setOverview] = useState({
-    fullName: "",
-    phone: "",
-    addressLine1: "",
-    addressLine2: "",
-    addressCity: "",
-    addressPinCode: "",
-    followerCount: null as number | null,
-    handle: "",
-    email: "",
-    licensingNotes: "",
-    acceptingRequests: true,
-  });
-
-  const [editValues, setEditValues] = useState({
+  const [overview, setOverview] = useState<OverviewState>(INITIAL_OVERVIEW);
+  const [editValues, setEditValues] = useState<EditState>({
     fullName: "",
     countryCode: "+91",
     localPhone: "",
@@ -47,21 +84,7 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
     setLoading(true);
     try {
       const res = await fetch("/api/profile");
-      const data = (await res.json().catch(() => ({}))) as {
-        fullName?: string | null;
-        displayName?: string | null;
-        phone?: string | null;
-        address?: string | null;
-        addressLine1?: string | null;
-        addressLine2?: string | null;
-        addressCity?: string | null;
-        addressPinCode?: string | null;
-        followerCount?: number | null;
-        handle?: string | null;
-        email?: string | null;
-        licensingNotes?: string | null;
-        acceptingRequests?: boolean;
-      };
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setOverview({
           fullName: data.fullName ?? data.displayName ?? "",
@@ -70,8 +93,7 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
           addressLine2: data.addressLine2 ?? "",
           addressCity: data.addressCity ?? "",
           addressPinCode: data.addressPinCode ?? "",
-          followerCount:
-            typeof data.followerCount === "number" ? data.followerCount : null,
+          followerCount: typeof data.followerCount === "number" ? data.followerCount : null,
           handle: data.handle ?? "",
           email: data.email ?? "",
           licensingNotes: data.licensingNotes ?? "",
@@ -105,6 +127,10 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
     setSaveError(null);
     setSaveOk(false);
     setEditing(true);
+  }
+
+  function updateEdit<K extends keyof EditState>(key: K, value: EditState[K]) {
+    setEditValues((prev) => ({ ...prev, [key]: value }));
   }
 
   function parseFollowerInput(raw: string): number | null {
@@ -167,7 +193,7 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
           licensingNotes: editValues.licensingNotes.trim() || null,
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string; handle?: string; licensingNotes?: string };
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setSaveError(typeof data.error === "string" ? data.error : "Could not save");
         return;
@@ -196,29 +222,23 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
     }
   }
 
+  function cancelEditing() {
+    setEditing(false);
+    setSaveError(null);
+  }
+
   const phoneDisplay = overview.phone
-    ? parsePhoneE164(overview.phone).countryCode +
-      " " +
-      parsePhoneE164(overview.phone).localNumber
+    ? parsePhoneE164(overview.phone).countryCode + " " + parsePhoneE164(overview.phone).localNumber
     : "—";
 
   return (
-    <div
+    <SectionCard
       id="profile-overview"
-      className="scroll-mt-24 rounded-xl border border-black/10 bg-white p-4 sm:p-6"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-medium text-neutral-950">Profile overview</h2>
-          <p className="mt-1 text-sm text-neutral-700">
-            {overview.handle && (
-              <span className="block mt-1">
-                Public URL: <span className="font-mono font-medium text-neutral-900">/k/{overview.handle}</span>
-              </span>
-            )}
-          </p>
-        </div>
-        {!loading && !editing ? (
+      title="Profile overview"
+      description={overview.handle ? `Public URL: /k/${overview.handle}` : undefined}
+      className="scroll-mt-24"
+      headerAction={
+        !loading && !editing ? (
           <button
             type="button"
             onClick={startEditing}
@@ -226,237 +246,207 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
           >
             Edit
           </button>
-        ) : null}
+        ) : null
+      }
+    >
+      {saveError && <Alert variant="error" className="mb-4">{saveError}</Alert>}
+      {saveOk && <Alert variant="success" className="mb-4">Profile saved.</Alert>}
+
+      {loading ? (
+        <div className="space-y-4">
+          <LoadingSkeleton height={32} />
+          <LoadingSkeleton height={32} />
+          <LoadingSkeleton height={32} />
+        </div>
+      ) : editing ? (
+        <EditForm
+          values={editValues}
+          email={overview.email}
+          onUpdate={updateEdit}
+          onSave={handleSave}
+          onCancel={cancelEditing}
+          saving={saving}
+        />
+      ) : (
+        <DisplayView overview={overview} phoneDisplay={phoneDisplay} />
+      )}
+    </SectionCard>
+  );
+}
+
+interface EditFormProps {
+  values: EditState;
+  email: string;
+  onUpdate: <K extends keyof EditState>(key: K, value: EditState[K]) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  saving: boolean;
+}
+
+function EditForm({ values, email, onUpdate, onSave, onCancel, saving }: EditFormProps) {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField label="Full name" required>
+          <FormInput
+            value={values.fullName}
+            onChange={(e) => onUpdate("fullName", e.target.value)}
+            placeholder="Your full name"
+          />
+        </FormField>
+        <FormField label="Phone" required>
+          <div className="flex gap-2">
+            <FormSelect
+              value={values.countryCode}
+              onChange={(e) => onUpdate("countryCode", e.target.value)}
+              className="w-24"
+            >
+              <option value="+91">+91</option>
+              <option value="+1">+1</option>
+              <option value="+44">+44</option>
+            </FormSelect>
+            <FormInput
+              type="tel"
+              value={values.localPhone}
+              onChange={(e) => onUpdate("localPhone", e.target.value)}
+              placeholder="9876543210"
+              className="flex-1"
+            />
+          </div>
+        </FormField>
       </div>
 
-      {saveError ? (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
-          {saveError}
-        </p>
-      ) : null}
-      {saveOk ? (
-        <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
-          Profile saved.
-        </p>
-      ) : null}
+      <FormField label="Address line 1" required>
+        <FormInput
+          value={values.addressLine1}
+          onChange={(e) => onUpdate("addressLine1", e.target.value)}
+          placeholder="Flat, building name"
+        />
+      </FormField>
 
-      <div className="mt-4">
-        {loading ? (
-          <div className="h-32 animate-pulse rounded-lg bg-black/5" />
-        ) : editing ? (
-          <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-neutral-900">Full name <span className="text-red-600">*</span></label>
-                <input
-                  type="text"
-                  value={editValues.fullName}
-                  onChange={(e) => setEditValues({ ...editValues, fullName: e.target.value })}
-                  className="w-full rounded-lg border border-black/10 bg-white px-4 py-2.5 text-sm text-neutral-950 outline-none focus:border-black/15"
-                  placeholder="Your full name"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-neutral-900">Phone <span className="text-red-600">*</span></label>
-                <div className="flex gap-2">
-                  <select
-                    value={editValues.countryCode}
-                    onChange={(e) => setEditValues({ ...editValues, countryCode: e.target.value })}
-                    className="w-20 rounded-lg border border-black/10 bg-white px-2 py-2.5 text-sm text-neutral-950 outline-none"
-                  >
-                    <option value="+91">+91</option>
-                    <option value="+1">+1</option>
-                    <option value="+44">+44</option>
-                  </select>
-                  <input
-                    type="tel"
-                    value={editValues.localPhone}
-                    onChange={(e) => setEditValues({ ...editValues, localPhone: e.target.value })}
-                    className="flex-1 rounded-lg border border-black/10 bg-white px-4 py-2.5 text-sm text-neutral-950 outline-none focus:border-black/15"
-                    placeholder="9876543210"
-                  />
-                </div>
-              </div>
-            </div>
+      <FormField label="Address line 2">
+        <FormInput
+          value={values.addressLine2}
+          onChange={(e) => onUpdate("addressLine2", e.target.value)}
+          placeholder="Area, landmark"
+        />
+      </FormField>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-neutral-900">Address line 1 <span className="text-red-600">*</span></label>
-              <input
-                type="text"
-                value={editValues.addressLine1}
-                onChange={(e) => setEditValues({ ...editValues, addressLine1: e.target.value })}
-                className="w-full rounded-lg border border-black/10 bg-white px-4 py-2.5 text-sm text-neutral-950 outline-none focus:border-black/15"
-                placeholder="Flat, building name"
-              />
-            </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField label="City" required>
+          <FormInput
+            value={values.addressCity}
+            onChange={(e) => onUpdate("addressCity", e.target.value)}
+            placeholder="Mumbai"
+          />
+        </FormField>
+        <FormField label="Pin code" required>
+          <FormInput
+            value={values.addressPinCode}
+            onChange={(e) => onUpdate("addressPinCode", e.target.value)}
+            placeholder="400001"
+          />
+        </FormField>
+      </div>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-neutral-900">Address line 2</label>
-              <input
-                type="text"
-                value={editValues.addressLine2}
-                onChange={(e) => setEditValues({ ...editValues, addressLine2: e.target.value })}
-                className="w-full rounded-lg border border-black/10 bg-white px-4 py-2.5 text-sm text-neutral-950 outline-none focus:border-black/15"
-                placeholder="Area, landmark"
-              />
-            </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField label="Follower count" required>
+          <FormInput
+            value={values.followerText}
+            onChange={(e) => onUpdate("followerText", e.target.value)}
+            placeholder="e.g. 50K or 50000"
+          />
+        </FormField>
+        <FormField label="Instagram handle">
+          <FormInput
+            value={values.handle}
+            onChange={(e) => onUpdate("handle", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+            placeholder="your_handle"
+            maxLength={30}
+            font="mono"
+          />
+        </FormField>
+      </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-neutral-900">City <span className="text-red-600">*</span></label>
-                <input
-                  type="text"
-                  value={editValues.addressCity}
-                  onChange={(e) => setEditValues({ ...editValues, addressCity: e.target.value })}
-                  className="w-full rounded-lg border border-black/10 bg-white px-4 py-2.5 text-sm text-neutral-950 outline-none focus:border-black/15"
-                  placeholder="Mumbai"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-neutral-900">Pin code <span className="text-red-600">*</span></label>
-                <input
-                  type="text"
-                  value={editValues.addressPinCode}
-                  onChange={(e) => setEditValues({ ...editValues, addressPinCode: e.target.value })}
-                  className="w-full rounded-lg border border-black/10 bg-white px-4 py-2.5 text-sm text-neutral-950 outline-none focus:border-black/15"
-                  placeholder="400001"
-                />
-              </div>
-            </div>
+      <FormField label="Email" description="Email changes are not supported yet.">
+        <FormInput value={email} disabled className="bg-neutral-50" />
+      </FormField>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-neutral-900">Follower count <span className="text-red-600">*</span></label>
-                <input
-                  type="text"
-                  value={editValues.followerText}
-                  onChange={(e) => setEditValues({ ...editValues, followerText: e.target.value })}
-                  className="w-full rounded-lg border border-black/10 bg-white px-4 py-2.5 text-sm text-neutral-950 outline-none focus:border-black/15"
-                  placeholder="e.g. 50K or 50000"
-                />
-              </div>
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-neutral-900">Instagram handle</label>
-                <input
-                  type="text"
-                  value={editValues.handle}
-                  onChange={(e) => setEditValues({ ...editValues, handle: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })}
-                  className="w-full rounded-lg border border-black/10 bg-white px-4 py-2.5 font-mono text-sm text-neutral-950 outline-none focus:border-black/15"
-                  placeholder="your_handle"
-                  maxLength={30}
-                />
-              </div>
-            </div>
+      <FormField
+        label="Licensing notes (shown to brands)"
+        description="Optional. Shown on your public page before brands submit a license request."
+      >
+        <FormTextarea
+          value={values.licensingNotes}
+          onChange={(e) => onUpdate("licensingNotes", e.target.value)}
+          maxLength={4000}
+          rows={4}
+          placeholder="e.g., Minimum fee, channels you won't do, typical turnaround…"
+        />
+      </FormField>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-neutral-900">Email</label>
-              <input
-                type="email"
-                value={overview.email}
-                className="w-full rounded-lg border border-black/10 bg-neutral-50 px-4 py-2.5 text-sm text-neutral-950 outline-none"
-                disabled
-              />
-              <p className="mt-1 text-xs text-neutral-600">Email changes are not supported yet.</p>
-            </div>
+      <FormCheckbox
+        checked={values.acceptingRequests}
+        onChange={(e) => onUpdate("acceptingRequests", e.target.checked)}
+        label="Accept license requests"
+        description="Turn off to show brands you are not taking new requests"
+      />
 
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-neutral-900">Licensing notes (shown to brands)</label>
-              <textarea
-                value={editValues.licensingNotes}
-                onChange={(e) => setEditValues({ ...editValues, licensingNotes: e.target.value })}
-                maxLength={4000}
-                rows={4}
-                placeholder="e.g., Minimum fee, channels you won't do, typical turnaround…"
-                className="w-full resize-y rounded-lg border border-black/10 bg-white px-4 py-2.5 text-sm text-neutral-950 outline-none focus:border-black/15"
-              />
-              <p className="mt-1 text-xs text-neutral-600">
-                Optional. Shown on your public page before brands submit a license request.
-              </p>
-            </div>
-
-            <label className="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                checked={editValues.acceptingRequests}
-                onChange={(e) => setEditValues({ ...editValues, acceptingRequests: e.target.checked })}
-                className="accent-neutral-950"
-              />
-              <span>
-                <span className="block text-sm font-medium text-neutral-950">Accept license requests</span>
-                <span className="text-xs text-neutral-600">Turn off to show brands you are not taking new requests</span>
-              </span>
-            </label>
-
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => void handleSave()}
-                disabled={saving}
-                className="rounded-lg bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-60"
-              >
-                {saving ? "Saving…" : "Save profile"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(false);
-                  setSaveError(null);
-                }}
-                className="text-sm font-medium text-neutral-600 underline-offset-2 hover:text-neutral-900 hover:underline"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <OverviewItem label="Name" value={overview.fullName || "—"} />
-            <OverviewItem label="Phone" value={phoneDisplay} />
-            <OverviewItem label="Email" value={overview.email || "—"} />
-            <OverviewItem label="Address" value={overview.addressLine1 || "—"} />
-            {overview.addressLine2 ? (
-              <OverviewItem label="Address line 2" value={overview.addressLine2} />
-            ) : null}
-            <OverviewItem label="City" value={overview.addressCity || "—"} />
-            <OverviewItem label="Pin code" value={overview.addressPinCode || "—"} />
-            <OverviewItem
-              label="Follower count"
-              value={
-                overview.followerCount
-                  ? formatFollowerCount(overview.followerCount)
-                  : "—"
-              }
-            />
-            <OverviewItem label="Instagram handle" value={overview.handle ? `@${overview.handle}` : "—"} />
-            <OverviewItem label="Accept license requests" value={overview.acceptingRequests ? "Yes" : "No"} />
-            <OverviewItem
-              label="Licensing notes"
-              value={overview.licensingNotes || "—"}
-              className="sm:col-span-2"
-              multiline
-            />
-          </dl>
-        )}
+      <div className="flex flex-wrap items-center gap-3 pt-2">
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={saving}
+          className="rounded-lg bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-60"
+        >
+          {saving ? "Saving…" : "Save profile"}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-sm font-medium text-neutral-600 underline-offset-2 hover:text-neutral-900 hover:underline"
+        >
+          Cancel
+        </button>
       </div>
     </div>
   );
 }
 
-function OverviewItem({
-  label,
-  value,
-  className = "",
-  multiline = false,
-}: {
-  label: string;
-  value: string;
-  className?: string;
-  multiline?: boolean;
-}) {
+interface DisplayViewProps {
+  overview: OverviewState;
+  phoneDisplay: string;
+}
+
+function DisplayView({ overview, phoneDisplay }: DisplayViewProps) {
   return (
-    <div className={className}>
-      <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{label}</dt>
-      <dd className={`mt-1 text-sm text-neutral-950 ${multiline ? "whitespace-pre-wrap" : ""}`}>{value}</dd>
-    </div>
+    <DataItemsGrid columns={2}>
+      <DataItem label="Name" value={overview.fullName || "—"} />
+      <DataItem label="Phone" value={phoneDisplay} />
+      <DataItem label="Email" value={overview.email || "—"} />
+      <DataItem label="Address" value={overview.addressLine1 || "—"} />
+      {overview.addressLine2 && (
+        <DataItem label="Address line 2" value={overview.addressLine2} />
+      )}
+      <DataItem label="City" value={overview.addressCity || "—"} />
+      <DataItem label="Pin code" value={overview.addressPinCode || "—"} />
+      <DataItem
+        label="Follower count"
+        value={overview.followerCount ? formatFollowerCount(overview.followerCount) : "—"}
+      />
+      <DataItem
+        label="Instagram handle"
+        value={overview.handle ? `@${overview.handle}` : "—"}
+      />
+      <DataItem
+        label="Accept license requests"
+        value={overview.acceptingRequests ? "Yes" : "No"}
+      />
+      {overview.licensingNotes && (
+        <div className="sm:col-span-2">
+          <DataItem label="Licensing notes" value={overview.licensingNotes} />
+        </div>
+      )}
+    </DataItemsGrid>
   );
 }

@@ -1,63 +1,50 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
-import { VaultAsset, UploadResponse, AssetType } from "@/types";
 import crypto from "crypto";
-import { createServiceRoleClient } from "@/lib/supabase/service";
+
+import type { VaultAsset, AssetType } from "@/types";
+import { requireUser } from "@/lib/auth/requireUser";
 import { getFaceEmbeddingFromImageUrl } from "@/lib/embeddings/face";
+import { toApiError } from "@/lib/errors/apiError";
+import { logger } from "@/lib/logger";
+import { createRouteClient } from "@/lib/supabase/route";
+import { createServiceRoleClient } from "@/lib/supabase/service";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore
-          }
-        },
-      },
-    }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json<UploadResponse>(
-      { success: false, message: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("kyc_status")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profile?.kyc_status !== "verified") {
-    return NextResponse.json<UploadResponse>(
-      {
-        success: false,
-        message: "Complete identity verification before uploading vault assets.",
-      },
-      { status: 403 }
-    );
-  }
-
   try {
-    const formData = await request.formData();
+    const user = await requireUser();
+    const supabase = await createRouteClient();
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("kyc_status")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.kyc_status !== "verified") {
+      return Response.json(
+        {
+          ok: false,
+          error: {
+            code: "kyc_required",
+            message: "Complete identity verification before uploading vault assets.",
+          },
+        },
+        { status: 403 }
+      );
+    }
+
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch {
+      return Response.json(
+        { ok: false, error: { code: "invalid_input", message: "Invalid form data" } },
+        { status: 400 }
+      );
+    }
+
     const file = formData.get("file") as File | null;
     const assetType = formData.get("asset_type") as AssetType | null;
     const encryptionVersionRaw = formData.get("encryption_version");
@@ -73,20 +60,19 @@ export async function POST(request: Request) {
     const wrappedKeySalt = typeof formData.get("wrapped_key_salt") === "string" ? String(formData.get("wrapped_key_salt")) : "";
 
     if (!file) {
-      return NextResponse.json<UploadResponse>(
-        { success: false, message: "No file provided" },
+      return Response.json(
+        { ok: false, error: { code: "missing_file", message: "No file provided" } },
         { status: 400 }
       );
     }
 
     if (!assetType || !["face_photo", "voice_sample", "document", "character_sheet"].includes(assetType)) {
-      return NextResponse.json<UploadResponse>(
-        { success: false, message: "Invalid asset type" },
+      return Response.json(
+        { ok: false, error: { code: "invalid_type", message: "Invalid asset type" } },
         { status: 400 }
       );
     }
 
-    // Validate file type
     const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
     const allowedAudioTypes = ["audio/mpeg", "audio/wav", "audio/mp4"];
     
@@ -96,45 +82,42 @@ export async function POST(request: Request) {
       (assetType === "face_photo" || assetType === "character_sheet") &&
       !allowedImageTypes.includes(effectiveMimeType)
     ) {
-      return NextResponse.json<UploadResponse>(
-        { success: false, message: "Invalid image type. Use JPEG, PNG, or WebP." },
+      return Response.json(
+        { ok: false, error: { code: "invalid_mime", message: "Invalid image type. Use JPEG, PNG, or WebP." } },
         { status: 400 }
       );
     }
 
     if (assetType === "voice_sample" && !allowedAudioTypes.includes(effectiveMimeType)) {
-      return NextResponse.json<UploadResponse>(
-        { success: false, message: "Invalid audio type. Use MP3, WAV, or M4A." },
+      return Response.json(
+        { ok: false, error: { code: "invalid_mime", message: "Invalid audio type. Use MP3, WAV, or M4A." } },
         { status: 400 }
       );
     }
 
-    // File size limit: 10MB for images, 50MB for audio
     const maxSize =
       assetType === "character_sheet"
         ? 15 * 1024 * 1024
         : assetType === "face_photo"
           ? 10 * 1024 * 1024
           : 50 * 1024 * 1024;
+
     if (file.size > maxSize) {
-      return NextResponse.json<UploadResponse>(
-        { success: false, message: `File too large. Max ${maxSize / 1024 / 1024}MB.` },
+      return Response.json(
+        { ok: false, error: { code: "file_too_large", message: `File too large. Max ${maxSize / 1024 / 1024}MB.` } },
         { status: 400 }
       );
     }
 
-    // Generate unique file path
     const fileExt = file.name.split(".").pop();
     const timestamp = Date.now();
     const randomId = crypto.randomBytes(8).toString("hex");
     const filePath = `${user.id}/${assetType}/${timestamp}-${randomId}.${fileExt}`;
 
-    // Calculate file hash
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const hashSha256 = crypto.createHash("sha256").update(buffer).digest("hex");
 
-    // Upload to Supabase Storage
     const { error: uploadError } = await supabase.storage
       .from("assets")
       .upload(filePath, buffer, {
@@ -143,14 +126,13 @@ export async function POST(request: Request) {
       });
 
     if (uploadError) {
-      console.error("Storage upload error:", uploadError);
-      return NextResponse.json<UploadResponse>(
-        { success: false, message: "Failed to upload file" },
+      logger.error("vault_upload_error", { userId: user.id, error: uploadError.message });
+      return Response.json(
+        { ok: false, error: { code: "upload_failed", message: "Failed to upload file" } },
         { status: 500 }
       );
     }
 
-    // Save asset record to database
     const { data: asset, error: dbError } = await supabase
       .from("vault_assets")
       .insert({
@@ -175,28 +157,23 @@ export async function POST(request: Request) {
             }
           : {}),
       })
-      // Only select columns guaranteed to exist in current DB schema.
-      // (Security + embedding metadata columns are optional migrations.)
       .select("id,user_id,asset_type,file_name,file_path,file_size,mime_type,hash_sha256,created_at,updated_at")
       .single();
 
     if (dbError) {
-      console.error("Database insert error:", dbError);
-      // Try to clean up the uploaded file
+      logger.error("vault_db_insert_error", { userId: user.id, code: dbError.code });
       await supabase.storage.from("assets").remove([filePath]);
-      return NextResponse.json<UploadResponse>(
-        { success: false, message: "Failed to save asset record" },
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Failed to save asset record" } },
         { status: 500 }
       );
     }
 
-    // Phase 1: compute and store a face embedding at upload time.
-    // This is server-only; we update via service role so clients can't spoof embeddings.
     if (assetType === "face_photo" && !isEncrypted) {
       try {
         const { data: signed } = await supabase.storage
           .from("assets")
-          .createSignedUrl(filePath, 60 * 5); // 5 min
+          .createSignedUrl(filePath, 60 * 5);
 
         const signedUrl = signed?.signedUrl;
         if (signedUrl) {
@@ -229,20 +206,19 @@ export async function POST(request: Request) {
           }
         }
       } catch (e) {
-        console.error("Face embedding error:", e);
+        logger.warn("face_embedding_error", { assetId: asset.id, error: String(e) });
       }
     }
 
-    return NextResponse.json<UploadResponse>({
-      success: true,
-      message: "Asset uploaded successfully",
-      asset: asset as VaultAsset,
+    return Response.json({
+      ok: true,
+      data: {
+        message: "Asset uploaded successfully",
+        asset: asset as VaultAsset,
+      },
     });
-  } catch (error) {
-    console.error("Upload error:", error);
-    return NextResponse.json<UploadResponse>(
-      { success: false, message: "Something went wrong" },
-      { status: 500 }
-    );
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
 }

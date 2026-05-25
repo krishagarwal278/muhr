@@ -91,7 +91,8 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
       setVerificationNotice(count >= MIN_CHARACTER_PHOTOS);
     }
     if (measuresRes.ok) {
-      const m = await measuresRes.json();
+      const mRes = await measuresRes.json();
+      const m = mRes.data ?? mRes;
       const measurements = {
         height: m.height ?? "",
         weight: m.weight ?? "",
@@ -238,7 +239,8 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setMeasurementsSaveError(typeof data.error === "string" ? data.error : "Could not save");
+        const errorMsg = data.error?.message ?? data.error;
+        setMeasurementsSaveError(typeof errorMsg === "string" ? errorMsg : "Could not save");
         return;
       }
       setSavedMeasurements({ ...editMeasurements });

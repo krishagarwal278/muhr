@@ -35,8 +35,9 @@ export default function VaultUploadPage() {
       try {
         const res = await fetch("/api/identity");
         const data = res.ok ? await res.json() : {};
+        const identity = data.data ?? data;
         if (!cancelled) {
-          setKycStatus((data.kycStatus as KycStatus) ?? "unverified");
+          setKycStatus((identity.kycStatus as KycStatus) ?? "unverified");
         }
       } finally {
         if (!cancelled) setIdentityLoading(false);

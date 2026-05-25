@@ -3,10 +3,22 @@ import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { cache } from "react";
 
+/**
+ * Creates a Supabase client with service role privileges.
+ * Returns null if SUPABASE_SERVICE_ROLE_KEY is not configured.
+ * 
+ * @deprecated Prefer `createServiceRoleClient()` from `lib/supabase/service.ts`
+ * which throws an error if misconfigured.
+ */
 export function createAdminClient() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) {
+    console.error("[createAdminClient] SUPABASE_SERVICE_ROLE_KEY is not set - returning null");
+    return null;
+  }
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY!
+    serviceRoleKey
   );
 }
 

@@ -47,9 +47,10 @@ export function ManualIdentityVerification({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-      if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Could not submit request");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) {
+        const errorMsg = data.error?.message ?? data.error;
+        setError(typeof errorMsg === "string" ? errorMsg : "Could not submit request");
         return;
       }
       onStatusChange("pending");

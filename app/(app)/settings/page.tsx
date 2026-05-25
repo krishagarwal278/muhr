@@ -37,8 +37,9 @@ export default function SettingsPage() {
           fetch("/api/profile/completion"),
         ]);
         const idData = idRes.ok ? await idRes.json() : {};
+        const identity = idData.data ?? idData;
         if (!cancelled) {
-          setKycStatus((idData.kycStatus as KycStatus) ?? "unverified");
+          setKycStatus((identity.kycStatus as KycStatus) ?? "unverified");
         }
         if (completionRes.ok && !cancelled) {
           const c = await completionRes.json();

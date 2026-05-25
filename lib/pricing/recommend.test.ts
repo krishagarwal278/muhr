@@ -14,11 +14,14 @@ describe("tierFromMinFeeInr", () => {
   });
 
   it("buckets common min-fee values into the right tier", () => {
-    expect(tierFromMinFeeInr(10_000)).toBe("emerging");
-    expect(tierFromMinFeeInr(45_000)).toBe("established");
-    expect(tierFromMinFeeInr(1_50_000)).toBe("mid_tier");
-    expect(tierFromMinFeeInr(5_00_000)).toBe("major");
-    expect(tierFromMinFeeInr(15_00_000)).toBe("top_tier");
+    expect(tierFromMinFeeInr(8_000)).toBe("emerging");
+    expect(tierFromMinFeeInr(12_000)).toBe("rising");
+    expect(tierFromMinFeeInr(20_000)).toBe("established");
+    expect(tierFromMinFeeInr(45_000)).toBe("mid_tier");
+    expect(tierFromMinFeeInr(70_000)).toBe("growing");
+    expect(tierFromMinFeeInr(1_00_000)).toBe("major");
+    expect(tierFromMinFeeInr(1_50_000)).toBe("notable");
+    expect(tierFromMinFeeInr(2_50_000)).toBe("top_tier");
   });
 });
 
@@ -29,10 +32,13 @@ describe("tierFromFollowerCount", () => {
   });
 
   it("buckets common follower counts into the right tier", () => {
-    expect(tierFromFollowerCount(5_000)).toBe("emerging");
-    expect(tierFromFollowerCount(50_000)).toBe("established");
-    expect(tierFromFollowerCount(250_000)).toBe("mid_tier");
-    expect(tierFromFollowerCount(750_000)).toBe("major");
+    expect(tierFromFollowerCount(20_000)).toBe("emerging");
+    expect(tierFromFollowerCount(35_000)).toBe("rising");
+    expect(tierFromFollowerCount(75_000)).toBe("established");
+    expect(tierFromFollowerCount(150_000)).toBe("mid_tier");
+    expect(tierFromFollowerCount(300_000)).toBe("growing");
+    expect(tierFromFollowerCount(600_000)).toBe("major");
+    expect(tierFromFollowerCount(1_000_000)).toBe("notable");
     expect(tierFromFollowerCount(2_000_000)).toBe("top_tier");
   });
 });

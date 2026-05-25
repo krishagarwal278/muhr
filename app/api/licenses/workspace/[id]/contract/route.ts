@@ -1,10 +1,13 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
 import { getRouteHandlerUser } from "@/lib/auth/routeHandlerUser";
+import { toApiError } from "@/lib/errors/apiError";
 import { getLicenseWorkspaceAccess } from "@/lib/license/workspaceAccess";
+import { logger } from "@/lib/logger";
+import { createRouteClient } from "@/lib/supabase/route";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import type { LicenseRequestRow } from "@/types/license";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -20,155 +23,140 @@ function normalizeContractBody(doc: unknown): Record<string, unknown> | null {
   return doc as Record<string, unknown>;
 }
 
-async function supabaseFromCookies() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // ignore
-          }
-        },
-      },
-    }
-  );
-}
-
 export async function PATCH(request: Request, ctx: { params: Promise<{ id: string }> }) {
-  const { id } = await ctx.params;
-  const supabase = await supabaseFromCookies();
-  const user = await getRouteHandlerUser(supabase);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const access = await getLicenseWorkspaceAccess(supabase, user, id);
-  if (!access) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-  const full = access.row as LicenseRequestRow;
-  if (full.contract_effective_at) {
-    return NextResponse.json({ error: "This contract is in force; the draft can no longer be edited." }, { status: 400 });
-  }
-
-  let body: { action?: string; contract_body?: unknown };
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+    const { id } = await ctx.params;
+    const supabase = await createRouteClient();
+    const user = await getRouteHandlerUser(supabase);
 
-  const editableStatus = full.status === "pending" || full.status === "accepted";
-  if (!editableStatus) {
-    return NextResponse.json(
-      { error: "Contract can only be edited while the request is pending or accepted." },
-      { status: 400 }
-    );
-  }
+    if (!user) {
+      return Response.json(
+        { ok: false, error: { code: "unauthorized", message: "Unauthorized" } },
+        { status: 401 }
+      );
+    }
 
-  if (body.action !== "save") {
-    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
-  }
+    const access = await getLicenseWorkspaceAccess(supabase, user, id);
+    if (!access) {
+      return Response.json(
+        { ok: false, error: { code: "not_found", message: "Not found" } },
+        { status: 404 }
+      );
+    }
 
-  const normalized = normalizeContractBody(body.contract_body);
-  if (!normalized) {
-    return NextResponse.json({ error: "Invalid document format. Try refreshing the page." }, { status: 400 });
-  }
+    const full = access.row as LicenseRequestRow;
+    if (full.contract_effective_at) {
+      return Response.json(
+        { ok: false, error: { code: "invalid_state", message: "This contract is in force; the draft can no longer be edited." } },
+        { status: 400 }
+      );
+    }
 
-  const patch = {
-    contract_body: normalized,
-    contract_updated_at: new Date().toISOString(),
-  };
+    let body: { action?: string; contract_body?: unknown };
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json(
+        { ok: false, error: { code: "invalid_json", message: "Invalid JSON" } },
+        { status: 400 }
+      );
+    }
 
-  if (access.role === "creator") {
-    const { data, error } = await supabase
+    const editableStatus = full.status === "pending" || full.status === "accepted";
+    if (!editableStatus) {
+      return Response.json(
+        { ok: false, error: { code: "invalid_state", message: "Contract can only be edited while the request is pending or accepted." } },
+        { status: 400 }
+      );
+    }
+
+    if (body.action !== "save") {
+      return Response.json(
+        { ok: false, error: { code: "invalid_action", message: "Unknown action" } },
+        { status: 400 }
+      );
+    }
+
+    const normalized = normalizeContractBody(body.contract_body);
+    if (!normalized) {
+      return Response.json(
+        { ok: false, error: { code: "invalid_input", message: "Invalid document format. Try refreshing the page." } },
+        { status: 400 }
+      );
+    }
+
+    const patch = {
+      contract_body: normalized,
+      contract_updated_at: new Date().toISOString(),
+    };
+
+    if (access.role === "creator") {
+      const { data, error } = await supabase
+        .from("license_requests")
+        .update(patch)
+        .eq("id", id)
+        .eq("creator_id", user.id)
+        .select("*")
+        .maybeSingle();
+
+      if (error) {
+        logger.error("workspace_contract_save_creator_error", { requestId: id, userId: user.id, code: error.code });
+        return Response.json(
+          { ok: false, error: { code: "db_error", message: "We couldn't save your changes right now. Please try again in a moment." } },
+          { status: 500 }
+        );
+      }
+      if (!data) {
+        logger.error("workspace_contract_save_no_row", { requestId: id, userId: user.id });
+        return Response.json(
+          { ok: false, error: { code: "db_error", message: "We couldn't save your changes right now. Please try again in a moment." } },
+          { status: 500 }
+        );
+      }
+      return Response.json({ ok: true, data: { request: data } });
+    }
+
+    const admin = createServiceRoleClient();
+    if (!admin) {
+      logger.error("workspace_contract_save_no_admin", { requestId: id, userId: user.id });
+      return Response.json(
+        { ok: false, error: { code: "unavailable", message: "Saving is temporarily unavailable. Please try again shortly." } },
+        { status: 503 }
+      );
+    }
+    const brandEmail = user.email?.trim().toLowerCase();
+    if (!brandEmail) {
+      return Response.json(
+        { ok: false, error: { code: "invalid_input", message: "Your brand account must have an email." } },
+        { status: 400 }
+      );
+    }
+
+    const { data, error } = await admin
       .from("license_requests")
       .update(patch)
       .eq("id", id)
-      .eq("creator_id", user.id)
+      .ilike("brand_email", brandEmail)
       .select("*")
       .maybeSingle();
 
     if (error) {
-      const missingContractSchema =
-        error.message?.includes("contract_body") || error.code === "PGRST204";
-      console.error("[workspace contract save] creator path failed", {
-        requestId: id,
-        userId: user.id,
-        code: error.code,
-        message: error.message,
-        missingContractSchema,
-      });
-      return NextResponse.json(
-        { error: "We couldn’t save your changes right now. Please try again in a moment." },
+      logger.error("workspace_contract_save_brand_error", { requestId: id, userId: user.id, code: error.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "We couldn't save your changes right now. Please try again in a moment." } },
         { status: 500 }
       );
     }
     if (!data) {
-      console.error("[workspace contract save] creator update returned no row", {
-        requestId: id,
-        userId: user.id,
-      });
-      return NextResponse.json(
-        { error: "We couldn’t save your changes right now. Please try again in a moment." },
+      logger.error("workspace_contract_save_brand_no_row", { requestId: id, userId: user.id });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "We couldn't save your changes right now. Please try again in a moment." } },
         { status: 500 }
       );
     }
-    return NextResponse.json({ request: data });
+    return Response.json({ ok: true, data: { request: data } });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
-
-  const admin = createServiceRoleClient();
-  if (!admin) {
-    console.error("[workspace contract save] service role client unavailable", {
-      requestId: id,
-      userId: user.id,
-    });
-    return NextResponse.json(
-      { error: "Saving is temporarily unavailable. Please try again shortly." },
-      { status: 503 }
-    );
-  }
-  const brandEmail = user.email?.trim().toLowerCase();
-  if (!brandEmail) {
-    return NextResponse.json({ error: "Your brand account must have an email." }, { status: 400 });
-  }
-
-  const { data, error } = await admin
-    .from("license_requests")
-    .update(patch)
-    .eq("id", id)
-    .ilike("brand_email", brandEmail)
-    .select("*")
-    .maybeSingle();
-
-  if (error) {
-    console.error("[workspace contract save] brand path failed", {
-      requestId: id,
-      userId: user.id,
-      code: error.code,
-      message: error.message,
-    });
-    return NextResponse.json(
-      { error: "We couldn’t save your changes right now. Please try again in a moment." },
-      { status: 500 }
-    );
-  }
-  if (!data) {
-    console.error("[workspace contract save] brand update returned no row", {
-      requestId: id,
-      userId: user.id,
-    });
-    return NextResponse.json(
-      { error: "We couldn’t save your changes right now. Please try again in a moment." },
-      { status: 500 }
-    );
-  }
-  return NextResponse.json({ request: data });
 }

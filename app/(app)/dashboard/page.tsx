@@ -147,9 +147,10 @@ export default function DashboardPage() {
           hasAssets: vaultAssetCount > 0,
           pendingLicenseRequests: pendingFromCounts ?? pendingLen,
         });
+        const identity = (identityData.data ?? identityData) as Record<string, unknown>;
         setKycStatus(
-          typeof identityData.kycStatus === "string"
-            ? (identityData.kycStatus as KycStatus)
+          typeof identity.kycStatus === "string"
+            ? (identity.kycStatus as KycStatus)
             : "unverified"
         );
         setMinLicenseFeeInr(

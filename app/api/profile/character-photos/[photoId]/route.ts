@@ -1,32 +1,14 @@
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-async function supabaseFromCookies() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore
-          }
-        },
-      },
-    }
-  );
-}
+import { requireUser } from "@/lib/auth/requireUser";
+import { toApiError } from "@/lib/errors/apiError";
+import { logger } from "@/lib/logger";
+import { createRouteClient } from "@/lib/supabase/route";
 
-async function getOwnedPhoto(supabase: Awaited<ReturnType<typeof supabaseFromCookies>>, userId: string, photoId: string) {
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+async function getOwnedPhoto(supabase: SupabaseClient, userId: string, photoId: string) {
   const { data, error } = await supabase
     .from("character_photos")
     .select("id, file_path, file_name")
@@ -42,28 +24,43 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ photoId: string }> }
 ) {
-  const { photoId } = await params;
-  const supabase = await supabaseFromCookies();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const { photoId } = await params;
+    const user = await requireUser();
+    const supabase = await createRouteClient();
 
-  const photo = await getOwnedPhoto(supabase, user.id, photoId);
-  if (!photo) return NextResponse.json({ error: "Photo not found" }, { status: 404 });
+    const photo = await getOwnedPhoto(supabase, user.id, photoId);
+    if (!photo) {
+      return Response.json(
+        { ok: false, error: { code: "not_found", message: "Photo not found" } },
+        { status: 404 }
+      );
+    }
 
-  await supabase.storage.from("assets").remove([photo.file_path]);
+    await supabase.storage.from("assets").remove([photo.file_path]);
 
-  const { error: dbError } = await supabase.from("character_photos").delete().eq("id", photoId).eq("user_id", user.id);
-  if (dbError) {
-    console.error("character photo DELETE:", dbError);
-    return NextResponse.json({ error: "Failed to delete photo" }, { status: 500 });
+    const { error: dbError } = await supabase
+      .from("character_photos")
+      .delete()
+      .eq("id", photoId)
+      .eq("user_id", user.id);
+
+    if (dbError) {
+      logger.error("character_photo_delete_error", { userId: user.id, photoId, code: dbError.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Failed to delete photo" } },
+        { status: 500 }
+      );
+    }
+
+    const { count } = await supabase
+      .from("character_photos")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    return Response.json({ ok: true, data: { count: count ?? 0 } });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
-
-  const { count } = await supabase
-    .from("character_photos")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id);
-
-  return NextResponse.json({ success: true, count: count ?? 0 });
 }

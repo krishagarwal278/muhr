@@ -1,119 +1,108 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { z } from "zod";
+import { requireUser } from "@/lib/auth/requireUser";
+import { createRouteClient } from "@/lib/supabase/route";
+import { parseJsonWithSchema } from "@/lib/api/parseJson";
+import { toApiError } from "@/lib/errors/apiError";
+import { logger } from "@/lib/logger";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+const DEFAULT_RULES = {
+  channels: [],
+  territories: [],
+  blockedCategories: ["politics"],
+  allowVoiceSynthesis: false,
+  allowFaceReenactment: false,
+  requireApprovalPerUse: true,
+  defaultDurationDays: 90,
+};
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore
-          }
-        },
-      },
+  try {
+    const user = await requireUser();
+    const supabase = await createRouteClient();
+
+    const { data: rules, error } = await supabase
+      .from("consent_rules")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      logger.error("consent_rules_fetch_error", { userId: user.id, code: error.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Failed to load consent rules" } },
+        { status: 500 }
+      );
     }
-  );
 
-  const { data: { user } } = await supabase.auth.getUser();
+    if (!rules) {
+      return Response.json({ ok: true, data: DEFAULT_RULES });
+    }
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { data: rules } = await supabase
-    .from("consent_rules")
-    .select("*")
-    .eq("user_id", user.id)
-    .single();
-
-  if (!rules) {
-    return NextResponse.json({
-      channels: [],
-      territories: [],
-      blockedCategories: ["politics"],
-      allowVoiceSynthesis: false,
-      allowFaceReenactment: false,
-      requireApprovalPerUse: true,
-      defaultDurationDays: 90,
+    return Response.json({
+      ok: true,
+      data: {
+        channels: rules.channels || [],
+        territories: rules.territories || [],
+        blockedCategories: rules.blocked_categories || ["politics"],
+        allowVoiceSynthesis: rules.allow_voice_synthesis || false,
+        allowFaceReenactment: rules.allow_face_reenactment || false,
+        requireApprovalPerUse: rules.require_approval_per_use ?? true,
+        defaultDurationDays: rules.default_duration_days || 90,
+      },
     });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
-
-  return NextResponse.json({
-    channels: rules.channels || [],
-    territories: rules.territories || [],
-    blockedCategories: rules.blocked_categories || ["politics"],
-    allowVoiceSynthesis: rules.allow_voice_synthesis || false,
-    allowFaceReenactment: rules.allow_face_reenactment || false,
-    requireApprovalPerUse: rules.require_approval_per_use ?? true,
-    defaultDurationDays: rules.default_duration_days || 90,
-  });
 }
 
+const ConsentRulesSchema = z.object({
+  channels: z.array(z.string()).default([]),
+  territories: z.array(z.string()).default([]),
+  blockedCategories: z.array(z.string()).default([]),
+  allowVoiceSynthesis: z.boolean().default(false),
+  allowFaceReenactment: z.boolean().default(false),
+  requireApprovalPerUse: z.boolean().default(true),
+  defaultDurationDays: z.number().int().min(1).max(365).default(90),
+});
+
 export async function PUT(request: Request) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
+  try {
+    const user = await requireUser();
+    const input = await parseJsonWithSchema(request, ConsentRulesSchema);
+    const supabase = await createRouteClient();
+
+    const { error } = await supabase
+      .from("consent_rules")
+      .upsert(
+        {
+          user_id: user.id,
+          channels: input.channels,
+          territories: input.territories,
+          blocked_categories: input.blockedCategories,
+          allow_voice_synthesis: input.allowVoiceSynthesis,
+          allow_face_reenactment: input.allowFaceReenactment,
+          require_approval_per_use: input.requireApprovalPerUse,
+          default_duration_days: input.defaultDurationDays,
+          updated_at: new Date().toISOString(),
         },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore
-          }
-        },
-      },
+        { onConflict: "user_id" }
+      );
+
+    if (error) {
+      logger.error("consent_rules_save_error", { userId: user.id, code: error.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Failed to save consent rules" } },
+        { status: 500 }
+      );
     }
-  );
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return Response.json({ ok: true, message: "Consent rules saved" });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
-
-  const body = await request.json();
-
-  const { error } = await supabase
-    .from("consent_rules")
-    .upsert({
-      user_id: user.id,
-      channels: body.channels || [],
-      territories: body.territories || [],
-      blocked_categories: body.blockedCategories || [],
-      allow_voice_synthesis: body.allowVoiceSynthesis || false,
-      allow_face_reenactment: body.allowFaceReenactment || false,
-      require_approval_per_use: body.requireApprovalPerUse ?? true,
-      default_duration_days: body.defaultDurationDays || 90,
-      updated_at: new Date().toISOString(),
-    }, {
-      onConflict: "user_id",
-    });
-
-  if (error) {
-    console.error("Error saving consent rules:", error);
-    return NextResponse.json({ error: "Failed to save rules" }, { status: 500 });
-  }
-
-  return NextResponse.json({
-    success: true,
-    message: "Consent rules saved",
-  });
 }

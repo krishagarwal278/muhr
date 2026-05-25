@@ -1,7 +1,13 @@
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
+
+import { requireUser } from "@/lib/auth/requireUser";
+import { toApiError } from "@/lib/errors/apiError";
+import { safeParseJson } from "@/lib/api/parseJson";
+import { logger } from "@/lib/logger";
+import { createRouteClient } from "@/lib/supabase/route";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const schema = z.object({
   minLicenseFeeInr: z.number().int().positive().max(100_000_000).optional(),
@@ -9,69 +15,50 @@ const schema = z.object({
   platformLicenseSigned: z.boolean().optional(),
 });
 
-async function supabaseFromCookies() {
-  const cookieStore = await cookies();
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore
-          }
-        },
-      },
-    }
-  );
-}
-
 export async function PATCH(request: Request) {
-  const supabase = await supabaseFromCookies();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
+    const user = await requireUser();
+    const supabase = await createRouteClient();
 
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid fields" }, { status: 400 });
-  }
+    const body = await safeParseJson(request);
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) {
+      return Response.json(
+        { ok: false, error: { code: "validation_error", message: "Invalid fields" } },
+        { status: 400 }
+      );
+    }
 
-  const updates: Record<string, unknown> = {};
-  if (parsed.data.minLicenseFeeInr !== undefined) {
-    updates.min_license_fee_inr = parsed.data.minLicenseFeeInr;
-  }
-  if (parsed.data.consentVideoCompleted !== undefined) {
-    updates.consent_video_completed = parsed.data.consentVideoCompleted;
-  }
-  if (parsed.data.platformLicenseSigned !== undefined) {
-    updates.platform_license_signed = parsed.data.platformLicenseSigned;
-  }
+    const updates: Record<string, unknown> = {};
+    if (parsed.data.minLicenseFeeInr !== undefined) {
+      updates.min_license_fee_inr = parsed.data.minLicenseFeeInr;
+    }
+    if (parsed.data.consentVideoCompleted !== undefined) {
+      updates.consent_video_completed = parsed.data.consentVideoCompleted;
+    }
+    if (parsed.data.platformLicenseSigned !== undefined) {
+      updates.platform_license_signed = parsed.data.platformLicenseSigned;
+    }
 
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: "No valid fields" }, { status: 400 });
-  }
+    if (Object.keys(updates).length === 0) {
+      return Response.json(
+        { ok: false, error: { code: "no_changes", message: "No valid fields" } },
+        { status: 400 }
+      );
+    }
 
-  const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
-  if (error) {
-    console.error("onboarding PATCH:", error);
-    return NextResponse.json({ error: "Could not save" }, { status: 500 });
-  }
+    const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
+    if (error) {
+      logger.error("onboarding_patch_error", { userId: user.id, code: error.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Could not save" } },
+        { status: 500 }
+      );
+    }
 
-  return NextResponse.json({ success: true });
+    return Response.json({ ok: true });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
+  }
 }

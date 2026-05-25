@@ -1,17 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
 
-import { jsonApiError } from "@/lib/api/jsonResponse";
 import { getRouteHandlerUser } from "@/lib/auth/routeHandlerUser";
 import { isBrandWorkspaceUser } from "@/lib/brand/brandPreviewSignIn";
 import { sendLicenseRequestAdminNotification } from "@/lib/email/sendLicenseRequestAdminNotification";
 import { resendSendEmail } from "@/lib/email/resendSend";
-import { RateLimitError } from "@/lib/errors/apiError";
+import { RateLimitError, toApiError } from "@/lib/errors/apiError";
 import { logger } from "@/lib/logger";
 import { getRateLimitIp, rateLimit } from "@/lib/ratelimit";
+import { createRouteClient } from "@/lib/supabase/route";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const CHANNEL_OPTIONS = [
   "Instagram",
@@ -27,7 +27,6 @@ const CHANNEL_OPTIONS = [
 
 const TERRITORY_OPTIONS = ["India", "United States", "United Kingdom", "UAE", "Global"] as const;
 
-/** Linear-time shape check (avoids ReDoS from overlapping quantifiers in regex). */
 function isEmail(s: string): boolean {
   if (s.length === 0 || s.length > 255) return false;
   const at = s.indexOf("@");
@@ -83,7 +82,7 @@ export async function POST(request: Request) {
 
     const admin = createServiceRoleClient();
     if (!admin) {
-      return NextResponse.json(
+      return Response.json(
         {
           ok: false,
           error: {
@@ -99,7 +98,7 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: { code: "invalid_input", message: "Invalid JSON body." } },
         { status: 400 }
       );
@@ -109,27 +108,7 @@ export async function POST(request: Request) {
     let brand_email = typeof body.brand_email === "string" ? body.brand_email.trim() : "";
     let brand_user_id: string | null = null;
 
-    const cookieStore = await cookies();
-    const sessionClient = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll();
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {
-              // Route Handler may not be able to set cookies in all contexts.
-            }
-          },
-        },
-      }
-    );
+    const sessionClient = await createRouteClient();
     const sessionUser = await getRouteHandlerUser(sessionClient);
     if (sessionUser?.email && isBrandWorkspaceUser(sessionUser.email)) {
       brand_email = sessionUser.email.trim();
@@ -142,6 +121,7 @@ export async function POST(request: Request) {
         brand_user_id = profileRow.id;
       }
     }
+
     const brand_name = typeof body.brand_name === "string" ? body.brand_name.trim() : "";
     const brand_company =
       typeof body.brand_company === "string" ? body.brand_company.trim() || null : null;
@@ -163,7 +143,7 @@ export async function POST(request: Request) {
     const accept_terms = body.accept_terms === true;
 
     if (!accept_terms) {
-      return NextResponse.json(
+      return Response.json(
         {
           ok: false,
           error: {
@@ -176,71 +156,71 @@ export async function POST(request: Request) {
     }
 
     if (!creator_handle || creator_handle.length > 50) {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: { code: "invalid_input", message: "Invalid creator handle." } },
         { status: 400 }
       );
     }
     if (!isEmail(brand_email)) {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: { code: "invalid_input", message: "Invalid brand email." } },
         { status: 400 }
       );
     }
     if (brand_name.length < 2 || brand_name.length > 100) {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: { code: "invalid_input", message: "Name must be 2–100 characters." } },
         { status: 400 }
       );
     }
     if (intended_use.length < 20 || intended_use.length > 2000) {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: { code: "invalid_input", message: "Intended use must be 20–2000 characters." } },
         { status: 400 }
       );
     }
     if (channels.length < 1 || channels.length > 15) {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: { code: "invalid_input", message: "Pick at least one channel." } },
         { status: 400 }
       );
     }
     for (const c of channels) {
       if (!CHANNEL_OPTIONS.includes(c as (typeof CHANNEL_OPTIONS)[number])) {
-        return NextResponse.json(
+        return Response.json(
           { ok: false, error: { code: "invalid_input", message: "Invalid channel selection." } },
           { status: 400 }
         );
       }
     }
     if (territories.length < 1 || territories.length > 20) {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: { code: "invalid_input", message: "Pick at least one territory." } },
         { status: 400 }
       );
     }
     for (const t of territories) {
       if (!TERRITORY_OPTIONS.includes(t as (typeof TERRITORY_OPTIONS)[number])) {
-        return NextResponse.json(
+        return Response.json(
           { ok: false, error: { code: "invalid_input", message: "Invalid territory selection." } },
           { status: 400 }
         );
       }
     }
     if (!Number.isFinite(duration_days) || duration_days < 1 || duration_days > 365) {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: { code: "invalid_input", message: "Invalid duration." } },
         { status: 400 }
       );
     }
     if (budget_inr !== null && (!Number.isFinite(budget_inr) || budget_inr < 0 || budget_inr > 100_000_000)) {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: { code: "invalid_input", message: "Invalid budget." } },
         { status: 400 }
       );
     }
     if (brand_company && brand_company.length > 100) {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: { code: "invalid_input", message: "Company name too long." } },
         { status: 400 }
       );
@@ -249,13 +229,13 @@ export async function POST(request: Request) {
       try {
         new URL(brand_website);
       } catch {
-        return NextResponse.json(
+        return Response.json(
           { ok: false, error: { code: "invalid_input", message: "Invalid website URL." } },
           { status: 400 }
         );
       }
       if (brand_website.length > 255) {
-        return NextResponse.json(
+        return Response.json(
           { ok: false, error: { code: "invalid_input", message: "Website URL too long." } },
           { status: 400 }
         );
@@ -270,20 +250,20 @@ export async function POST(request: Request) {
       .maybeSingle();
 
     if (pErr || !profile) {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: { code: "not_found", message: "Creator not found." } },
         { status: 404 }
       );
     }
     if (profile.accepting_requests === false) {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: { code: "forbidden", message: "This creator is not accepting requests." } },
         { status: 403 }
       );
     }
 
     if (sessionUser && isBrandWorkspaceUser(sessionUser.email) && profile.id === sessionUser.id) {
-      return NextResponse.json(
+      return Response.json(
         {
           ok: false,
           error: {
@@ -323,10 +303,10 @@ export async function POST(request: Request) {
         errCode: insErr?.code,
         message: insErr?.message,
       });
-      return NextResponse.json(
+      return Response.json(
         {
           ok: false,
-          error: { code: "internal_error", message: "Could not create request. Try again later." },
+          error: { code: "db_error", message: "Could not create request. Try again later." },
         },
         { status: 500 }
       );
@@ -340,7 +320,7 @@ export async function POST(request: Request) {
       typeof profile.licensing_notes === "string" && profile.licensing_notes.trim()
         ? profile.licensing_notes.trim()
         : null;
-    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://muhr.app";
+    const appBaseUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://muhr.app";
 
     try {
       await sendLicenseRequestAdminNotification(
@@ -380,25 +360,21 @@ export async function POST(request: Request) {
       })
     );
 
-    return NextResponse.json({
+    return Response.json({
       ok: true,
-      success: true,
-      request_id: row.id,
-      request_token: row.request_token,
+      data: {
+        request_id: row.id,
+        request_token: row.request_token,
+      },
     });
   } catch (err) {
     if (err instanceof RateLimitError) {
-      return jsonApiError(err);
+      return Response.json(
+        { ok: false, error: { code: "rate_limited", message: err.message } },
+        { status: 429 }
+      );
     }
-    logger.error("license_request_unexpected", {
-      message: err instanceof Error ? err.message : "unknown",
-    });
-    return NextResponse.json(
-      {
-        ok: false,
-        error: { code: "internal_error", message: "Something went wrong. Try again later." },
-      },
-      { status: 500 }
-    );
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
 }

@@ -39,11 +39,12 @@ export default function VaultPage() {
       ]);
       const data = await vaultRes.json();
       const identityData = identityRes.ok ? await identityRes.json() : {};
+      const identity = identityData.data ?? identityData;
       if (data.assets) {
         setAssets(data.assets);
       }
-      setKycStatus((identityData.kycStatus as KycStatus) ?? "unverified");
-      setKycVerifiedAt((identityData.kycVerifiedAt as string | null) ?? null);
+      setKycStatus((identity.kycStatus as KycStatus) ?? "unverified");
+      setKycVerifiedAt((identity.kycVerifiedAt as string | null) ?? null);
       if (completionRes.ok) {
         const c = await completionRes.json();
         setProfilePercent(c.percent ?? 0);

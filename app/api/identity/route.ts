@@ -1,55 +1,43 @@
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { requireUser } from "@/lib/auth/requireUser";
+import { toApiError } from "@/lib/errors/apiError";
+import { logger } from "@/lib/logger";
+import { createRouteClient } from "@/lib/supabase/route";
 import type { KycStatus } from "@/types";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET() {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {
-            // Ignore
-          }
-        },
-      },
+  try {
+    const user = await requireUser();
+    const supabase = await createRouteClient();
+
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("kyc_status, kyc_verified_at")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      logger.error("identity_status_fetch_error", { userId: user.id, code: error.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Failed to load identity status" } },
+        { status: 500 }
+      );
     }
-  );
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    const kycStatus: KycStatus = profile?.kyc_status ?? "unverified";
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return Response.json({
+      ok: true,
+      data: {
+        kycStatus,
+        kycVerifiedAt: profile?.kyc_verified_at ?? null,
+        kycVerified: kycStatus === "verified",
+      },
+    });
+  } catch (err) {
+    const { status, code, message } = toApiError(err);
+    return Response.json({ ok: false, error: { code, message } }, { status });
   }
-
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("kyc_status, kyc_verified_at")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (error) {
-    console.error("profiles fetch:", error);
-    return NextResponse.json({ error: "Failed to load identity status" }, { status: 500 });
-  }
-
-  const kycStatus: KycStatus = profile?.kyc_status ?? "unverified";
-
-  return NextResponse.json({
-    kycStatus,
-    kycVerifiedAt: profile?.kyc_verified_at ?? null,
-    kycVerified: kycStatus === "verified",
-  });
 }

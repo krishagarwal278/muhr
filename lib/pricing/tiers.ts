@@ -12,26 +12,23 @@
  * else applies a per-channel uplift, with TV/OTT carrying a larger premium because
  * it usually implies broadcast clearance and higher reach.
  *
- * **Calibration (May 2026):** Base tier anchors are set ~30% below our first-pass
- * tables so estimates sit closer to AI-native production economics in India (e.g.
- * full short-form series delivered in the low lakhs). Brands still pay more for
- * highly recognizable likeness; creators can always set a higher minimum fee.
+ * **Calibration (May 2026):** Five follower bands and base anchors align with the
+ * internal Pricing sheet (typical mid reel per tier). `baseInr` is the 30-day,
+ * India-only, Instagram+Facebook likeness-license anchor — brands still pay more for
+ * longer terms, extra channels, or global territory; creators can set a higher minimum.
  */
 
 export type PricingTierId =
-  | "emerging"
-  | "rising"
-  | "established"
-  | "mid_tier"
-  | "growing"
-  | "major"
-  | "notable"
-  | "top_tier";
+  | "nano"
+  | "late_micro"
+  | "mid"
+  | "macro"
+  | "mega";
 
 export interface PricingTier {
   id: PricingTierId;
   label: string;
-  /** Loosely indexed to Indian creator-economy follower bands. */
+  /** Indian creator-economy follower band (internal Pricing sheet). */
   followerBand: string;
   /** Anchor base rate (₹) for a 30-day license, two base channels, India only. */
   baseInr: number;
@@ -42,112 +39,76 @@ export interface PricingTier {
 }
 
 export const PRICING_TIERS: Record<PricingTierId, PricingTier> = {
-  emerging: {
-    id: "emerging",
-    label: "Emerging creator",
-    followerBand: "Under 30K followers",
-    baseInr: 7_000,
-    description: "Growing audience with strong authenticity in a niche community.",
-    comparables: [
-      "Comparable to user-generated content campaigns",
-      "Higher trust per impression than paid social",
-    ],
-  },
-  rising: {
-    id: "rising",
-    label: "Rising creator",
-    followerBand: "30K–50K followers",
+  nano: {
+    id: "nano",
+    label: "Nano & early micro",
+    followerBand: "Under 50K followers",
     baseInr: 12_000,
-    description: "Building momentum with consistent engagement and growing reach.",
+    description: "Niche audience with strong authenticity; typical reel deals in the low thousands to mid tens of thousands.",
     comparables: [
-      "Comparable to niche micro-influencer campaigns",
-      "Strong community engagement metrics",
+      "Typical reel: ₹2,000 – ₹35,000",
+      "Bundle (1 reel + 2 stories + 1 post): ₹8,000 – ₹60,000",
     ],
   },
-  established: {
-    id: "established",
-    label: "Established creator",
-    followerBand: "50K–100K followers",
-    baseInr: 19_000,
-    description: "Proven track record with engaged followers and prior brand work.",
+  late_micro: {
+    id: "late_micro",
+    label: "Late micro",
+    followerBand: "50K – 100K followers",
+    baseInr: 45_000,
+    description: "Proven micro-influencer with consistent engagement and prior brand work.",
     comparables: [
-      "Standard micro-influencer rates in India",
-      "Comparable to targeted digital ad campaigns",
+      "Typical reel: ₹25,000 – ₹85,000",
+      "Bundle: ₹50,000 – ₹1,50,000",
     ],
   },
-  mid_tier: {
-    id: "mid_tier",
+  mid: {
+    id: "mid",
     label: "Mid-tier creator",
-    followerBand: "100K–250K followers",
-    baseInr: 38_000,
-    description: "Recognised name with professional-grade content and significant reach.",
+    followerBand: "100K – 500K followers",
+    baseInr: 175_000,
+    description: "Recognised creator with professional content and substantial reach.",
     comparables: [
-      "Comparable to regional print and out-of-home placements",
-      "Standard for professional influencer campaigns",
+      "Typical reel: ₹75,000 – ₹4,50,000",
+      "Bundle: ₹1,50,000 – ₹5,00,000",
     ],
   },
-  growing: {
-    id: "growing",
-    label: "Growing creator",
-    followerBand: "250K–500K followers",
-    baseInr: 65_000,
-    description: "Substantial audience with strong brand partnership potential.",
+  macro: {
+    id: "macro",
+    label: "Macro creator",
+    followerBand: "500K – 1M followers",
+    baseInr: 450_000,
+    description: "Major digital personality with mass reach and high brand-association value.",
     comparables: [
-      "Comparable to regional digital campaigns",
-      "Mid-range influencer marketing rates",
+      "Typical reel: ₹2,50,000 – ₹8,50,000",
+      "Bundle: ₹4,00,000 – ₹12,00,000",
     ],
   },
-  major: {
-    id: "major",
-    label: "Major creator",
-    followerBand: "500K–800K followers",
-    baseInr: 100_000,
-    description: "Major digital personality with mass reach and brand-association value.",
+  mega: {
+    id: "mega",
+    label: "Mega / celebrity",
+    followerBand: "1M+ followers",
+    baseInr: 1_200_000,
+    description: "National or celebrity reach; likeness licensing carries significant reputational weight.",
     comparables: [
-      "Comparable to regional TV spots and metro billboards",
-      "Higher than typical influencer-marketing averages",
-    ],
-  },
-  notable: {
-    id: "notable",
-    label: "Notable creator",
-    followerBand: "800K–1.3M followers",
-    baseInr: 160_000,
-    description: "High-profile creator with significant cultural influence.",
-    comparables: [
-      "Comparable to premium digital campaigns",
-      "Near-celebrity endorsement value",
-    ],
-  },
-  top_tier: {
-    id: "top_tier",
-    label: "Top-tier creator",
-    followerBand: "1.3M–2M+ followers",
-    baseInr: 250_000,
-    description: "National reach; brand association carries reputational weight.",
-    comparables: [
-      "Comparable to celebrity endorsement rates",
-      "Comparable to national TV / OTT campaigns",
+      "Typical reel: ₹6,00,000 – ₹50,00,000+",
+      "Bundle: ₹10,00,000 – ₹75,00,000+",
     ],
   },
 };
 
 export const PRICING_TIER_ORDER: PricingTierId[] = [
-  "emerging",
-  "rising",
-  "established",
-  "mid_tier",
-  "growing",
-  "major",
-  "notable",
-  "top_tier",
+  "nano",
+  "late_micro",
+  "mid",
+  "macro",
+  "mega",
 ];
 
 /**
  * Default tier when we have no other signal (no creator-stated minimum, no
- * follower count). Established gives a safe middle for an unknown creator.
+ * follower count). Late micro is a sensible middle for an unknown creator.
  */
-export const DEFAULT_TIER_ID: PricingTierId = "established";
+export const DEFAULT_TIER_ID: PricingTierId = "late_micro";
 
 /** Channels charged at the base rate; no per-channel surcharge. */
 export const BASE_CHANNELS = new Set(
@@ -203,17 +164,14 @@ export const NON_GLOBAL_MULTIPLIER_CAP = 1.65;
 /**
  * Range width around the midpoint. The engine returns `{ low, mid, high }`
  * where low = mid * (1 - RANGE_WIDTH) and high = mid * (1 + RANGE_WIDTH).
- * Wider for emerging tiers (less comp data); tighter for top tiers.
+ * Wider for nano (broad market spread); wider for mega where deals vary by fame.
  */
 export const RANGE_WIDTH_BY_TIER: Record<PricingTierId, number> = {
-  emerging: 0.35,
-  rising: 0.32,
-  established: 0.3,
-  mid_tier: 0.27,
-  growing: 0.25,
-  major: 0.22,
-  notable: 0.2,
-  top_tier: 0.18,
+  nano: 0.4,
+  late_micro: 0.35,
+  mid: 0.38,
+  macro: 0.35,
+  mega: 0.45,
 };
 
 /** Round recommended amounts to the nearest multiple of this (₹). */
@@ -222,29 +180,21 @@ export const ROUNDING_UNIT_INR = 1_000;
 /** Classify a creator's self-stated minimum fee into a tier. */
 export function tierFromMinFeeInr(minFeeInr: number | null | undefined): PricingTierId {
   if (!minFeeInr || minFeeInr <= 0) return DEFAULT_TIER_ID;
-  if (minFeeInr < 10_000) return "emerging";
-  if (minFeeInr < 15_000) return "rising";
-  if (minFeeInr < 28_000) return "established";
-  if (minFeeInr < 50_000) return "mid_tier";
-  if (minFeeInr < 80_000) return "growing";
-  if (minFeeInr < 130_000) return "major";
-  if (minFeeInr < 200_000) return "notable";
-  return "top_tier";
+  if (minFeeInr < 28_000) return "nano";
+  if (minFeeInr < 110_000) return "late_micro";
+  if (minFeeInr < 312_000) return "mid";
+  if (minFeeInr < 825_000) return "macro";
+  return "mega";
 }
 
 /**
- * Classify a creator by follower count. Provided for forward-compatibility:
- * the engine accepts this signal but doesn't require it yet (we don't capture
- * follower counts on the profile).
+ * Classify a creator by follower count (internal Pricing sheet bands).
  */
 export function tierFromFollowerCount(followers: number | null | undefined): PricingTierId | null {
   if (!followers || followers <= 0) return null;
-  if (followers >= 1_300_000) return "top_tier";
-  if (followers >= 800_000) return "notable";
-  if (followers >= 500_000) return "major";
-  if (followers >= 250_000) return "growing";
-  if (followers >= 100_000) return "mid_tier";
-  if (followers >= 50_000) return "established";
-  if (followers >= 30_000) return "rising";
-  return "emerging";
+  if (followers >= 1_000_000) return "mega";
+  if (followers >= 500_000) return "macro";
+  if (followers >= 100_000) return "mid";
+  if (followers >= 50_000) return "late_micro";
+  return "nano";
 }

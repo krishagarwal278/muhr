@@ -1,5 +1,3 @@
-import type { LicenseRequestRow } from "@/types/license";
-
 /** In-app license thread: allowed before accept and while active. */
 export function canExchangeLicenseMessages(status: string): boolean {
   return status === "pending" || status === "accepted";

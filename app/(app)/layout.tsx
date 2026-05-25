@@ -159,7 +159,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#f5f5f7] text-neutral-950">
+    <div className="flex min-h-screen w-full min-w-0 bg-[#f5f5f7] text-neutral-950">
       {user && !isOnboardingFlow ? <NavTourBootstrap userId={user.id} /> : null}
 
       {/* Mobile section strip (guided tour + quick nav) - hidden during onboarding */}
@@ -306,8 +306,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Main content — extra top padding on small screens for mobile nav strip (not during onboarding) */}
-      <main className={`flex-1 ${isOnboardingFlow ? "" : "pt-[6.75rem] lg:pl-64"} lg:pt-0`}>
-        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <main
+        className={`min-w-0 w-full flex-1 ${isOnboardingFlow ? "" : "pt-[6.75rem] lg:pl-64"} lg:pt-0`}
+      >
+        <div className="mx-auto w-full min-w-0 max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           {children}
         </div>
       </main>

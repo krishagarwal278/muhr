@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { hasCompletedNavTour, startNavTour } from "@/lib/tour/navTour";
 import { hasCompletedWelcome } from "@/lib/tour/welcomeFlow";
+import { profileFromApiJson } from "@/lib/api/profilePayload";
 
 const ONBOARDING_PATH = "/onboarding";
 
@@ -17,11 +18,9 @@ export function NavTourBootstrap({ userId }: { userId: string }) {
     (async () => {
       try {
         const res = await fetch("/api/profile");
-        const data = (await res.json().catch(() => ({}))) as {
-          profileBasicsComplete?: boolean;
-        };
+        const data = profileFromApiJson(await res.json().catch(() => null));
         if (!cancelled) {
-          setBasicsComplete(res.ok ? data.profileBasicsComplete === true : false);
+          setBasicsComplete(res.ok ? data?.profileBasicsComplete === true : false);
         }
       } catch {
         if (!cancelled) setBasicsComplete(false);

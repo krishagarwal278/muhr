@@ -11,6 +11,7 @@ import { PublicProfileShare } from "./_components/PublicProfileShare";
 import { CreatorFeeCard } from "./CreatorFeeCard";
 import { startNavTour } from "@/lib/tour/navTour";
 import type { KycStatus } from "@/types";
+import { profileFromApiJson } from "@/lib/api/profilePayload";
 
 interface DashboardStats {
   vaultAssets: number;
@@ -153,11 +154,12 @@ export default function DashboardPage() {
             ? (identity.kycStatus as KycStatus)
             : "unverified"
         );
+        const profile = profileFromApiJson(profileData);
         setMinLicenseFeeInr(
-          typeof profileData.minLicenseFeeInr === "number" ? profileData.minLicenseFeeInr : null
+          typeof profile?.minLicenseFeeInr === "number" ? profile.minLicenseFeeInr : null
         );
         setFollowerCount(
-          typeof profileData.followerCount === "number" ? profileData.followerCount : null
+          typeof profile?.followerCount === "number" ? profile.followerCount : null
         );
       } catch (error) {
         console.error("Failed to fetch dashboard stats:", error);
@@ -176,7 +178,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="w-full min-w-0 space-y-8">
       {brandAccessDenied ? (
         <p
           className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"

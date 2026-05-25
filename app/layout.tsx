@@ -21,6 +21,11 @@ export const metadata: Metadata = {
     "We help you secure your identity, voice, and likeness—coordinate social platform takedowns, pursue AI model removals, and prepare papers/documents for enforcement and licensing.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{

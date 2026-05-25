@@ -3,8 +3,7 @@ import { renderCharacterSheetToBlob } from "./renderSheetCanvas";
 
 /** Build export/seal blob via fixed-size canvas (correct proportions, JPEG for size). */
 export async function buildCharacterSheetPngBlob(
-  generated: CharacterSheetGenerateResponse,
-  _previewElement: HTMLElement | null
+  generated: CharacterSheetGenerateResponse
 ): Promise<Blob> {
   if (generated.mode === "ai" && generated.imageUrl) {
     try {

@@ -8,20 +8,19 @@ import {
 import { PRICING_TIERS, tierFromFollowerCount, tierFromMinFeeInr } from "./tiers";
 
 describe("tierFromMinFeeInr", () => {
-  it("returns established when no minimum is set", () => {
-    expect(tierFromMinFeeInr(null)).toBe("established");
-    expect(tierFromMinFeeInr(0)).toBe("established");
+  it("returns late_micro when no minimum is set", () => {
+    expect(tierFromMinFeeInr(null)).toBe("late_micro");
+    expect(tierFromMinFeeInr(0)).toBe("late_micro");
   });
 
   it("buckets common min-fee values into the right tier", () => {
-    expect(tierFromMinFeeInr(8_000)).toBe("emerging");
-    expect(tierFromMinFeeInr(12_000)).toBe("rising");
-    expect(tierFromMinFeeInr(20_000)).toBe("established");
-    expect(tierFromMinFeeInr(45_000)).toBe("mid_tier");
-    expect(tierFromMinFeeInr(70_000)).toBe("growing");
-    expect(tierFromMinFeeInr(1_00_000)).toBe("major");
-    expect(tierFromMinFeeInr(1_50_000)).toBe("notable");
-    expect(tierFromMinFeeInr(2_50_000)).toBe("top_tier");
+    expect(tierFromMinFeeInr(8_000)).toBe("nano");
+    expect(tierFromMinFeeInr(12_000)).toBe("nano");
+    expect(tierFromMinFeeInr(45_000)).toBe("late_micro");
+    expect(tierFromMinFeeInr(1_00_000)).toBe("late_micro");
+    expect(tierFromMinFeeInr(1_75_000)).toBe("mid");
+    expect(tierFromMinFeeInr(4_50_000)).toBe("macro");
+    expect(tierFromMinFeeInr(12_00_000)).toBe("mega");
   });
 });
 
@@ -32,14 +31,14 @@ describe("tierFromFollowerCount", () => {
   });
 
   it("buckets common follower counts into the right tier", () => {
-    expect(tierFromFollowerCount(20_000)).toBe("emerging");
-    expect(tierFromFollowerCount(35_000)).toBe("rising");
-    expect(tierFromFollowerCount(75_000)).toBe("established");
-    expect(tierFromFollowerCount(150_000)).toBe("mid_tier");
-    expect(tierFromFollowerCount(300_000)).toBe("growing");
-    expect(tierFromFollowerCount(600_000)).toBe("major");
-    expect(tierFromFollowerCount(1_000_000)).toBe("notable");
-    expect(tierFromFollowerCount(2_000_000)).toBe("top_tier");
+    expect(tierFromFollowerCount(20_000)).toBe("nano");
+    expect(tierFromFollowerCount(49_999)).toBe("nano");
+    expect(tierFromFollowerCount(75_000)).toBe("late_micro");
+    expect(tierFromFollowerCount(150_000)).toBe("mid");
+    expect(tierFromFollowerCount(300_000)).toBe("mid");
+    expect(tierFromFollowerCount(600_000)).toBe("macro");
+    expect(tierFromFollowerCount(1_000_000)).toBe("mega");
+    expect(tierFromFollowerCount(2_000_000)).toBe("mega");
   });
 });
 
@@ -159,8 +158,8 @@ describe("recommendFee", () => {
       { durationDays: 30, channels: ["Instagram", "Facebook"], territories: ["India"] }
     );
     expect(r.tierSource).toBe("default");
-    expect(r.tier.id).toBe("established");
-    expect(r.baseInr).toBe(PRICING_TIERS.established.baseInr);
+    expect(r.tier.id).toBe("late_micro");
+    expect(r.baseInr).toBe(PRICING_TIERS.late_micro.baseInr);
     expect(r.caveats.some((c) => c.toLowerCase().includes("estimate"))).toBe(true);
   });
 
@@ -170,7 +169,7 @@ describe("recommendFee", () => {
       { durationDays: 30, channels: ["Instagram", "Facebook"], territories: ["India"] }
     );
     expect(r.tierSource).toBe("follower_count");
-    expect(r.tier.id).toBe("top_tier");
+    expect(r.tier.id).toBe("mega");
   });
 
   it("recommends meaningfully more for global + multi-channel + long duration", () => {
@@ -191,11 +190,11 @@ describe("recommendFee", () => {
 
   it("forceTierId overrides all other signals", () => {
     const r = recommendFee(
-      { minLicenseFeeInr: 5_000, forceTierId: "top_tier" },
+      { minLicenseFeeInr: 5_000, forceTierId: "mega" },
       { durationDays: 30, channels: ["Instagram", "Facebook"], territories: ["India"] }
     );
     expect(r.tierSource).toBe("force");
-    expect(r.tier.id).toBe("top_tier");
+    expect(r.tier.id).toBe("mega");
   });
 
   it("always returns rationale and caveats arrays (never undefined)", () => {

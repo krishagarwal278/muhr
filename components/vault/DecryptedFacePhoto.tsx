@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { decryptToBlobWithVaultPassword, type VaultEncryptionMetadataV1 } from "@/lib/vault/crypto";
+import { primaryButtonVariants } from "@/components/ui/button-recipes";
 
 /** Legacy key; remove if present so plaintext passwords are not left in storage. */
 const LEGACY_VAULT_PASSWORD_KEY = "muhr_vault_password";
@@ -92,7 +93,7 @@ export function DecryptedFacePhoto({
         type="button"
         onClick={() => void handleDecrypt()}
         disabled={busy}
-        className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black hover:bg-zinc-200 disabled:opacity-50"
+        className={primaryButtonVariants()}
       >
         {busy ? "Decrypting…" : "Decrypt preview"}
       </button>

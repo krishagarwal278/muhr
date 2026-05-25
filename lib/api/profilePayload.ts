@@ -2,6 +2,8 @@
  * Unwrap standardized `/api/profile` and `/api/profile/completion` JSON bodies.
  */
 
+import { apiErrorMessage, dataFromApiJson } from "@/lib/api/response";
+
 export type ProfileApiPayload = {
   handle?: string | null;
   displayName?: string | null;
@@ -23,39 +25,19 @@ export type ProfileApiPayload = {
 };
 
 export function profileFromApiJson(json: unknown): ProfileApiPayload | null {
-  if (!json || typeof json !== "object") return null;
-  const root = json as Record<string, unknown>;
-  if (root.ok === true && root.data && typeof root.data === "object") {
-    return root.data as ProfileApiPayload;
-  }
-  if (!("ok" in root)) {
-    return root as ProfileApiPayload;
-  }
-  return null;
+  return dataFromApiJson<ProfileApiPayload>(json);
 }
 
 export function profileApiErrorMessage(json: unknown, fallback = "Request failed"): string {
-  if (!json || typeof json !== "object") return fallback;
-  const root = json as Record<string, unknown>;
-  const err = root.error;
-  if (err && typeof err === "object" && "message" in err) {
-    const msg = (err as { message?: unknown }).message;
-    if (typeof msg === "string" && msg.trim()) return msg;
-  }
-  if (typeof root.error === "string" && root.error.trim()) return root.error;
-  return fallback;
+  return apiErrorMessage(json, fallback);
 }
 
 export function completionFromApiJson(json: unknown): {
   percent: number;
   items: unknown[];
 } | null {
-  if (!json || typeof json !== "object") return null;
-  const root = json as Record<string, unknown>;
-  const payload =
-    root.ok === true && root.data && typeof root.data === "object"
-      ? (root.data as Record<string, unknown>)
-      : root;
+  const payload = dataFromApiJson<{ percent?: number; items?: unknown[] }>(json);
+  if (!payload) return null;
   const percent = typeof payload.percent === "number" ? payload.percent : 0;
   const items = Array.isArray(payload.items) ? payload.items : [];
   return { percent, items };

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FeeRecommendation } from "@/components/license/FeeRecommendation";
+import { solidButtonVariants } from "@/components/ui/button-recipes";
+import { cx } from "@/lib/cx";
 
 const CHANNELS = [
   "Instagram",
@@ -145,7 +147,7 @@ export function LicenseRequestPanel({
             </p>
             <Link
               href="/brand/dashboard"
-              className="mt-4 inline-flex rounded-lg bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+              className={cx(solidButtonVariants(), "mt-4 inline-flex")}
             >
               Open brand dashboard →
             </Link>
@@ -384,7 +386,7 @@ export function LicenseRequestPanel({
       <button
         type="submit"
         disabled={submitting || !acceptTerms}
-        className="w-full rounded-lg bg-white py-2.5 text-sm font-medium text-black hover:opacity-90 disabled:opacity-50"
+        className={cx(solidButtonVariants({ size: "lg" }), "w-full")}
       >
         {submitting ? "Sending…" : "Send request"}
       </button>

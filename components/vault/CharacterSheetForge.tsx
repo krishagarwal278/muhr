@@ -12,6 +12,8 @@ import type {
   CharacterSheetGenerateResponse,
   CharacterSheetStatusResponse,
 } from "@/lib/character-sheet/types";
+import { apiErrorMessage } from "@/lib/api/response";
+import { characterSheetGenerateFromApiJson, vaultUploadFromApiJson } from "@/lib/api/vaultPayload";
 
 type ForgeStep = "idle" | "forging" | "preview" | "sealing" | "done";
 
@@ -59,14 +61,21 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ regenerate }),
       });
-      const data = await res.json().catch(() => ({}));
+      const json = await res.json().catch(() => null);
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Could not build character sheet");
+        setError(apiErrorMessage(json, "Could not build character sheet"));
         setStep("idle");
         setOpen(false);
         return;
       }
-      setGenerated(data as CharacterSheetGenerateResponse);
+      const generatedSheet = characterSheetGenerateFromApiJson(json);
+      if (!generatedSheet) {
+        setError("Could not build character sheet");
+        setStep("idle");
+        setOpen(false);
+        return;
+      }
+      setGenerated(generatedSheet);
       setForgeProgress(100);
       await new Promise((r) => setTimeout(r, 400));
       setStep("preview");
@@ -130,9 +139,10 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
       formData.append("original_mime_type", mime);
 
       const uploadRes = await fetch("/api/vault/upload", { method: "POST", body: formData });
-      const uploadData = await uploadRes.json().catch(() => ({}));
-      if (!uploadRes.ok || !uploadData.asset?.id) {
-        setError(uploadData.message ?? "Upload failed");
+      const uploadJson = await uploadRes.json().catch(() => null);
+      const uploadData = vaultUploadFromApiJson(uploadJson);
+      if (!uploadRes.ok || !uploadData?.asset?.id) {
+        setError(apiErrorMessage(uploadJson, uploadData?.message ?? "Upload failed"));
         setStep("preview");
         return;
       }

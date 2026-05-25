@@ -12,6 +12,9 @@ import type { CharacterSheetStatusResponse } from "@/lib/character-sheet/types";
 import type { KycStatus, VaultAsset } from "@/types";
 import type { CreatorSecurityState } from "@/types/vault";
 import { completionFromApiJson } from "@/lib/api/profilePayload";
+import { characterSheetFromApiJson, vaultAssetsFromApiJson } from "@/lib/api/vaultPayload";
+import { solidButtonVariants } from "@/components/ui/button-recipes";
+import { cx } from "@/lib/cx";
 
 interface AssetWithUrl extends VaultAsset {
   signed_url: string | null;
@@ -38,11 +41,12 @@ export default function VaultPage() {
         fetch("/api/profile/completion"),
         fetch("/api/character-sheet"),
       ]);
-      const data = await vaultRes.json();
+      const vaultJson = await vaultRes.json().catch(() => null);
       const identityData = identityRes.ok ? await identityRes.json() : {};
       const identity = identityData.data ?? identityData;
-      if (data.assets) {
-        setAssets(data.assets);
+      if (vaultRes.ok) {
+        const vaultAssets = vaultAssetsFromApiJson(vaultJson);
+        if (vaultAssets) setAssets(vaultAssets);
       }
       setKycStatus((identity.kycStatus as KycStatus) ?? "unverified");
       setKycVerifiedAt((identity.kycVerifiedAt as string | null) ?? null);
@@ -54,7 +58,8 @@ export default function VaultPage() {
         }
       }
       if (sheetRes.ok) {
-        setCharacterSheet(await sheetRes.json());
+        const sheet = characterSheetFromApiJson(await sheetRes.json().catch(() => null));
+        if (sheet) setCharacterSheet(sheet);
       }
     } catch (error) {
       console.error("Error fetching assets:", error);
@@ -100,7 +105,7 @@ export default function VaultPage() {
           {kycVerified ? (
             <Link
               href="/vault/upload"
-              className="flex items-center justify-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition hover:opacity-90"
+              className={cx(solidButtonVariants(), "gap-2")}
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -220,7 +225,7 @@ export default function VaultPage() {
           {kycVerified ? (
             <Link
               href="/vault/upload"
-              className="mt-6 rounded-lg border border-black/15 bg-neutral-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-900"
+              className={cx(solidButtonVariants(), "mt-6")}
             >
               Upload your first asset
             </Link>

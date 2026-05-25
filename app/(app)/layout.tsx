@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { muidFromUserId } from "@/lib/profile/muid";
 import { GlobalLicenseMessagesDock } from "@/components/license/GlobalLicenseMessagesDock";
 import { NavTourBootstrap } from "@/components/tour/NavTourBootstrap";
+import { solidButtonVariants, subtleButtonVariants } from "@/components/ui/button-recipes";
 
 interface UserProfile {
   id: string;
@@ -276,7 +277,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 ref={logoutCancelRef}
                 type="button"
                 onClick={() => setLogoutDialogOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 transition hover:bg-black/5"
+                className={subtleButtonVariants()}
               >
                 Cancel
               </button>
@@ -284,7 +285,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 type="button"
                 disabled={loggingOut}
                 onClick={() => void confirmLogout()}
-                className="rounded-lg bg-neutral-950 px-3 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-60"
+                className={solidButtonVariants()}
               >
                 {loggingOut ? "Signing out…" : "Log out"}
               </button>

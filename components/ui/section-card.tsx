@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cx } from "@/lib/cx";
+import { outlineButtonVariants, solidButtonVariants } from "./button-recipes";
 import { surfaceCardVariants } from "./surface-card";
 import { Alert } from "./alert";
 
@@ -91,11 +92,7 @@ export function EditableSection({
           )}
         </div>
         {!editing && (
-          <button
-            type="button"
-            onClick={handleEdit}
-            className="rounded-lg border border-black/10 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
-          >
+          <button type="button" onClick={handleEdit} className={outlineButtonVariants()}>
             Edit
           </button>
         )}
@@ -122,7 +119,7 @@ export function EditableSection({
             type="button"
             onClick={() => void handleSave()}
             disabled={saving}
-            className="rounded-lg bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-60"
+            className={solidButtonVariants()}
           >
             {saving ? "Saving…" : saveLabel}
           </button>

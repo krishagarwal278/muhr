@@ -42,7 +42,7 @@ Shared recipes (extend as needed):
 | Module                    | Purpose                                      |
 |---------------------------|----------------------------------------------|
 | `components/ui/surface-card.ts` | Bordered translucent panels (`surfaceCardVariants`) |
-| `components/ui/button-recipes.ts` | `primaryButtonVariants`, `ghostButtonVariants` |
+| `components/ui/button-recipes.ts` | `primaryButtonVariants`, `solidButtonVariants`, `outlineButtonVariants`, `dangerButtonVariants`, `ghostButtonVariants`, `subtleButtonVariants` |
 | `components/ui/page-header.ts`  | `appPageHeaderVariants`, `appPageTitleVariants` |
 
 Merge CVA output with local classes using `cx()` from `lib/cx.ts`.

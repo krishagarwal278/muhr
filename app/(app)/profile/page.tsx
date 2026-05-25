@@ -12,7 +12,7 @@ import type { KycStatus } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { buildPasswordResetRedirectTo } from "@/lib/auth/passwordResetRedirect";
 import { completionFromApiJson } from "@/lib/api/profilePayload";
-import { ghostButtonVariants } from "@/components/ui/button-recipes";
+import { dangerButtonVariants, ghostButtonVariants } from "@/components/ui/button-recipes";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -207,7 +207,7 @@ export default function ProfilePage() {
               type="button"
               onClick={() => void sendPasswordReset()}
               disabled={resetBusy}
-              className="mt-3 rounded-lg border border-black/15 bg-white px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-neutral-50 disabled:opacity-60"
+              className={ghostButtonVariants()}
             >
               {resetBusy ? "Sending…" : "Email me a reset link"}
             </button>
@@ -224,7 +224,7 @@ export default function ProfilePage() {
           </div>
           <button
             type="button"
-            className="shrink-0 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-900 hover:bg-red-100"
+            className={dangerButtonVariants({ size: "sm" })}
           >
             Delete account
           </button>

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { CreatorAnchor, LicenseParams } from "@/lib/pricing/recommend";
 import { recommendFee } from "@/lib/pricing/recommend";
+import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
 
 interface FeeRecommendationProps {
   anchor: CreatorAnchor;
@@ -100,7 +101,7 @@ export function FeeRecommendation({
             <button
               type="button"
               onClick={() => onUseLow(rec.lowInr)}
-              className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-800 transition hover:border-neutral-300 hover:bg-neutral-50"
+              className={outlineButtonVariants({ size: "sm" })}
             >
               Use low ({formatInr(rec.lowInr)})
             </button>
@@ -109,7 +110,7 @@ export function FeeRecommendation({
             <button
               type="button"
               onClick={() => onUseMid(rec.midInr)}
-              className="rounded-md bg-neutral-950 px-2.5 py-1 text-xs font-medium text-white transition hover:opacity-90"
+              className={solidButtonVariants({ size: "sm" })}
             >
               Use mid ({formatInr(rec.midInr)})
             </button>
@@ -118,7 +119,7 @@ export function FeeRecommendation({
             <button
               type="button"
               onClick={() => onUseHigh(rec.highInr)}
-              className="rounded-md border border-neutral-200 bg-white px-2.5 py-1 text-xs font-medium text-neutral-800 transition hover:border-neutral-300 hover:bg-neutral-50"
+              className={outlineButtonVariants({ size: "sm" })}
             >
               Use high ({formatInr(rec.highInr)})
             </button>

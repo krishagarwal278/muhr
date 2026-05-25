@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { decryptToBlobWithVaultPassword, type VaultEncryptionMetadataV1 } from "@/lib/vault/crypto";
 import { downloadBlob } from "@/lib/character-sheet/captureToBlob";
+import { solidButtonVariants } from "@/components/ui/button-recipes";
+import { cx } from "@/lib/cx";
 
 export function CharacterSheetExport({
   signedUrl,
@@ -79,7 +81,7 @@ export function CharacterSheetExport({
           type="button"
           onClick={() => void handleDownload()}
           disabled={busy}
-          className="shrink-0 rounded-lg bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+          className={cx(solidButtonVariants(), "shrink-0")}
         >
           {busy ? "Decrypting…" : "Download PNG"}
         </button>

@@ -2,15 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-
-interface EnforcementCase {
-  id: string;
-  platform: string;
-  url: string;
-  description: string;
-  status: "open" | "in_progress" | "resolved" | "rejected";
-  created_at: string;
-}
+import { apiErrorMessage } from "@/lib/api/response";
+import {
+  enforcementCreateFromApiJson,
+  enforcementListFromApiJson,
+  type EnforcementCaseRow,
+} from "@/lib/api/enforcementPayload";
+import { primaryButtonVariants, solidButtonVariants, subtleButtonVariants } from "@/components/ui/button-recipes";
+import { cx } from "@/lib/cx";
 
 const platformLabels: Record<string, string> = {
   instagram: "Instagram",
@@ -40,7 +39,7 @@ function formatDate(dateString: string) {
 
 export default function EnforcementPage() {
   const [showReportModal, setShowReportModal] = useState(false);
-  const [cases, setCases] = useState<EnforcementCase[]>([]);
+  const [cases, setCases] = useState<EnforcementCaseRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
@@ -57,10 +56,10 @@ export default function EnforcementPage() {
   async function fetchCases() {
     try {
       const res = await fetch("/api/enforcement");
-      const data = await res.json();
-      if (data.cases) {
-        setCases(data.cases);
-      }
+      const json = await res.json().catch(() => null);
+      if (!res.ok) return;
+      const data = enforcementListFromApiJson(json);
+      if (data?.cases) setCases(data.cases);
     } catch (err) {
       console.error("Failed to fetch cases:", err);
     } finally {
@@ -84,23 +83,16 @@ export default function EnforcementPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ platform, url, description }),
       });
-      const data = await res.json();
+      const json = await res.json().catch(() => null);
 
-      if (data.success) {
+      if (res.ok && enforcementCreateFromApiJson(json)?.case) {
         setShowReportModal(false);
         setPlatform("");
         setUrl("");
         setDescription("");
         fetchCases();
       } else {
-        const err = data.error;
-        setError(
-          typeof err === "string"
-            ? err
-            : err && typeof err === "object" && "message" in err
-              ? String((err as { message: string }).message)
-              : "Failed to submit report"
-        );
+        setError(apiErrorMessage(json, "Failed to submit report"));
       }
     } catch (err) {
       console.error("Failed to submit report:", err);
@@ -125,7 +117,7 @@ export default function EnforcementPage() {
         </div>
         <button
           onClick={() => setShowReportModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition hover:opacity-90"
+          className={cx(solidButtonVariants(), "gap-2")}
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -186,7 +178,7 @@ export default function EnforcementPage() {
           </p>
           <button
             onClick={() => setShowReportModal(true)}
-            className="mt-6 rounded-lg border border-black/15 bg-neutral-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-900"
+            className={cx(solidButtonVariants(), "mt-6")}
           >
             Report your first case
           </button>
@@ -289,14 +281,14 @@ export default function EnforcementPage() {
                 <button
                   type="button"
                   onClick={() => setShowReportModal(false)}
-                  className="rounded-lg px-4 py-2 text-sm font-medium text-zinc-300 hover:text-zinc-100"
+                  className={subtleButtonVariants({ size: "md" })}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black hover:opacity-90 disabled:opacity-60"
+                  className={primaryButtonVariants()}
                 >
                   {submitting ? "Submitting..." : "Submit report"}
                 </button>

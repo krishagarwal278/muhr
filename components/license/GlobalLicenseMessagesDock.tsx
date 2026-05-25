@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "@/lib/cx";
 import { canUseInAppLicenseMessaging } from "@/lib/license/workspaceMessages";
+import { apiErrorMessage, dataFromApiJson } from "@/lib/api/response";
+import { solidButtonVariants } from "@/components/ui/button-recipes";
 
 type ConversationRow = {
   id: string;
@@ -102,14 +104,15 @@ export function GlobalLicenseMessagesDock() {
         setConversations([]);
         return;
       }
-      const data = await res.json().catch(() => ({}));
+      const json = await res.json().catch(() => null);
       if (!res.ok) {
-        setListError(typeof data.error === "string" ? data.error : "Could not load messages");
+        setListError(apiErrorMessage(json, "Could not load messages"));
         setGate("in");
         return;
       }
-      if (Array.isArray(data.conversations)) {
-        setConversations(data.conversations as ConversationRow[]);
+      const data = dataFromApiJson<{ conversations?: ConversationRow[] }>(json);
+      if (Array.isArray(data?.conversations)) {
+        setConversations(data.conversations);
       }
       setGate("in");
     } catch (e) {
@@ -136,9 +139,10 @@ export function GlobalLicenseMessagesDock() {
         if (!silent) setThread([]);
         return;
       }
-      const data = await res.json().catch(() => ({}));
-      if (Array.isArray(data.messages)) {
-        setThread(data.messages as ThreadMsg[]);
+      const json = await res.json().catch(() => null);
+      const data = dataFromApiJson<{ messages?: ThreadMsg[] }>(json);
+      if (Array.isArray(data?.messages)) {
+        setThread(data.messages);
       } else if (!silent) {
         setThread([]);
       }
@@ -196,8 +200,8 @@ export function GlobalLicenseMessagesDock() {
         body: JSON.stringify({ body: text }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setListError(typeof data.error === "string" ? data.error : "Send failed");
+        const json = await res.json().catch(() => null);
+        setListError(apiErrorMessage(json, "Send failed"));
         return;
       }
       setComposer("");
@@ -213,7 +217,7 @@ export function GlobalLicenseMessagesDock() {
   if (!mounted || gate === "loading" || gate === "out") return null;
 
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex flex-col items-end gap-2">
+    <div className="pointer-events-none fixed bottom-6 right-6 z-overlay flex flex-col items-end gap-2">
       {expanded ? (
         <div
           ref={panelRef}
@@ -420,7 +424,7 @@ export function GlobalLicenseMessagesDock() {
                       type="button"
                       disabled={sendBusy || composer.trim().length < 1}
                       onClick={() => void sendFromDock()}
-                      className="mt-2 w-full rounded-lg bg-neutral-950 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+                      className={cx(solidButtonVariants(), "mt-2 w-full")}
                     >
                       {sendBusy ? "Sending…" : "Send"}
                     </button>

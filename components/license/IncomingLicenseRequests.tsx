@@ -5,21 +5,20 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { LicenseRequestRow } from "@/types/license";
 import { cancellationReasonLabel } from "@/lib/license/cancellationReasons";
-
-type Counts = { pending: number; accepted: number; declined: number; withdrawn: number };
-
-type LicenseApiResponse = {
-  incomingRequests?: LicenseRequestRow[];
-  respondedRequests?: LicenseRequestRow[];
-  withdrawnRequests?: LicenseRequestRow[];
-  counts?: Counts;
-};
+import { apiErrorMessage } from "@/lib/api/response";
+import { licensesListFromApiJson, type LicenseListCounts } from "@/lib/api/licensesPayload";
+import { cx } from "@/lib/cx";
+import {
+  dangerButtonVariants,
+  outlineButtonVariants,
+  solidButtonVariants,
+} from "@/components/ui/button-recipes";
 
 export function IncomingLicenseRequests() {
   const [pending, setPending] = useState<LicenseRequestRow[]>([]);
   const [history, setHistory] = useState<LicenseRequestRow[]>([]);
   const [withdrawn, setWithdrawn] = useState<LicenseRequestRow[]>([]);
-  const [counts, setCounts] = useState<Counts>({
+  const [counts, setCounts] = useState<LicenseListCounts>({
     pending: 0,
     accepted: 0,
     declined: 0,
@@ -31,8 +30,10 @@ export function IncomingLicenseRequests() {
   const [declineReason, setDeclineReason] = useState("");
   const load = useCallback(async () => {
     const res = await fetch("/api/licenses");
+    const json = await res.json().catch(() => null);
     if (!res.ok) return;
-    const data: LicenseApiResponse = await res.json();
+    const data = licensesListFromApiJson(json);
+    if (!data) return;
     setPending(Array.isArray(data.incomingRequests) ? data.incomingRequests : []);
     setHistory(Array.isArray(data.respondedRequests) ? data.respondedRequests : []);
     setWithdrawn(Array.isArray(data.withdrawnRequests) ? data.withdrawnRequests : []);
@@ -74,9 +75,9 @@ export function IncomingLicenseRequests() {
         decline_reason: action === "decline" ? declineReason.trim() || null : undefined,
       }),
     });
-    const data = await res.json().catch(() => ({}));
+    const json = await res.json().catch(() => null);
     if (!res.ok) {
-      setMessage(typeof data.error === "string" ? data.error : "Update failed");
+      setMessage(apiErrorMessage(json, "Update failed"));
       return;
     }
     setDeclineFor(null);
@@ -179,7 +180,7 @@ export function IncomingLicenseRequests() {
                       <button
                         type="button"
                         onClick={() => void respond(r.id, "decline")}
-                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+                        className={dangerButtonVariants()}
                       >
                         Confirm decline
                       </button>
@@ -189,7 +190,7 @@ export function IncomingLicenseRequests() {
                           setDeclineFor(null);
                           setDeclineReason("");
                         }}
-                        className="rounded-lg border border-black/15 px-3 py-1.5 text-xs font-medium text-neutral-800 hover:bg-neutral-50"
+                        className={outlineButtonVariants({ size: "sm" })}
                       >
                         Cancel
                       </button>
@@ -200,20 +201,20 @@ export function IncomingLicenseRequests() {
                     <button
                       type="button"
                       onClick={() => void respond(r.id, "accept")}
-                      className="rounded-lg bg-neutral-950 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-900"
+                      className={solidButtonVariants({ size: "sm" })}
                     >
                       Accept
                     </button>
                     <button
                       type="button"
                       onClick={() => setDeclineFor(r.id)}
-                      className="rounded-lg border border-black/15 px-3 py-1.5 text-xs font-medium text-neutral-900 hover:bg-neutral-50"
+                      className={outlineButtonVariants({ size: "sm" })}
                     >
                       Decline
                     </button>
                     <Link
                       href={`/licenses/requests/${r.id}`}
-                      className="rounded-lg border border-black/15 px-3 py-1.5 text-xs font-medium text-neutral-900 hover:bg-neutral-50"
+                      className={outlineButtonVariants({ size: "sm" })}
                     >
                       Open workspace
                     </Link>
@@ -266,7 +267,7 @@ export function IncomingLicenseRequests() {
 
                 <Link
                   href={`/licenses/requests/${r.id}`}
-                  className="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-black/15 bg-neutral-950 px-3 py-2 text-xs font-medium text-white transition hover:bg-neutral-900 sm:w-auto"
+                  className={cx(solidButtonVariants({ size: "sm" }), "mt-3 w-full sm:w-auto")}
                 >
                   {r.status === "accepted" ? "Manage license request" : "View workspace"}
                 </Link>
@@ -321,7 +322,7 @@ export function IncomingLicenseRequests() {
                 </p>
                 <Link
                   href={`/licenses/requests/${r.id}`}
-                  className="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-black/15 bg-white px-3 py-2 text-xs font-medium text-neutral-950 transition hover:bg-neutral-50 sm:w-auto"
+                  className={cx(outlineButtonVariants({ size: "sm" }), "mt-3 w-full sm:w-auto")}
                 >
                   View details
                 </Link>

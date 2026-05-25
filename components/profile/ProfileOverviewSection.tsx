@@ -13,6 +13,7 @@ import { FormCheckbox } from "@/components/ui/form-checkbox";
 import { FormSelect } from "@/components/ui/form-select";
 import { DataItem, DataItemsGrid } from "@/components/ui/data-item";
 import { LoadingSkeleton } from "@/components/ui/loading";
+import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
 
 interface ProfileOverviewSectionProps {
   onUpdated?: () => void;
@@ -241,11 +242,7 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
       className="scroll-mt-24"
       headerAction={
         !loading && !editing ? (
-          <button
-            type="button"
-            onClick={startEditing}
-            className="rounded-lg border border-black/10 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
-          >
+          <button type="button" onClick={startEditing} className={outlineButtonVariants()}>
             Edit
           </button>
         ) : null
@@ -399,7 +396,7 @@ function EditForm({ values, email, onUpdate, onSave, onCancel, saving }: EditFor
           type="button"
           onClick={onSave}
           disabled={saving}
-          className="rounded-lg bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-60"
+          className={solidButtonVariants()}
         >
           {saving ? "Saving…" : "Save profile"}
         </button>

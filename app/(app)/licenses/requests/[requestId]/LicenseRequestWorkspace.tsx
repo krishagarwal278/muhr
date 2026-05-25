@@ -9,7 +9,15 @@ import { LicenseContractEditor } from "@/components/license/LicenseContractEdito
 import { CounterOfferForm } from "@/components/license/CounterOfferForm";
 import { CounterOffersList } from "@/components/license/CounterOffersList";
 import { cancellationReasonLabel } from "@/lib/license/cancellationReasons";
-import { ghostButtonVariants, primaryButtonVariants } from "@/components/ui/button-recipes";
+import {
+  dangerButtonVariants,
+  ghostButtonVariants,
+  outlineButtonVariants,
+  primaryButtonVariants,
+} from "@/components/ui/button-recipes";
+import { dataFromApiJson } from "@/lib/api/response";
+import { profileFromApiJson } from "@/lib/api/profilePayload";
+import { vaultAssetsFromApiJson } from "@/lib/api/vaultPayload";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
 import { cx } from "@/lib/cx";
 import type { LicenseRequestRow } from "@/types/license";
@@ -117,17 +125,19 @@ export function LicenseRequestWorkspace({
       : `/api/licenses/incoming/${request.id}`;
     const res = await fetch(url);
     if (!res.ok) return;
-    const data = await res.json().catch(() => ({}));
-    if (data.request) setRequest(data.request as LicenseRequestRow);
+    const json = await res.json().catch(() => null);
+    const data = dataFromApiJson<{ request?: LicenseRequestRow }>(json);
+    if (data?.request) setRequest(data.request);
   }, [request.id, isBrand]);
 
   const loadCounterOffers = useCallback(async () => {
     setCounterOffersLoading(true);
     try {
       const res = await fetch(`/api/licenses/requests/${request.id}/counter-offers`);
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && Array.isArray(data.counterOffers)) {
-        setCounterOffers(data.counterOffers as CounterOfferRow[]);
+      const json = await res.json().catch(() => null);
+      const data = dataFromApiJson<{ counterOffers?: CounterOfferRow[] }>(json);
+      if (res.ok && Array.isArray(data?.counterOffers)) {
+        setCounterOffers(data.counterOffers);
       } else if (!res.ok && res.status !== 503) {
         console.warn("[license workspace] counter-offers load failed", res.status);
       }
@@ -160,17 +170,11 @@ export function LicenseRequestWorkspace({
         ]);
         if (!cancelled) {
           if (vaultRes.ok) {
-            const vaultData = await vaultRes.json();
-            if (Array.isArray(vaultData.assets)) {
-              setAssets(vaultData.assets as VaultAssetRow[]);
-            }
+            const vaultAssets = vaultAssetsFromApiJson(await vaultRes.json().catch(() => null));
+            if (vaultAssets) setAssets(vaultAssets as VaultAssetRow[]);
           }
           if (profileRes.ok) {
-            const profileJson = await profileRes.json();
-            const profileData =
-              profileJson?.ok === true && profileJson?.data
-                ? profileJson.data
-                : profileJson;
+            const profileData = profileFromApiJson(await profileRes.json().catch(() => null));
             if (typeof profileData?.minLicenseFeeInr === "number") {
               setCreatorMinLicenseFeeInr(profileData.minLicenseFeeInr);
             }
@@ -372,7 +376,10 @@ export function LicenseRequestWorkspace({
               <button
                 type="button"
                 onClick={() => setCancelOpen(true)}
-                className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm font-semibold text-red-900 shadow-sm hover:bg-red-100"
+                className={cx(
+                  outlineButtonVariants(),
+                  "border-red-300 text-red-900 shadow-sm hover:bg-red-100",
+                )}
               >
                 Cancel license
               </button>
@@ -523,7 +530,7 @@ export function LicenseRequestWorkspace({
                     type="button"
                     disabled={busy}
                     onClick={() => void respond("decline")}
-                    className="rounded-lg border border-red-300 bg-red-100 px-4 py-2 text-sm font-semibold text-red-900 hover:bg-red-200 disabled:opacity-50"
+                    className={dangerButtonVariants({ size: "md" })}
                   >
                     Confirm decline
                   </button>
@@ -565,7 +572,10 @@ export function LicenseRequestWorkspace({
                   type="button"
                   disabled={busy}
                   onClick={() => setShowCounterOffer(true)}
-                  className="rounded-lg border border-purple-300 bg-purple-100 px-4 py-2 text-sm font-semibold text-purple-900 transition hover:bg-purple-200 disabled:opacity-50"
+                  className={cx(
+                    outlineButtonVariants(),
+                    "border-purple-300 bg-purple-100 text-purple-900 hover:bg-purple-200",
+                  )}
                 >
                   Negotiate terms
                 </button>
@@ -824,7 +834,7 @@ export function LicenseRequestWorkspace({
                     <div className="flex shrink-0 flex-wrap gap-2">
                       <Link
                         href={`/vault/${a.id}`}
-                        className="inline-flex items-center justify-center rounded-lg border border-black/10 bg-neutral-50 px-3 py-1.5 text-xs font-medium text-neutral-950 transition hover:border-black/20 hover:bg-neutral-100"
+                        className={outlineButtonVariants({ size: "sm" })}
                       >
                         Open
                       </Link>

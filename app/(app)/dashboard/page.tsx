@@ -12,6 +12,7 @@ import { CreatorFeeCard } from "./CreatorFeeCard";
 import { startNavTour } from "@/lib/tour/navTour";
 import type { KycStatus } from "@/types";
 import { profileFromApiJson } from "@/lib/api/profilePayload";
+import { dataFromApiJson } from "@/lib/api/response";
 
 interface DashboardStats {
   vaultAssets: number;
@@ -31,10 +32,8 @@ async function parseApiJson(
     return {};
   }
   try {
-    const data: unknown = await res.json();
-    return data !== null && typeof data === "object" && !Array.isArray(data)
-      ? (data as Record<string, unknown>)
-      : {};
+    const json: unknown = await res.json();
+    return dataFromApiJson(json) ?? {};
   } catch {
     console.warn(`[dashboard] ${label} returned invalid JSON`);
     return {};

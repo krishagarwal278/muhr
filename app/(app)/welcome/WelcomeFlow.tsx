@@ -8,11 +8,9 @@ import { recommendFee } from "@/lib/pricing/recommend";
 import { PRICING_TIERS, PRICING_TIER_ORDER, type PricingTierId } from "@/lib/pricing/tiers";
 import { markWelcomeCompleted } from "@/lib/tour/welcomeFlow";
 import { cx } from "@/lib/cx";
+import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
 
 const STEP_COUNT = 5;
-
-const PRIMARY_CTA_CLASS =
-  "rounded-lg bg-neutral-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-900 disabled:cursor-not-allowed disabled:opacity-60";
 
 export function WelcomeFlow({ userId }: { userId: string }) {
   const router = useRouter();
@@ -73,7 +71,7 @@ export function WelcomeFlow({ userId }: { userId: string }) {
           type="button"
           onClick={() => setStepIndex(Math.max(0, stepIndex - 1))}
           disabled={stepIndex === 0}
-          className="rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-800 transition hover:border-neutral-300 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className={outlineButtonVariants()}
         >
           ← Back
         </button>
@@ -81,12 +79,12 @@ export function WelcomeFlow({ userId }: { userId: string }) {
           <button
             type="button"
             onClick={() => setStepIndex(stepIndex + 1)}
-            className={PRIMARY_CTA_CLASS}
+            className={solidButtonVariants({ size: "lg" })}
           >
             Next →
           </button>
         ) : (
-          <button type="button" onClick={finish} className={PRIMARY_CTA_CLASS}>
+          <button type="button" onClick={finish} className={solidButtonVariants({ size: "lg" })}>
             Go to dashboard →
           </button>
         )}

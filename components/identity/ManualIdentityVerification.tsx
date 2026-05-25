@@ -5,6 +5,7 @@ import Link from "next/link";
 import { KycStatusBadge } from "@/components/KycStatusBadge";
 import type { KycStatus } from "@/types";
 import { profileFromApiJson } from "@/lib/api/profilePayload";
+import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
 
 interface ManualIdentityVerificationProps {
   kycStatus: KycStatus;
@@ -133,14 +134,14 @@ export function ManualIdentityVerification({
           type="button"
           disabled={submitting}
           onClick={() => void submitForReview()}
-          className="rounded-lg bg-neutral-950 px-4 py-2.5 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-60"
+          className={solidButtonVariants({ size: "lg" })}
         >
           {submitting ? "Submitting…" : "Submit"}
         </button>
       ) : (
         <Link
           href="/profile#profile-overview"
-          className="inline-flex rounded-lg border border-black/10 px-4 py-2.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+          className={outlineButtonVariants({ size: "lg" })}
         >
           Complete profile overview
         </Link>

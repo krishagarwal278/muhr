@@ -5,6 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 import type { KycStatus } from "@/types";
 import { encryptFileWithVaultPassword } from "@/lib/vault/crypto";
+import { apiErrorMessage } from "@/lib/api/response";
+import { vaultUploadFromApiJson } from "@/lib/api/vaultPayload";
+import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
+import { cx } from "@/lib/cx";
 
 type AssetType = "face_photo" | "voice_sample" | null;
 type UploadStep = "select" | "upload" | "complete";
@@ -125,13 +129,15 @@ export default function VaultUploadPage() {
           body: formData,
         });
         
-        const data = await res.json();
-        
-        if (data.success) {
+        const json = await res.json().catch(() => null);
+        const upload = vaultUploadFromApiJson(json);
+
+        if (res.ok && upload?.asset?.id) {
           successCount++;
         } else {
-          console.error("Upload failed:", data.message);
-          setError(data.message || "Upload failed");
+          const msg = apiErrorMessage(json, upload?.message ?? "Upload failed");
+          console.error("Upload failed:", msg);
+          setError(msg);
         }
       } catch (err) {
         console.error("Upload error:", err);
@@ -197,7 +203,7 @@ export default function VaultUploadPage() {
           </p>
           <Link
             href="/profile#identity-verification"
-            className="mt-6 inline-flex rounded-lg border border-black/10 bg-neutral-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-neutral-900"
+            className={cx(solidButtonVariants({ size: "lg" }), "mt-6 inline-flex")}
           >
             Go to verification
           </Link>
@@ -408,10 +414,7 @@ export default function VaultUploadPage() {
             <h2 className="text-lg font-medium">Assets uploaded successfully</h2>
             <p className="text-sm text-neutral-700">Your photos are now securely stored in your vault.</p>
             <div className="flex justify-center gap-3 pt-2">
-              <Link
-                href="/vault"
-                className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black hover:opacity-90"
-              >
+              <Link href="/vault" className={solidButtonVariants()}>
                 View vault
               </Link>
               <button
@@ -422,7 +425,7 @@ export default function VaultUploadPage() {
                   setPreviews([]);
                   setUploadProgress(0);
                 }}
-                className="rounded-lg border border-black/15 bg-white px-4 py-2 text-sm font-medium text-neutral-950 hover:bg-neutral-50"
+                className={outlineButtonVariants()}
               >
                 Upload more
               </button>
@@ -435,7 +438,7 @@ export default function VaultUploadPage() {
             <button
               onClick={handleContinue}
               disabled={(step === "select" && !assetType) || (step === "upload" && files.length === 0) || uploading}
-              className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-black transition hover:opacity-90 disabled:opacity-40"
+              className={solidButtonVariants()}
             >
               {uploading ? "Uploading..." : step === "upload" ? "Upload" : "Continue"}
             </button>

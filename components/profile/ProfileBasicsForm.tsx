@@ -8,6 +8,8 @@ import {
   validateProfileBasicsInput,
 } from "@/lib/profile/basics";
 import { formatFollowerCount } from "@/lib/pricing/followers";
+import { solidButtonVariants } from "@/components/ui/button-recipes";
+import { cx } from "@/lib/cx";
 
 export type ProfileBasicsValues = {
   fullName: string;
@@ -300,7 +302,7 @@ export function ProfileBasicsForm({
       <button
         type="submit"
         disabled={disabled}
-        className="w-full rounded-lg bg-neutral-950 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-900 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        className={cx(solidButtonVariants({ size: "lg" }), "w-full sm:w-auto")}
       >
         {submitting ? "Saving…" : submitLabel}
       </button>

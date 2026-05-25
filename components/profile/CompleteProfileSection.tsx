@@ -5,6 +5,7 @@ import { SignedStorageImage } from "@/components/ui/SignedStorageImage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MAX_CHARACTER_PHOTOS, MIN_CHARACTER_PHOTOS } from "@/lib/profile/completion";
 import { recommendFee } from "@/lib/pricing/recommend";
+import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
 
 interface CharacterPhoto {
   id: string;
@@ -542,7 +543,7 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
             <button
               type="button"
               onClick={startMeasurementsEdit}
-              className="rounded-lg border border-black/10 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+              className={outlineButtonVariants()}
             >
               Edit
             </button>
@@ -588,7 +589,7 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
                   type="button"
                   onClick={() => void saveMeasurements()}
                   disabled={savingMeasures}
-                  className="rounded-lg bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-60"
+                  className={solidButtonVariants()}
                 >
                   {savingMeasures ? "Saving…" : "Save"}
                 </button>
@@ -628,7 +629,7 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
             <button
               type="button"
               onClick={startSetupEdit}
-              className="rounded-lg border border-black/10 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
+              className={outlineButtonVariants()}
             >
               Edit
             </button>
@@ -686,7 +687,7 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
                   type="button"
                   onClick={() => void saveSetup()}
                   disabled={savingSetup}
-                  className="rounded-lg bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-60"
+                  className={solidButtonVariants()}
                 >
                   {savingSetup ? "Saving…" : "Save"}
                 </button>

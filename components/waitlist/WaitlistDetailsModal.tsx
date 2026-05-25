@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
 
 interface WaitlistDetailsModalProps {
   open: boolean;
@@ -95,14 +96,14 @@ export function WaitlistDetailsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-black/10 px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50"
+            className={outlineButtonVariants()}
           >
             Skip for now
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="rounded-lg bg-neutral-950 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-900 disabled:opacity-60"
+            className={solidButtonVariants()}
           >
             {loading ? "Saving…" : "Continue"}
           </button>

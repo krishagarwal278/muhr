@@ -10,16 +10,14 @@ import { ChipSelect, type ChipOption } from "@/components/ui/chip-select";
 import { ToggleField } from "@/components/ui/toggle";
 import { FormSelect } from "@/components/ui/form-select";
 import { FormField } from "@/components/ui/form-field";
+import { apiErrorMessage } from "@/lib/api/response";
+import {
+  consentRulesFromApiJson,
+  type ConsentRulesPayload,
+} from "@/lib/api/consentPayload";
+import { solidButtonVariants } from "@/components/ui/button-recipes";
 
-interface ConsentRules {
-  channels: string[];
-  territories: string[];
-  blockedCategories: string[];
-  allowVoiceSynthesis: boolean;
-  allowFaceReenactment: boolean;
-  requireApprovalPerUse: boolean;
-  defaultDurationDays: number;
-}
+type ConsentRules = ConsentRulesPayload;
 
 const channelOptions: ChipOption[] = [
   { id: "instagram", label: "Instagram" },
@@ -70,12 +68,13 @@ export default function ConsentPage() {
     async function loadRules() {
       try {
         const res = await fetch("/api/consent");
-        const json = await res.json();
-        if (json.ok && json.data) {
-          setRules(json.data);
-        } else if (!json.ok && json.error) {
-          console.error("Failed to load consent rules:", json.error);
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          console.error("Failed to load consent rules:", apiErrorMessage(json, res.statusText));
+          return;
         }
+        const loaded = consentRulesFromApiJson(json);
+        if (loaded) setRules(loaded);
       } catch (error) {
         console.error("Failed to load consent rules:", error);
       } finally {
@@ -226,24 +225,25 @@ export default function ConsentPage() {
           </div>
         </SectionCard>
 
-        <div className="flex items-center justify-end gap-4">
-          {saveSuccess && (
-            <Alert variant="success" icon={false} className="flex-1">
-              Rules saved successfully!
-            </Alert>
-          )}
-          {saveError && (
-            <Alert variant="error" icon={false} className="flex-1">
-              {saveError}
-            </Alert>
-          )}
+        <div className="flex flex-wrap items-center gap-4">
           <button
-            onClick={handleSave}
+            type="button"
+            onClick={() => void handleSave()}
             disabled={saving}
-            className="rounded-lg bg-neutral-950 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-neutral-900 disabled:opacity-60"
+            className={solidButtonVariants({ size: "lg" })}
           >
             {saving ? "Saving..." : "Save rules"}
           </button>
+          {saveSuccess ? (
+            <Alert variant="success" icon={false} className="min-w-0 flex-1">
+              Rules saved successfully!
+            </Alert>
+          ) : null}
+          {saveError ? (
+            <Alert variant="error" icon={false} className="min-w-0 flex-1">
+              {saveError}
+            </Alert>
+          ) : null}
         </div>
       </div>
     </div>

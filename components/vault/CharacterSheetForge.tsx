@@ -81,7 +81,7 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
 
   async function getSheetBlob(): Promise<Blob> {
     if (!generated) throw new Error("No sheet data");
-    return buildCharacterSheetPngBlob(generated, null);
+    return buildCharacterSheetPngBlob(generated);
   }
 
   async function handleDownload() {

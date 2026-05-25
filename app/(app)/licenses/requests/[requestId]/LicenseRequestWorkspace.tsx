@@ -166,8 +166,12 @@ export function LicenseRequestWorkspace({
             }
           }
           if (profileRes.ok) {
-            const profileData = await profileRes.json();
-            if (typeof profileData.minLicenseFeeInr === "number") {
+            const profileJson = await profileRes.json();
+            const profileData =
+              profileJson?.ok === true && profileJson?.data
+                ? profileJson.data
+                : profileJson;
+            if (typeof profileData?.minLicenseFeeInr === "number") {
               setCreatorMinLicenseFeeInr(profileData.minLicenseFeeInr);
             }
           }

@@ -7,6 +7,7 @@ import { primaryButtonVariants } from "@/components/ui/button-recipes";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
 import { cx } from "@/lib/cx";
 import { getPublicShareableSiteBase } from "@/lib/app/publicSiteUrl";
+import { profileFromApiJson } from "@/lib/api/profilePayload";
 
 type Profile = {
   handle: string | null;
@@ -26,8 +27,8 @@ export function PublicProfileShare() {
       try {
         const res = await fetch("/api/profile");
         if (!res.ok) return;
-        const data = await res.json();
-        if (!cancelled) {
+        const data = profileFromApiJson(await res.json());
+        if (!cancelled && data) {
           setProfile({
             handle: data.handle ?? null,
             displayName: data.displayName ?? null,
@@ -77,8 +78,8 @@ export function PublicProfileShare() {
         <p className="mt-1.5 text-sm leading-relaxed text-neutral-700">
           Choose a handle in Profile to get a shareable URL for bios and outreach.
         </p>
-        <Link href="/profile" className={cx(primaryButtonVariants(), "mt-5")}>
-          Open profile
+        <Link href="/profile#profile-overview" className={cx(primaryButtonVariants(), "mt-5")}>
+          Set your handle
         </Link>
       </div>
     );
@@ -179,7 +180,7 @@ export function PublicProfileShare() {
               alt=""
               width={52}
               height={52}
-              className="h-auto w-auto rounded-xl opacity-95"
+              className="h-[52px] w-[52px] rounded-xl opacity-95"
             />
           </div>
           <p className="text-center text-[11px] leading-snug text-zinc-500">

@@ -11,6 +11,7 @@ import { CharacterSheetForge } from "@/components/vault/CharacterSheetForge";
 import type { CharacterSheetStatusResponse } from "@/lib/character-sheet/types";
 import type { KycStatus, VaultAsset } from "@/types";
 import type { CreatorSecurityState } from "@/types/vault";
+import { completionFromApiJson } from "@/lib/api/profilePayload";
 
 interface AssetWithUrl extends VaultAsset {
   signed_url: string | null;
@@ -46,9 +47,11 @@ export default function VaultPage() {
       setKycStatus((identity.kycStatus as KycStatus) ?? "unverified");
       setKycVerifiedAt((identity.kycVerifiedAt as string | null) ?? null);
       if (completionRes.ok) {
-        const c = await completionRes.json();
-        setProfilePercent(c.percent ?? 0);
-        setProfileItems(c.items ?? []);
+        const c = completionFromApiJson(await completionRes.json().catch(() => null));
+        if (c) {
+          setProfilePercent(c.percent);
+          setProfileItems(c.items as ProfileCompletionItem[]);
+        }
       }
       if (sheetRes.ok) {
         setCharacterSheet(await sheetRes.json());

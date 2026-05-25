@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ProfileBasicsForm } from "@/components/profile/ProfileBasicsForm";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
+import { profileApiErrorMessage, profileFromApiJson } from "@/lib/api/profilePayload";
 
 export function ProfileBasicsOnboarding({ userId }: { userId: string }) {
   const router = useRouter();
@@ -23,19 +24,8 @@ export function ProfileBasicsOnboarding({ userId }: { userId: string }) {
     (async () => {
       try {
         const res = await fetch("/api/profile");
-        const data = (await res.json().catch(() => ({}))) as {
-          profileBasicsComplete?: boolean;
-          fullName?: string | null;
-          phone?: string | null;
-          address?: string | null;
-          addressLine1?: string | null;
-          addressLine2?: string | null;
-          addressCity?: string | null;
-          addressPinCode?: string | null;
-          followerCount?: number | null;
-          displayName?: string | null;
-        };
-        if (!res.ok) {
+        const data = profileFromApiJson(await res.json().catch(() => null));
+        if (!res.ok || !data) {
           if (!cancelled) setLoadError("Could not load your profile.");
           return;
         }
@@ -87,9 +77,9 @@ export function ProfileBasicsOnboarding({ userId }: { userId: string }) {
         followerCount: values.followerCount,
       }),
     });
-    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    const json = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(typeof data.error === "string" ? data.error : "Could not save");
+      throw new Error(profileApiErrorMessage(json, "Could not save"));
     }
 
     if (values.platformLicenseSigned) {

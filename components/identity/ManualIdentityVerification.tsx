@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { KycStatusBadge } from "@/components/KycStatusBadge";
 import type { KycStatus } from "@/types";
+import { profileFromApiJson } from "@/lib/api/profilePayload";
 
 interface ManualIdentityVerificationProps {
   kycStatus: KycStatus;
@@ -24,11 +25,8 @@ export function ManualIdentityVerification({
     let cancelled = false;
     (async () => {
       const res = await fetch("/api/profile");
-      const data = (await res.json().catch(() => ({}))) as {
-        profileBasicsComplete?: boolean;
-        handle?: string | null;
-      };
-      if (!cancelled && res.ok) {
+      const data = profileFromApiJson(await res.json().catch(() => null));
+      if (!cancelled && res.ok && data) {
         setProfileBasicsComplete(data.profileBasicsComplete === true);
         setHandle(typeof data.handle === "string" && data.handle.trim() ? data.handle.trim() : null);
       }

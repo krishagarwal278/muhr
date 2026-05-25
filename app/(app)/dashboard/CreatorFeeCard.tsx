@@ -14,6 +14,7 @@ import {
 } from "@/lib/pricing/followers";
 import { recommendFee } from "@/lib/pricing/recommend";
 import { PRICING_TIER_ORDER, PRICING_TIERS } from "@/lib/pricing/tiers";
+import { profileFromApiJson } from "@/lib/api/profilePayload";
 
 interface CreatorFeeCardProps {
   minLicenseFeeInr: number | null;
@@ -75,8 +76,8 @@ export function CreatorFeeCard({
           console.warn("[CreatorFeeCard] follower count save failed", res.status);
           return;
         }
-        const data = (await res.json().catch(() => ({}))) as { followerCount?: number | null };
-        if (typeof data.followerCount === "number" && data.followerCount > 0) {
+        const data = profileFromApiJson(await res.json().catch(() => null));
+        if (typeof data?.followerCount === "number" && data.followerCount > 0) {
           setFollowerCount(data.followerCount);
         }
       } catch (e) {
@@ -139,7 +140,7 @@ export function CreatorFeeCard({
 
   return (
     <section
-      className="overflow-hidden rounded-2xl border border-purple-200/90 bg-gradient-to-br from-purple-50 via-white to-indigo-50/50 shadow-[0_4px_24px_-6px_rgba(88,28,135,0.15)]"
+      className="w-full min-w-0 overflow-hidden rounded-2xl border border-purple-200/90 bg-gradient-to-br from-purple-50 via-white to-indigo-50/50 shadow-[0_4px_24px_-6px_rgba(88,28,135,0.15)]"
       aria-labelledby="earnings-slide-heading"
     >
       <div className="border-b border-purple-100/80 bg-white/50 px-5 py-4 sm:px-6">
@@ -223,13 +224,13 @@ export function CreatorFeeCard({
         </div>
 
         {/* Hero fee range */}
-        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
-          <div className="rounded-xl border border-purple-200/60 bg-gradient-to-br from-purple-100/50 to-white p-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
+          <div className="min-w-0 rounded-xl border border-purple-200/60 bg-gradient-to-br from-purple-100/50 to-white p-4">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-purple-700">
               Approx. license fee · 30 days
             </p>
             <p className="mt-0.5 text-xs text-purple-900/65">Instagram + Facebook · India</p>
-            <p className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-purple-950 sm:text-4xl">
+            <p className="mt-3 break-words text-2xl font-semibold tabular-nums tracking-tight text-purple-950 sm:text-3xl lg:text-4xl">
               {formatInr(recommendation.lowInr)}
               <span className="mx-2 text-xl font-normal text-purple-400">–</span>
               {formatInr(recommendation.highInr)}
@@ -240,7 +241,7 @@ export function CreatorFeeCard({
           </div>
 
           {/* Tier spectrum */}
-          <div className="min-w-[200px] rounded-xl border border-purple-200/50 bg-white/80 p-3">
+          <div className="w-full min-w-0 rounded-xl border border-purple-200/50 bg-white/80 p-3 sm:w-auto sm:min-w-[200px]">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-purple-700">
               Tier bands
             </p>
@@ -277,7 +278,10 @@ export function CreatorFeeCard({
               const isActive = tierId === activeTierId;
               const widthPct = Math.max(8, Math.round((rec.midInr / maxMid) * 100));
               return (
-                <li key={tierId} className="grid grid-cols-[minmax(0,7rem)_1fr_auto] items-center gap-3">
+                <li
+                  key={tierId}
+                  className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,7rem)_1fr_auto] sm:items-center sm:gap-3"
+                >
                   <span
                     className={
                       isActive

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { formatFollowerCount } from "@/lib/pricing/followers";
 import { parsePhoneE164 } from "@/lib/profile/basics";
+import { profileApiErrorMessage, profileFromApiJson } from "@/lib/api/profilePayload";
 import { SectionCard } from "@/components/ui/section-card";
 import { Alert } from "@/components/ui/alert";
 import { FormInput } from "@/components/ui/form-input";
@@ -84,8 +85,8 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
     setLoading(true);
     try {
       const res = await fetch("/api/profile");
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
+      const data = profileFromApiJson(await res.json().catch(() => null));
+      if (res.ok && data) {
         setOverview({
           fullName: data.fullName ?? data.displayName ?? "",
           phone: data.phone ?? "",
@@ -193,11 +194,12 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
           licensingNotes: editValues.licensingNotes.trim() || null,
         }),
       });
-      const data = await res.json().catch(() => ({}));
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setSaveError(typeof data.error === "string" ? data.error : "Could not save");
+        setSaveError(profileApiErrorMessage(json, "Could not save"));
         return;
       }
+      const saved = profileFromApiJson(json);
       setOverview({
         fullName: editValues.fullName.trim(),
         phone,
@@ -206,9 +208,9 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
         addressCity: editValues.addressCity.trim(),
         addressPinCode: editValues.addressPinCode.trim(),
         followerCount,
-        handle: typeof data.handle === "string" ? data.handle : editValues.handle.trim(),
+        handle: saved?.handle ?? editValues.handle.trim(),
         email: overview.email,
-        licensingNotes: typeof data.licensingNotes === "string" ? data.licensingNotes : editValues.licensingNotes.trim(),
+        licensingNotes: saved?.licensingNotes ?? editValues.licensingNotes.trim(),
         acceptingRequests: editValues.acceptingRequests,
       });
       setEditing(false);

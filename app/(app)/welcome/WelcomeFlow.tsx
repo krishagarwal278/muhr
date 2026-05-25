@@ -17,7 +17,7 @@ const PRIMARY_CTA_CLASS =
 export function WelcomeFlow({ userId }: { userId: string }) {
   const router = useRouter();
   const [stepIndex, setStepIndex] = useState(0);
-  const [tier, setTier] = useState<PricingTierId>("established");
+  const [tier, setTier] = useState<PricingTierId>("late_micro");
 
   function finish() {
     markWelcomeCompleted(userId);

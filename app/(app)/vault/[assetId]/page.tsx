@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { SignedStorageImage } from "@/components/ui/SignedStorageImage";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { DeleteAssetButton } from "../../../../components/vault/DeleteAssetButton";
+import { VaultAssetActions } from "@/components/vault/VaultAssetActions";
 import { CharacterSheetExport } from "@/components/vault/CharacterSheetExport";
 import { DecryptedFacePhoto } from "@/components/vault/DecryptedFacePhoto";
 
@@ -217,19 +217,7 @@ export default async function AssetDetailPage({
               />
             )}
 
-            <div className="flex gap-3 pt-2">
-              {asset.asset_type !== "character_sheet" && (
-                <a
-                  href={asset.signed_url || "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 rounded-lg border border-black/15 bg-white py-2.5 text-center text-sm font-medium text-neutral-950 transition hover:bg-neutral-50"
-                >
-                  View full size
-                </a>
-              )}
-              <DeleteAssetButton assetId={asset.id} />
-            </div>
+            <VaultAssetActions asset={asset} />
           </div>
         </div>
       </div>

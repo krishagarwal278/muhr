@@ -100,8 +100,7 @@ export function PublicProfileShare() {
         aria-hidden
       />
       <div className="relative border-b border-white/[0.08] bg-black/10 px-5 py-4 backdrop-blur-sm">
-        <h2 className="text-[15px] font-semibold tracking-tight text-white">Shareable profile</h2>
-        <p className="mt-0.5 text-sm text-zinc-400">Post on social or send to brands</p>
+        <h2 className="text-[15px] font-semibold tracking-tight text-white">Share link</h2>
       </div>
 
       <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-stretch">
@@ -148,7 +147,6 @@ export function PublicProfileShare() {
               className="shrink-0 rounded-xl border border-white/15 bg-white p-1.5 shadow-lg shadow-black/30"
             />
           </div>
-          <p className="mt-4 break-all font-mono text-[11px] leading-relaxed text-zinc-400">{publicUrl}</p>
           <div className="mt-5 flex flex-wrap gap-2">
             <button type="button" onClick={() => void copy()} className={primaryButtonVariants({ size: "sm" })}>
               {copied ? "Copied" : "Copy link"}
@@ -183,9 +181,7 @@ export function PublicProfileShare() {
               className="h-[52px] w-[52px] rounded-xl opacity-95"
             />
           </div>
-          <p className="text-center text-[11px] leading-snug text-zinc-500">
-            Screenshot this card for Instagram. Apple Wallet .pkpass is not included yet.
-          </p>
+          <p className="text-center text-[11px] text-zinc-500">Screenshot for stories</p>
         </div>
       </div>
     </div>

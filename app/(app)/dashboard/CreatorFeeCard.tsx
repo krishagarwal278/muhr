@@ -153,12 +153,8 @@ export function CreatorFeeCard({
               id="earnings-slide-heading"
               className="mt-1 text-lg font-semibold tracking-tight text-purple-950 sm:text-xl"
             >
-              What you could fetch in license fees
+              License fee estimate
             </h2>
-            <p className="mt-1 max-w-xl text-sm text-purple-900/75">
-              Based on your follower count and typical Indian creator licensing. Slide to explore
-              different audience sizes.
-            </p>
           </div>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
             Estimate only
@@ -195,10 +191,6 @@ export function CreatorFeeCard({
               />
               <span className="pb-1 text-sm font-medium text-purple-800/80">followers</span>
             </div>
-            <p className="text-sm text-purple-900/70">
-              <span className="font-semibold text-purple-950">{activeTier.label}</span>
-              <span className="text-purple-800/60"> · {activeTier.followerBand}</span>
-            </p>
           </div>
 
           <input
@@ -236,7 +228,7 @@ export function CreatorFeeCard({
               {formatInr(recommendation.highInr)}
             </p>
             <p className="mt-1 text-sm tabular-nums text-purple-800/80">
-              Typical mid-point {formatInr(recommendation.midInr)}
+              Mid {formatInr(recommendation.midInr)}
             </p>
           </div>
 
@@ -270,7 +262,7 @@ export function CreatorFeeCard({
         {/* Data bars by tier */}
         <div className="rounded-xl border border-purple-200/50 bg-white/70 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-purple-800">
-            Mid-point by follower tier (same baseline campaign)
+            Compare tiers
           </p>
           <ul className="mt-4 space-y-2.5" role="list">
             {tierEstimates.map(({ tierId, rec }) => {
@@ -321,16 +313,14 @@ export function CreatorFeeCard({
           </ul>
         </div>
 
-        <p className="text-xs leading-relaxed text-purple-900/65">
-          Real deals vary by brand, exclusivity, and channels. Brands see a custom estimate when they
-          request your license. Set your{" "}
+        <p className="text-xs text-purple-900/65">
+          Estimates only ·{" "}
           <Link
             href="/profile"
             className="font-medium text-purple-950 underline-offset-2 hover:underline"
           >
-            minimum fee
-          </Link>{" "}
-          to anchor the floor.
+            Set minimum fee
+          </Link>
         </p>
       </div>
     </section>

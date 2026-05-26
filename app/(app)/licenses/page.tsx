@@ -7,12 +7,7 @@ export default function LicensesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Licenses</h1>
-          <p className="mt-1 text-sm text-neutral-800">
-            Active and past licensing agreements
-          </p>
-        </div>
+        <h1 className="text-2xl font-semibold tracking-tight">Licenses</h1>
         <Link
           href="/licenses/requests"
           className={cx(ghostButtonVariants(), "gap-2")}
@@ -44,9 +39,7 @@ export default function LicensesPage() {
           </svg>
         </div>
         <h3 className="text-lg font-medium">No licenses yet</h3>
-        <p className="mt-1 max-w-sm text-center text-sm text-neutral-700">
-          When brands license your likeness, agreements will appear here.
-        </p>
+        <p className="mt-1 text-center text-sm text-neutral-700">Accepted deals show up here.</p>
       </div>
     </div>
   );

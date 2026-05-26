@@ -207,7 +207,7 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
             <h2 className="text-2xl font-semibold tracking-tight">Build your character sheet</h2>
             <p className="text-sm" style={{ color: t.textMuted }}>
               {sealed
-                ? "Your encrypted sheet is in the Vault. Regenerate anytime to rebuild from your latest photos and measurements in Profile."
+                ? "Your password-protected sheet is in the Vault. Regenerate anytime to rebuild from your latest photos and measurements in Profile."
                 : "Turn your photos and measurements into a brand-ready reference sheet. Export it for outreach, then seal an encrypted copy in your Vault."}
             </p>
 

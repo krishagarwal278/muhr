@@ -12,9 +12,11 @@ import type { CharacterSheetStatusResponse } from "@/lib/character-sheet/types";
 import type { KycStatus, VaultAsset } from "@/types";
 import type { CreatorSecurityState } from "@/types/vault";
 import { completionFromApiJson } from "@/lib/api/profilePayload";
-import { characterSheetFromApiJson, vaultAssetsFromApiJson } from "@/lib/api/vaultPayload";
-import { solidButtonVariants } from "@/components/ui/button-recipes";
+import { characterSheetFromApiJson, vaultListFromApiJson } from "@/lib/api/vaultPayload";
+import { vaultArchiveItemCount } from "@/components/vault/VaultArchiveSection";
+import { ghostButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
 import { cx } from "@/lib/cx";
+import { isVaultGalleryFacePhoto } from "@/lib/vault/assetFilters";
 
 interface AssetWithUrl extends VaultAsset {
   signed_url: string | null;
@@ -22,6 +24,7 @@ interface AssetWithUrl extends VaultAsset {
 
 export default function VaultPage() {
   const [assets, setAssets] = useState<AssetWithUrl[]>([]);
+  const [archivedAssets, setArchivedAssets] = useState<AssetWithUrl[]>([]);
   const [kycStatus, setKycStatus] = useState<KycStatus | null>(null);
   const [kycVerifiedAt, setKycVerifiedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,8 +48,11 @@ export default function VaultPage() {
       const identityData = identityRes.ok ? await identityRes.json() : {};
       const identity = identityData.data ?? identityData;
       if (vaultRes.ok) {
-        const vaultAssets = vaultAssetsFromApiJson(vaultJson);
-        if (vaultAssets) setAssets(vaultAssets);
+        const vaultList = vaultListFromApiJson(vaultJson);
+        if (vaultList) {
+          setAssets(vaultList.assets);
+          setArchivedAssets(vaultList.archived);
+        }
       }
       setKycStatus((identity.kycStatus as KycStatus) ?? "unverified");
       setKycVerifiedAt((identity.kycVerifiedAt as string | null) ?? null);
@@ -75,12 +81,13 @@ export default function VaultPage() {
     kyc_verified_at: kycVerifiedAt,
   };
 
-  const vaultFacePhotos = assets.filter((a) => a.asset_type === "face_photo" && !a.encryption_key_id);
+  const vaultFacePhotos = assets.filter(isVaultGalleryFacePhoto);
   const characterSheets = assets.filter((a) => a.asset_type === "character_sheet");
-  const facePhotoCount = vaultFacePhotos.length + characterSheets.length;
+  const facePhotoCount = vaultFacePhotos.length;
   const showVaultGallery = vaultFacePhotos.length > 0 || characterSheets.length > 0;
   const voiceSamples = assets.filter((a) => a.asset_type === "voice_sample");
   const documents = assets.filter((a) => a.asset_type === "document");
+  const archiveCount = loading ? 0 : vaultArchiveItemCount(assets, archivedAssets);
 
   return (
     <div className="space-y-6">
@@ -88,10 +95,10 @@ export default function VaultPage() {
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2 gap-y-2">
             <h1 className="text-2xl font-semibold tracking-tight">Vault</h1>
-            {!loading && kycStatus !== null && (
+            {!loading && kycStatus !== null && kycStatus !== "verified" && (
               <KycStatusBadge status={kycStatus} />
             )}
-            {!loading && profileItems.length > 0 && (
+            {!loading && profileItems.length > 0 && profilePercent < 100 && (
               <span className="rounded-full border border-black/10 bg-black/5 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-neutral-800">
                 {profilePercent}% complete
               </span>
@@ -101,11 +108,33 @@ export default function VaultPage() {
             Your secured identity assets and encrypted character sheet
           </p>
         </div>
-        <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+        <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
+          <Link href="/vault/archive" className={cx(ghostButtonVariants(), "gap-2 justify-center")}>
+            <svg
+              className="h-4 w-4 text-neutral-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              aria-hidden
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z"
+              />
+            </svg>
+            Archive
+            {!loading && archiveCount > 0 ? (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold tabular-nums text-amber-950">
+                {archiveCount}
+              </span>
+            ) : null}
+          </Link>
           {kycVerified ? (
             <Link
               href="/vault/upload"
-              className={cx(solidButtonVariants(), "gap-2")}
+              className={cx(solidButtonVariants(), "gap-2 justify-center")}
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -245,8 +274,7 @@ export default function VaultPage() {
               <div>
                 <h2 className="mb-2 text-lg font-semibold text-neutral-950">Face photos</h2>
                 <p className="mb-4 text-sm text-neutral-600">
-                  Vault uploads are visible here. Your character sheet is stored encrypted — open it and enter your
-                  vault password to view or download. Reference photos for building the sheet are in{" "}
+                  Reference photos for building the sheet are in{" "}
                   <Link href="/profile#complete-profile" className="font-medium text-violet-700 underline-offset-2 hover:underline">
                     Profile
                   </Link>

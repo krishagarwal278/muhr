@@ -7,6 +7,7 @@ import { KycStatusBadge } from "@/components/KycStatusBadge";
 import { ghostButtonVariants } from "@/components/ui/button-recipes";
 import { appPageHeaderVariants, appPageTitleVariants } from "@/components/ui/page-header";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
+import { cx } from "@/lib/cx";
 import { PublicProfileShare } from "./_components/PublicProfileShare";
 import { CreatorFeeCard } from "./CreatorFeeCard";
 import { startNavTour } from "@/lib/tour/navTour";
@@ -41,24 +42,9 @@ async function parseApiJson(
 }
 
 const quickActions = [
-  {
-    title: "Upload identity assets",
-    description: "Add photos and voice samples to your vault",
-    href: "/vault/upload",
-    icon: "upload",
-  },
-  {
-    title: "Set consent rules",
-    description: "Define how your likeness can be used",
-    href: "/consent",
-    icon: "shield",
-  },
-  {
-    title: "Report misuse",
-    description: "Start an enforcement case",
-    href: "/enforcement",
-    icon: "alert",
-  },
+  { title: "Upload assets", href: "/vault/upload", icon: "upload" },
+  { title: "Consent rules", href: "/consent", icon: "shield" },
+  { title: "Report misuse", href: "/enforcement", icon: "alert" },
 ];
 
 function ActionIcon({ name, className }: { name: string; className?: string }) {
@@ -171,8 +157,8 @@ export default function DashboardPage() {
 
   const statCards = [
     { label: "Vault assets", value: stats.vaultAssets, href: "/vault" },
-    { label: "Accepted requests", value: stats.activeLicenses, href: "/licenses" },
-    { label: "Pending license requests", value: stats.pendingLicenseRequests, href: "/licenses" },
+    { label: "Accepted", value: stats.activeLicenses, href: "/licenses" },
+    { label: "Pending", value: stats.pendingLicenseRequests, href: "/licenses" },
     { label: "Open cases", value: stats.openCases, href: "/enforcement" },
   ];
 
@@ -190,14 +176,9 @@ export default function DashboardPage() {
       <header className={appPageHeaderVariants()}>
         <div className="min-w-0 flex-1 space-y-3">
           <h1 className={appPageTitleVariants()}>Dashboard</h1>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-2">
-            <p className="text-sm font-medium text-neutral-700 sm:max-w-md">
-              Overview of your identity protection status
-            </p>
-            {!loading && kycStatus !== null && (
-              <KycStatusBadge status={kycStatus} className="w-fit shrink-0" />
-            )}
-          </div>
+          {!loading && kycStatus !== null ? (
+            <KycStatusBadge status={kycStatus} className="w-fit shrink-0" />
+          ) : null}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2 lg:pt-1">
           <Link
@@ -290,16 +271,15 @@ export default function DashboardPage() {
               </svg>
             </div>
             <div className="flex-1">
-              <h3 className="font-medium text-amber-950">Submit identity review</h3>
+              <h3 className="font-medium text-amber-950">Complete verification</h3>
               <p className="mt-1 text-sm text-amber-900/80">
-                Set your profile overview and Instagram handle, then submit for review to unlock vault uploads.
-                No document uploads required.
+                Add your handle and submit for review to unlock uploads.
               </p>
               <Link
                 href="/profile#identity-verification"
                 className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-amber-900 underline-offset-2 hover:text-amber-800"
               >
-                Verification details
+                Go to profile
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
                 </svg>
@@ -319,9 +299,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex-1">
               <h3 className="font-medium text-neutral-950">Vault is empty</h3>
-              <p className="mt-1 text-sm text-neutral-700">
-                Upload photos and other assets so licensing and enforcement have materials to reference.
-              </p>
+              <p className="mt-1 text-sm text-neutral-700">Add photos or voice samples to get started.</p>
               <Link
                 href="/vault/upload"
                 className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-neutral-950 hover:text-neutral-900/80"
@@ -357,7 +335,7 @@ export default function DashboardPage() {
             <div className="flex-1">
               <h3 className="font-medium text-emerald-950">Vault ready</h3>
               <p className="mt-1 text-sm text-emerald-900/80">
-                Identity is verified and you have {stats.vaultAssets} asset{stats.vaultAssets !== 1 ? "s" : ""} in your vault. You can set consent rules and report misuse.
+                Verified · {stats.vaultAssets} asset{stats.vaultAssets !== 1 ? "s" : ""} stored
               </p>
             </div>
           </div>
@@ -366,19 +344,20 @@ export default function DashboardPage() {
 
       {/* Quick actions */}
       <div>
-        <h2 className="mb-4 text-lg font-semibold tracking-tight text-neutral-950">Quick actions</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {quickActions.map((action) => (
             <Link
               key={action.title}
               href={action.href}
-              className={surfaceCardVariants({ interactive: "emphasized" })}
+              className={cx(
+                surfaceCardVariants({ interactive: "emphasized" }),
+                "flex items-center gap-3",
+              )}
             >
-              <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl border border-neutral-200/80 bg-neutral-100 text-neutral-700 transition group-hover:border-neutral-300 group-hover:bg-neutral-200/80 group-hover:text-neutral-950">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-neutral-200/80 bg-neutral-100 text-neutral-700 transition group-hover:border-neutral-300 group-hover:bg-neutral-200/80 group-hover:text-neutral-950">
                 <ActionIcon name={action.icon} className="h-5 w-5" />
               </div>
-              <h3 className="font-semibold text-neutral-950">{action.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-neutral-700">{action.description}</p>
+              <span className="font-semibold text-neutral-950">{action.title}</span>
             </Link>
           ))}
         </div>

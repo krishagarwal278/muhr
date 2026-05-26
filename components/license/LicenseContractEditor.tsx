@@ -426,7 +426,7 @@ export function LicenseContractEditor({
                   ? "Saved to server"
                   : saveState === "error"
                     ? "Save failed — fix above or use Export"
-                    : "Autosaves ~1.5s after you stop typing; also backed up in this browser"}
+                    : "Autosaves"}
             </span>
           </>
         ) : null}
@@ -440,30 +440,12 @@ export function LicenseContractEditor({
         <div ref={pdfCaptureRef} className="contract-export-capture" />
       </div>
 
-      <div className="border-t border-black/10 pt-4 text-sm text-neutral-900/65">
-        <p>
-          {readOnly ? (
-            <>
-              This is the creator&apos;s draft (read-only here). Use <span className="font-medium text-neutral-950">Export</span>{" "}
-              for your records.
-            </>
-          ) : (
-            <>
-              Edit this draft in Muhr, <span className="font-medium text-neutral-950">Save now</span> to store it in your
-              account, and <span className="font-medium text-neutral-950">export Word or PDF</span> for legal review and
-              signing outside Muhr (e-sign tool, counsel, or wet ink). Share the final agreement with{" "}
-              <span className="font-medium text-neutral-950">{request.brand_name}</span> by email or your own process — in-app
-              brand signing is no longer used.
-            </>
-          )}
+      {!readOnly ? (
+        <p className="border-t border-black/10 pt-3 text-xs text-neutral-600">
+          <span className="font-medium text-neutral-800">Save now</span> syncs to your account · export for
+          signing outside Muhr
         </p>
-        {!readOnly ? (
-          <p className="mt-2 text-xs leading-relaxed text-neutral-700">
-            Drafts auto-save as you edit. We also keep a local backup in this browser, so you won’t
-            lose work if the network drops mid-edit.
-          </p>
-        ) : null}
-      </div>
+      ) : null}
     </div>
   );
 }

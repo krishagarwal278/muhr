@@ -2,6 +2,8 @@ import { requireUser } from "@/lib/auth/requireUser";
 import { toApiError } from "@/lib/errors/apiError";
 import { logger } from "@/lib/logger";
 import { createRouteClient } from "@/lib/supabase/route";
+import { createServiceRoleClient } from "@/lib/supabase/service";
+import { migrateEncryptedFacePhotosToPlainArchive } from "@/lib/vault/facePhotoArchiveMigration";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,20 +27,36 @@ export async function GET() {
       );
     }
 
-    const assetsWithUrls = await Promise.all(
-      (assets || []).map(async (asset) => {
-        const { data: signedUrl } = await supabase.storage
-          .from("assets")
-          .createSignedUrl(asset.file_path, 3600);
-
-        return {
-          ...asset,
-          signed_url: signedUrl?.signedUrl || null,
-        };
-      })
+    const admin = createServiceRoleClient();
+    const storageClient = admin ?? supabase;
+    const rows = await migrateEncryptedFacePhotosToPlainArchive(
+      supabase,
+      storageClient,
+      user.id,
+      assets ?? [],
     );
+    const activeRows = rows.filter((a) => !a.archived_at);
+    const archivedRows = rows.filter((a) => a.archived_at);
 
-    return Response.json({ ok: true, data: { assets: assetsWithUrls } });
+    const signAssets = async (list: typeof rows) =>
+      Promise.all(
+        list.map(async (asset) => {
+          const { data: signedUrl } = await supabase.storage
+            .from("assets")
+            .createSignedUrl(asset.file_path, 3600);
+          return {
+            ...asset,
+            signed_url: signedUrl?.signedUrl || null,
+          };
+        })
+      );
+
+    const [activeAssets, archivedAssets] = await Promise.all([
+      signAssets(activeRows),
+      signAssets(archivedRows),
+    ]);
+
+    return Response.json({ ok: true, data: { assets: activeAssets, archived: archivedAssets } });
   } catch (err) {
     const { status, code, message } = toApiError(err);
     return Response.json({ ok: false, error: { code, message } }, { status });

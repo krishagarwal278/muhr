@@ -61,6 +61,8 @@ export interface VaultAsset {
   face_embedding_status?: "pending" | "ready" | "failed";
   face_embedding_model?: string | null;
   face_embedding_created_at?: string | null;
+  /** Set when removed from active vault; stored unencrypted in archive. */
+  archived_at?: string | null;
   created_at: string;
   updated_at: string;
 }

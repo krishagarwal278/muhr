@@ -4,14 +4,34 @@ import { dataFromApiJson } from "@/lib/api/response";
 
 export type VaultAssetWithUrl = VaultAsset & { signed_url: string | null };
 
+function mapVaultAssets(
+  list: Array<VaultAsset & { signed_url?: string | null }> | undefined
+): VaultAssetWithUrl[] {
+  if (!Array.isArray(list)) return [];
+  return list.map((a): VaultAssetWithUrl => ({ ...a, signed_url: a.signed_url ?? null }));
+}
+
 export function vaultAssetsFromApiJson(json: unknown): VaultAssetWithUrl[] | null {
-  const data = dataFromApiJson<{ assets?: Array<VaultAsset & { signed_url?: string | null }> }>(json);
+  const data = dataFromApiJson<{
+    assets?: Array<VaultAsset & { signed_url?: string | null }>;
+  }>(json);
   if (!data) return null;
-  return Array.isArray(data.assets)
-    ? data.assets.map(
-        (a): VaultAssetWithUrl => ({ ...a, signed_url: a.signed_url ?? null })
-      )
-    : [];
+  return mapVaultAssets(data.assets);
+}
+
+export function vaultListFromApiJson(json: unknown): {
+  assets: VaultAssetWithUrl[];
+  archived: VaultAssetWithUrl[];
+} | null {
+  const data = dataFromApiJson<{
+    assets?: Array<VaultAsset & { signed_url?: string | null }>;
+    archived?: Array<VaultAsset & { signed_url?: string | null }>;
+  }>(json);
+  if (!data) return null;
+  return {
+    assets: mapVaultAssets(data.assets),
+    archived: mapVaultAssets(data.archived),
+  };
 }
 
 export function characterSheetFromApiJson(json: unknown): CharacterSheetStatusResponse | null {

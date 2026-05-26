@@ -18,6 +18,7 @@ import {
 import { dataFromApiJson } from "@/lib/api/response";
 import { profileFromApiJson } from "@/lib/api/profilePayload";
 import { vaultAssetsFromApiJson } from "@/lib/api/vaultPayload";
+import { filterDeliverableVaultAssets } from "@/lib/vault/assetFilters";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
 import { cx } from "@/lib/cx";
 import type { LicenseRequestRow } from "@/types/license";
@@ -29,6 +30,16 @@ type VaultAssetRow = {
   signed_url?: string | null;
   created_at?: string;
 };
+
+function vaultAssetLabel(asset: VaultAssetRow): string {
+  const path = asset.file_path.toLowerCase();
+  if (path.includes("character_sheet")) return "Character sheet";
+  if (path.includes("face")) return "Face photo";
+  if (path.includes("voice")) return "Voice sample";
+  if (asset.mime_type?.startsWith("image/")) return "Image";
+  if (asset.mime_type?.startsWith("audio/")) return "Audio";
+  return "Vault file";
+}
 
 type CounterOfferRow = {
   id: string;
@@ -171,7 +182,9 @@ export function LicenseRequestWorkspace({
         if (!cancelled) {
           if (vaultRes.ok) {
             const vaultAssets = vaultAssetsFromApiJson(await vaultRes.json().catch(() => null));
-            if (vaultAssets) setAssets(vaultAssets as VaultAssetRow[]);
+            if (vaultAssets) {
+              setAssets(filterDeliverableVaultAssets(vaultAssets) as VaultAssetRow[]);
+            }
           }
           if (profileRes.ok) {
             const profileData = profileFromApiJson(await profileRes.json().catch(() => null));
@@ -511,17 +524,12 @@ export function LicenseRequestWorkspace({
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Respond</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            {!showDecline && !showCounterOffer && (
-              <p className="text-sm text-neutral-800">
-                Accept to move forward, negotiate revised terms, or decline this request.
-              </p>
-            )}
             {showDecline ? (
               <div className="space-y-2">
                 <textarea
                   value={declineReason}
                   onChange={(e) => setDeclineReason(e.target.value)}
-                  placeholder="Optional note to the brand (optional)"
+                  placeholder="Optional note to brand"
                   rows={3}
                   className="w-full resize-y rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 outline-none placeholder:text-neutral-900/40"
                 />
@@ -607,10 +615,7 @@ export function LicenseRequestWorkspace({
               </div>
             ) : (
               <>
-                <p className="text-sm text-neutral-800">
-                  Complete payment to unlock the license agreement. This preview uses a mock checkout — no
-                  card is charged.
-                </p>
+                <p className="text-sm text-neutral-800">Mock checkout — no card charged.</p>
                 <div className="flex flex-wrap items-end justify-between gap-4 rounded-lg border border-black/10 bg-neutral-50 px-4 py-3">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
@@ -618,9 +623,6 @@ export function LicenseRequestWorkspace({
                     </p>
                     <p className="mt-1 text-2xl font-semibold tabular-nums text-neutral-950">
                       {formatInr(licenseFeeInr)}
-                    </p>
-                    <p className="mt-1 text-xs text-neutral-600">
-                      Based on the budget from your request. Final fees may be updated by the creator.
                     </p>
                   </div>
                   <button
@@ -643,11 +645,6 @@ export function LicenseRequestWorkspace({
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Contract</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-2")}>
-            <p className="text-sm text-neutral-800">
-              {isBrand
-                ? "Read-only copy of the draft the creator maintains. Export for your records; edits and saves happen on the creator side."
-                : "Draft loads from Muhr when you open this page and saves to your account while you edit (use Save now if you want an immediate sync). Export Word or PDF for counsel and for signing outside Muhr, then email the brand or use your own e-sign tool."}
-            </p>
             <LicenseContractEditor
               request={request}
               readOnly={isBrand}
@@ -665,9 +662,7 @@ export function LicenseRequestWorkspace({
             )}
           >
             <p className="text-sm font-medium text-neutral-800">Agreement locked</p>
-            <p className="mt-1 text-sm text-neutral-600">
-              Record payment above to review the license draft and sign.
-            </p>
+            <p className="mt-1 text-sm text-neutral-600">Complete payment to unlock.</p>
           </div>
         </section>
       ) : null}
@@ -709,10 +704,7 @@ export function LicenseRequestWorkspace({
               </div>
             ) : (
               <>
-                <p className="text-sm text-neutral-800">
-                  By signing, you confirm you have read the agreement above and are authorized to bind your
-                  organization. This is a preview flow — not a legally binding e-sign integration yet.
-                </p>
+                <p className="text-sm text-neutral-800">Preview signature — not legally binding.</p>
                 <div>
                   <label
                     htmlFor="brand-signatory"
@@ -757,10 +749,7 @@ export function LicenseRequestWorkspace({
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Payment</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-sm text-neutral-800">
-              When you are ready to collect fees in-app, connect a payment provider (e.g. Stripe Connect).
-              Final contract execution remains between you and the brand outside Muhr.
-            </p>
+            <p className="text-sm text-neutral-800">In-app payouts coming soon (Stripe Connect).</p>
             <button type="button" disabled className={cx(primaryButtonVariants(), "cursor-not-allowed opacity-45")}>
               Accept payment (coming soon)
             </button>
@@ -773,12 +762,8 @@ export function LicenseRequestWorkspace({
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Message the brand</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-sm text-neutral-800">
-              We’ll deliver your message to{" "}
-              <span className="font-mono text-sm text-neutral-900">{request.brand_email}</span> from{" "}
-              <span className="font-mono text-sm text-neutral-900">communication@muhr.app</span>. The
-              brand can reply directly to that address — replies route back to you. Your text appears
-              as a quote (“The creator said: …”) so the context is clear on their end.
+            <p className="text-xs text-neutral-600">
+              To {request.brand_email} · replies route back to you
             </p>
             <textarea
               value={emailBody}
@@ -804,10 +789,7 @@ export function LicenseRequestWorkspace({
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Deliver assets</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-sm text-neutral-800">
-              Copy time-limited download links to paste into your email, or open an asset to verify before
-              sharing. Links expire after about an hour — generate a fresh one before sending.
-            </p>
+            <p className="text-xs text-neutral-600">Copy links into your email · expire in ~1 hour</p>
             {assetsLoading ? (
               <div className="h-20 animate-pulse rounded-lg bg-neutral-100" />
             ) : assets.length === 0 ? (
@@ -828,8 +810,7 @@ export function LicenseRequestWorkspace({
                     className="flex flex-col gap-2 rounded-lg border border-black/10 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-mono text-xs text-neutral-900/70">{a.file_path}</p>
-                      <p className="text-[11px] text-neutral-600">{a.mime_type ?? "file"}</p>
+                      <p className="font-medium text-sm text-neutral-950">{vaultAssetLabel(a)}</p>
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       <Link

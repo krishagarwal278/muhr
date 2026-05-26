@@ -84,7 +84,7 @@ export function IncomingLicenseRequests() {
     setDeclineReason("");
     setMessage(
       action === "accept"
-        ? "Accepted. Open the workspace from this list to message the brand and share assets."
+        ? "Accepted — open workspace to reply."
         : "Declined."
     );
     await load();
@@ -108,7 +108,7 @@ export function IncomingLicenseRequests() {
           <p className="mt-1 text-3xl font-semibold text-red-700">{counts.withdrawn}</p>
         </div>
         <div className="rounded-xl border border-black/10 bg-white p-5">
-          <p className="text-sm font-medium text-neutral-700">Pending requests</p>
+          <p className="text-sm font-medium text-neutral-700">Pending</p>
           <p className="mt-1 text-3xl font-semibold text-neutral-950">{counts.pending}</p>
         </div>
         <div className="rounded-xl border border-black/10 bg-white p-5">
@@ -143,8 +143,12 @@ export function IncomingLicenseRequests() {
                     {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
                   </p>
                 </div>
-                <p className="mt-2 line-clamp-2 text-neutral-800">{r.intended_use}</p>
-                <div className="mt-2 flex flex-wrap gap-1">
+                <p className="mt-2 line-clamp-1 text-neutral-800">{r.intended_use}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs font-medium tabular-nums text-neutral-700">
+                    {r.duration_days}d
+                    {r.budget_inr != null ? ` · ₹${r.budget_inr.toLocaleString("en-IN")}` : ""}
+                  </span>
                   {(r.channels ?? []).map((c) => (
                     <span
                       key={c}
@@ -153,8 +157,6 @@ export function IncomingLicenseRequests() {
                       {c}
                     </span>
                   ))}
-                </div>
-                <div className="mt-1 flex flex-wrap gap-1">
                   {(r.territories ?? []).map((t) => (
                     <span
                       key={t}
@@ -164,10 +166,6 @@ export function IncomingLicenseRequests() {
                     </span>
                   ))}
                 </div>
-                <p className="mt-2 text-xs text-neutral-700">
-                  {r.duration_days} days
-                  {r.budget_inr != null ? ` · ₹${r.budget_inr.toLocaleString("en-IN")}` : ""}
-                </p>
                 {declineFor === r.id ? (
                   <div className="mt-3 space-y-2 border-t border-black/10 pt-3">
                     <input
@@ -216,7 +214,7 @@ export function IncomingLicenseRequests() {
                       href={`/licenses/requests/${r.id}`}
                       className={outlineButtonVariants({ size: "sm" })}
                     >
-                      Open workspace
+                      Open
                     </Link>
                   </div>
                 )}
@@ -228,7 +226,7 @@ export function IncomingLicenseRequests() {
 
       {history.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-medium">Active &amp; past responses</h2>
+          <h2 className="text-lg font-medium">History</h2>
           <ul className="space-y-3">
             {history.map((r) => (
               <li
@@ -239,11 +237,10 @@ export function IncomingLicenseRequests() {
                   <div>
                     <p className="font-medium">
                       {r.brand_name}
-                      <span className="ml-2 font-normal text-neutral-700">{r.brand_email}</span>
+                      {r.brand_company ? (
+                        <span className="font-normal text-neutral-700"> · {r.brand_company}</span>
+                      ) : null}
                     </p>
-                    {r.brand_company ? (
-                      <p className="text-xs text-neutral-700">{r.brand_company}</p>
-                    ) : null}
                   </div>
                   <span
                     className={
@@ -255,7 +252,7 @@ export function IncomingLicenseRequests() {
                     {r.status === "accepted" ? "Accepted" : "Declined"}
                   </span>
                 </div>
-                <p className="mt-2 line-clamp-3 text-neutral-800">{r.intended_use}</p>
+                <p className="mt-2 line-clamp-1 text-neutral-800">{r.intended_use}</p>
                 {r.responded_at && (
                   <p className="mt-2 text-xs text-neutral-600">
                     Responded {formatDistanceToNow(new Date(r.responded_at), { addSuffix: true })}
@@ -269,7 +266,7 @@ export function IncomingLicenseRequests() {
                   href={`/licenses/requests/${r.id}`}
                   className={cx(solidButtonVariants({ size: "sm" }), "mt-3 w-full sm:w-auto")}
                 >
-                  {r.status === "accepted" ? "Manage license request" : "View workspace"}
+                  Open
                 </Link>
               </li>
             ))}

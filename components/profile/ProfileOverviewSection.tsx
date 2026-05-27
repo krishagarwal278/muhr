@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { formatFollowerCount } from "@/lib/pricing/followers";
 import { parsePhoneE164 } from "@/lib/profile/basics";
+import { getPublicShareableSiteBase } from "@/lib/app/publicSiteUrl";
 import { profileApiErrorMessage, profileFromApiJson } from "@/lib/api/profilePayload";
+import { ProfileLinksEditor } from "@/components/profile/ProfileLinksEditor";
+import { ProfileLinksDisplay } from "@/components/profile/ProfileLinksDisplay";
 import { SectionCard } from "@/components/ui/section-card";
 import { Alert } from "@/components/ui/alert";
 import { FormInput } from "@/components/ui/form-input";
@@ -14,6 +17,7 @@ import { FormSelect } from "@/components/ui/form-select";
 import { DataItem, DataItemsGrid } from "@/components/ui/data-item";
 import { LoadingSkeleton } from "@/components/ui/loading";
 import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
+import { validateProfileLinksBeforeSave, type ProfileLinkInput } from "@/lib/profile/links";
 
 interface ProfileOverviewSectionProps {
   onUpdated?: () => void;
@@ -31,6 +35,7 @@ interface OverviewState {
   email: string;
   licensingNotes: string;
   acceptingRequests: boolean;
+  profileLinks: ProfileLinkInput[];
 }
 
 interface EditState {
@@ -45,6 +50,7 @@ interface EditState {
   handle: string;
   licensingNotes: string;
   acceptingRequests: boolean;
+  profileLinks: ProfileLinkInput[];
 }
 
 const INITIAL_OVERVIEW: OverviewState = {
@@ -59,6 +65,7 @@ const INITIAL_OVERVIEW: OverviewState = {
   email: "",
   licensingNotes: "",
   acceptingRequests: true,
+  profileLinks: [],
 };
 
 export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProps) {
@@ -80,6 +87,7 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
     handle: "",
     licensingNotes: "",
     acceptingRequests: true,
+    profileLinks: [],
   });
 
   const load = useCallback(async () => {
@@ -100,6 +108,14 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
           email: data.email ?? "",
           licensingNotes: data.licensingNotes ?? "",
           acceptingRequests: data.acceptingRequests !== false,
+          profileLinks: Array.isArray(data.profileLinks)
+            ? data.profileLinks
+                .map((item) => ({
+                  platform: typeof item?.platform === "string" ? item.platform : "",
+                  value: typeof item?.value === "string" ? item.value : "",
+                }))
+                .filter((item): item is ProfileLinkInput => !!item.platform && !!item.value)
+            : [],
         });
       }
     } finally {
@@ -125,6 +141,7 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
       handle: overview.handle,
       licensingNotes: overview.licensingNotes,
       acceptingRequests: overview.acceptingRequests,
+      profileLinks: overview.profileLinks,
     });
     setSaveError(null);
     setSaveOk(false);
@@ -176,6 +193,12 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
       return;
     }
 
+    const linksResult = validateProfileLinksBeforeSave(editValues.profileLinks);
+    if (!linksResult.ok) {
+      setSaveError(linksResult.error);
+      return;
+    }
+
     setSaving(true);
     try {
       const phone = editValues.countryCode + editValues.localPhone.replace(/\D/g, "");
@@ -193,6 +216,7 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
           handle: editValues.handle.trim() || null,
           acceptingRequests: editValues.acceptingRequests,
           licensingNotes: editValues.licensingNotes.trim() || null,
+          profileLinks: linksResult.data,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -213,11 +237,20 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
         email: overview.email,
         licensingNotes: saved?.licensingNotes ?? editValues.licensingNotes.trim(),
         acceptingRequests: editValues.acceptingRequests,
+        profileLinks: Array.isArray(saved?.profileLinks)
+          ? saved.profileLinks
+              .map((item) => ({
+                platform: typeof item?.platform === "string" ? item.platform : "",
+                value: typeof item?.value === "string" ? item.value : "",
+              }))
+              .filter((item): item is ProfileLinkInput => !!item.platform && !!item.value)
+          : editValues.profileLinks,
       });
       setEditing(false);
       setSaveOk(true);
       setTimeout(() => setSaveOk(false), 2500);
       onUpdated?.();
+      void load();
     } catch {
       setSaveError("Network error");
     } finally {
@@ -233,12 +266,13 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
   const phoneDisplay = overview.phone
     ? parsePhoneE164(overview.phone).countryCode + " " + parsePhoneE164(overview.phone).localNumber
     : "—";
+  const publicUrl = overview.handle ? `${getPublicShareableSiteBase()}/k/${overview.handle}` : "";
 
   return (
     <SectionCard
       id="profile-overview"
       title="Profile overview"
-      description={overview.handle ? `Public URL: /k/${overview.handle}` : undefined}
+      description={overview.handle ? `Public URL: ${publicUrl}` : undefined}
       className="scroll-mt-24"
       headerAction={
         !loading && !editing ? (
@@ -267,7 +301,7 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
           saving={saving}
         />
       ) : (
-        <DisplayView overview={overview} phoneDisplay={phoneDisplay} />
+        <DisplayView overview={overview} phoneDisplay={phoneDisplay} publicUrl={publicUrl} />
       )}
     </SectionCard>
   );
@@ -356,7 +390,10 @@ function EditForm({ values, email, onUpdate, onSave, onCancel, saving }: EditFor
             placeholder="e.g. 50K or 50000"
           />
         </FormField>
-        <FormField label="Instagram handle">
+        <FormField
+          label="Muhr handle"
+          description="Your public URL slug. Used for your shareable Muhr link."
+        >
           <FormInput
             value={values.handle}
             onChange={(e) => onUpdate("handle", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
@@ -366,6 +403,16 @@ function EditForm({ values, email, onUpdate, onSave, onCancel, saving }: EditFor
           />
         </FormField>
       </div>
+
+      <FormField
+        label="Public profile links"
+        description="Add your social profiles and website to show on your Muhr pass."
+      >
+        <ProfileLinksEditor
+          value={values.profileLinks}
+          onChange={(next) => onUpdate("profileLinks", next)}
+        />
+      </FormField>
 
       <FormField label="Email" description="Email changes are not supported yet.">
         <FormInput value={email} disabled className="bg-neutral-50" />
@@ -415,9 +462,10 @@ function EditForm({ values, email, onUpdate, onSave, onCancel, saving }: EditFor
 interface DisplayViewProps {
   overview: OverviewState;
   phoneDisplay: string;
+  publicUrl: string;
 }
 
-function DisplayView({ overview, phoneDisplay }: DisplayViewProps) {
+function DisplayView({ overview, phoneDisplay, publicUrl }: DisplayViewProps) {
   return (
     <DataItemsGrid columns={2}>
       <DataItem label="Name" value={overview.fullName || "—"} />
@@ -434,13 +482,22 @@ function DisplayView({ overview, phoneDisplay }: DisplayViewProps) {
         value={overview.followerCount ? formatFollowerCount(overview.followerCount) : "—"}
       />
       <DataItem
-        label="Instagram handle"
+        label="Muhr handle"
         value={overview.handle ? `@${overview.handle}` : "—"}
+      />
+      <DataItem
+        label="Public URL"
+        value={publicUrl || "—"}
       />
       <DataItem
         label="Accept license requests"
         value={overview.acceptingRequests ? "Yes" : "No"}
       />
+      {overview.profileLinks.length > 0 ? (
+        <div className="sm:col-span-2">
+          <DataItem label="Public profile links" value={<ProfileLinksDisplay links={overview.profileLinks} variant="compact" />} />
+        </div>
+      ) : null}
       {overview.licensingNotes && (
         <div className="sm:col-span-2">
           <DataItem label="Licensing notes" value={overview.licensingNotes} />

@@ -5,15 +5,18 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { primaryButtonVariants } from "@/components/ui/button-recipes";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
+import { ProfileLinksDisplay } from "@/components/profile/ProfileLinksDisplay";
 import { cx } from "@/lib/cx";
 import { getPublicShareableSiteBase } from "@/lib/app/publicSiteUrl";
 import { profileFromApiJson } from "@/lib/api/profilePayload";
+import type { ProfileLinkInput } from "@/lib/profile/links";
 
 type Profile = {
   handle: string | null;
   displayName: string | null;
   acceptingRequests: boolean;
   muid: string;
+  profileLinks: ProfileLinkInput[];
 };
 
 export function PublicProfileShare() {
@@ -34,6 +37,14 @@ export function PublicProfileShare() {
             displayName: data.displayName ?? null,
             acceptingRequests: data.acceptingRequests !== false,
             muid: typeof data.muid === "string" ? data.muid : "",
+            profileLinks: Array.isArray(data.profileLinks)
+              ? data.profileLinks
+                  .map((item) => ({
+                    platform: typeof item?.platform === "string" ? item.platform : "",
+                    value: typeof item?.value === "string" ? item.value : "",
+                  }))
+                  .filter((item): item is ProfileLinkInput => !!item.platform && !!item.value)
+              : [],
           });
         }
       } finally {
@@ -119,18 +130,12 @@ export function PublicProfileShare() {
               <p className="mt-2 text-xl font-semibold tracking-tight text-white sm:text-2xl">
                 {profile.displayName?.trim() || `@${profile.handle}`}
               </p>
-              <p className="mt-2 flex items-center gap-2 font-mono text-sm font-medium text-emerald-400">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/insta.png"
-                  alt=""
-                  aria-hidden="true"
-                  width={14}
-                  height={14}
-                  className="opacity-90"
-                />
-                <span>@{profile.handle}</span>
+              <p className="mt-2 font-mono text-xs font-medium text-zinc-300 sm:text-sm">
+                {publicUrl}
               </p>
+              <div className="mt-3">
+                <ProfileLinksDisplay links={profile.profileLinks} />
+              </div>
               {profile.muid ? (
                 <div className="mt-4 border-t border-white/[0.08] pt-3">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">MUID</p>

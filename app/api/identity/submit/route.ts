@@ -74,7 +74,7 @@ export async function POST(request: Request) {
           ok: false,
           error: {
             code: "missing_handle",
-            message: "Set your public Instagram handle in Profile before requesting review.",
+            message: "Set your Muhr handle in Profile before requesting review.",
           },
         },
         { status: 400 }

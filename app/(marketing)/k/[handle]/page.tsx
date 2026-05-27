@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getPublicSiteBaseUrl } from "@/lib/app/publicSiteUrl";
 import { isBrandWorkspaceUser } from "@/lib/brand/brandPreviewSignIn";
+import { sanitizeProfileLinks, type ProfileLinkInput } from "@/lib/profile/links";
 import { createServerClient, getUser } from "@/lib/supabase/server";
 import { PublicCreatorClient } from "./PublicCreatorClient";
 
@@ -15,6 +16,8 @@ type RpcRow = {
   profile_licensing_notes?: string | null;
   /** Present after migration `020_public_profile_min_fee.sql`; older RPC rows omit this. */
   profile_min_license_fee_inr?: number | null;
+  /** Present after migration `026_profile_links.sql`; older RPC rows omit this. */
+  profile_links?: unknown;
 };
 
 function normalizeRpcRow(data: unknown): RpcRow | null {
@@ -63,6 +66,11 @@ export default async function PublicCreatorPage({
       row.profile_min_license_fee_inr > 0
         ? row.profile_min_license_fee_inr
         : null,
+    profileLinks:
+      (() => {
+        const parsed = sanitizeProfileLinks(row.profile_links ?? []);
+        return parsed.ok ? parsed.data : ([] as ProfileLinkInput[]);
+      })(),
   };
 
   const h = await headers();

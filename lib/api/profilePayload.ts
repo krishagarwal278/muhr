@@ -20,6 +20,10 @@ export type ProfileApiPayload = {
   addressPinCode?: string | null;
   platformLicenseSigned?: boolean;
   profileBasicsComplete?: boolean;
+  profileLinks?: Array<{
+    platform: string;
+    value: string;
+  }>;
   muid?: string;
   email?: string | null;
 };

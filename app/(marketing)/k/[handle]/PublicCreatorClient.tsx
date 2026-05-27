@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { LicenseRequestPanel } from "@/components/marketing/LicenseRequestPanel";
+import { ProfileLinksDisplay } from "@/components/profile/ProfileLinksDisplay";
 import {
   parsePublicProfileNavFrom,
   publicProfileBackNav,
 } from "@/lib/marketing/publicProfileNav";
 import { muidFromUserId } from "@/lib/profile/muid";
 import { primaryButtonVariants } from "@/components/ui/button-recipes";
+import type { ProfileLinkInput } from "@/lib/profile/links";
 
 type PublicRow = {
   id: string;
@@ -18,6 +20,7 @@ type PublicRow = {
   acceptingRequests: boolean;
   licensingNotes: string | null;
   minLicenseFeeInr: number | null;
+  profileLinks: ProfileLinkInput[];
 };
 
 export function PublicCreatorClient({
@@ -100,18 +103,10 @@ export function PublicCreatorClient({
                 ) : null}
               </div>
               <h1 className="mt-2 text-xl font-semibold tracking-tight text-white sm:text-2xl">{profile.displayName}</h1>
-              <p className="mt-1 flex items-center gap-1.5 font-mono text-xs text-emerald-300 sm:text-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/insta.png"
-                  alt=""
-                  aria-hidden="true"
-                  width={16}
-                  height={16}
-                  className="opacity-80"
-                />
-                <span>@{profile.handle}</span>
-              </p>
+              <p className="mt-1 font-mono text-xs text-zinc-300 sm:text-sm">{publicProfileUrl}</p>
+              <div className="mt-3">
+                <ProfileLinksDisplay links={profile.profileLinks} />
+              </div>
               <div className="mt-2">
                 <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400">MUID</p>
                 <p className="mt-0.5 font-mono text-[11px] tracking-wide text-zinc-200">{muid}</p>

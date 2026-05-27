@@ -14,6 +14,12 @@ import {
   validateProfileBasicsInput,
 } from "@/lib/profile/basics";
 import { normalizeHandle, validateHandle } from "@/lib/profile/handle";
+import {
+  coerceProfileLinksFromStorage,
+  profileLinksFromLegacyRow,
+  sanitizeProfileLinks,
+  type ProfileLinkInput,
+} from "@/lib/profile/links";
 import { muidFromUserId } from "@/lib/profile/muid";
 import { createRouteClient } from "@/lib/supabase/route";
 
@@ -35,6 +41,9 @@ type ProfileRow = {
   address_city?: string | null;
   address_pin_code?: string | null;
   platform_license_signed?: boolean | null;
+  profile_links?: unknown;
+  social_platform?: string | null;
+  social_username?: string | null;
 };
 
 function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
@@ -49,7 +58,8 @@ function isMissingColumnError(error: { code?: string; message?: string } | null)
     msg.includes("address") ||
     msg.includes("address_line1") ||
     msg.includes("address_city") ||
-    msg.includes("address_pin_code")
+    msg.includes("address_pin_code") ||
+    msg.includes("profile_links")
   );
 }
 
@@ -58,6 +68,9 @@ function profileJsonFromRow(
   userId: string,
   email: string | null | undefined
 ) {
+  const stored = coerceProfileLinksFromStorage(profile?.profile_links);
+  const profileLinks = stored.length > 0 ? stored : profileLinksFromLegacyRow(profile ?? {});
+
   return {
     handle: profile?.handle ?? null,
     displayName: profile?.display_name ?? null,
@@ -96,6 +109,7 @@ function profileJsonFromRow(
         : null,
     platformLicenseSigned: profile?.platform_license_signed === true,
     profileBasicsComplete: isProfileBasicsComplete(profile),
+    profileLinks,
     muid: muidFromUserId(userId),
     email: email ?? null,
   };
@@ -108,7 +122,7 @@ async function loadProfileRow(
   const full = await supabase
     .from("profiles")
     .select(
-      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code, platform_license_signed"
+      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code, platform_license_signed, profile_links, social_platform, social_username"
     )
     .eq("id", userId)
     .maybeSingle();
@@ -123,7 +137,7 @@ async function loadProfileRow(
   const withFollowers = await supabase
     .from("profiles")
     .select(
-      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count"
+      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, profile_links, social_platform, social_username"
     )
     .eq("id", userId)
     .maybeSingle();
@@ -137,7 +151,7 @@ async function loadProfileRow(
 
   const fallback = await supabase
     .from("profiles")
-    .select("handle, display_name, accepting_requests, licensing_notes")
+    .select("handle, display_name, accepting_requests, licensing_notes, social_platform, social_username")
     .eq("id", userId)
     .maybeSingle();
 
@@ -200,6 +214,9 @@ export async function PATCH(request: Request) {
       address_line2?: string | null;
       address_city?: string;
       address_pin_code?: string;
+      profile_links?: ProfileLinkInput[];
+      social_platform?: string | null;
+      social_username?: string | null;
     } = {};
 
     if ("handle" in body) {
@@ -429,6 +446,26 @@ export async function PATCH(request: Request) {
       }
     }
 
+    if ("profileLinks" in body) {
+      if (body.profileLinks === null) {
+        updates.profile_links = [];
+      } else {
+        const parsed = sanitizeProfileLinks(body.profileLinks);
+        if (!parsed.ok) {
+          return Response.json(
+            { ok: false, error: { code: "validation_error", message: parsed.error } },
+            { status: 400 }
+          );
+        }
+        updates.profile_links = parsed.data;
+        const instagram = parsed.data.find((link) => link.platform === "instagram");
+        if (instagram) {
+          updates.social_platform = "instagram";
+          updates.social_username = instagram.value;
+        }
+      }
+    }
+
     if (Object.keys(updates).length === 0) {
       return Response.json(
         { ok: false, error: { code: "no_changes", message: "No valid fields" } },
@@ -441,7 +478,7 @@ export async function PATCH(request: Request) {
       .update(updates)
       .eq("id", user.id)
       .select(
-        "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code, platform_license_signed"
+        "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code, platform_license_signed, profile_links, social_platform, social_username"
       )
       .single();
 
@@ -460,7 +497,8 @@ export async function PATCH(request: Request) {
           "address" in updates ||
           "address_line1" in updates ||
           "address_city" in updates ||
-          "address_pin_code" in updates)
+          "address_pin_code" in updates ||
+          "profile_links" in updates)
       ) {
         logger.error("profile_patch_missing_column", { userId: user.id, code: error.code });
         return Response.json(
@@ -468,7 +506,7 @@ export async function PATCH(request: Request) {
             ok: false,
             error: {
               code: "unavailable",
-              message: "Follower count cannot be saved until the latest database migration is applied.",
+              message: "Profile updates cannot be saved until the latest database migration is applied.",
             },
           },
           { status: 503 }

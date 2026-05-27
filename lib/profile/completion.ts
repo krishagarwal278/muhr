@@ -59,7 +59,7 @@ export function buildProfileCompletionItems(
     },
     {
       id: "handle",
-      label: "Instagram handle",
+      label: "Muhr handle",
       complete: !!data.handle?.trim(),
       href: "/profile",
     },

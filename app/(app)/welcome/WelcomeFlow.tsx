@@ -28,7 +28,7 @@ export function WelcomeFlow({ userId }: { userId: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           {Array.from({ length: STEP_COUNT }).map((_, i) => (
@@ -52,9 +52,9 @@ export function WelcomeFlow({ userId }: { userId: string }) {
         <button
           type="button"
           onClick={skip}
-          className="text-sm font-medium text-neutral-600 underline-offset-2 hover:text-neutral-900 hover:underline"
+          className="text-xs text-neutral-400 underline-offset-2 hover:text-neutral-600 hover:underline"
         >
-          Skip overview
+          Skip
         </button>
       </div>
 
@@ -108,25 +108,24 @@ function ScreenWelcome() {
       <h1 className="mt-6 text-3xl font-semibold tracking-tight text-neutral-950 sm:text-4xl">
         Welcome to Muhr
       </h1>
-      <p className="mx-auto mt-3 max-w-2xl text-base text-neutral-700 sm:text-lg">
-        The secure platform where you control how brands and AI use your likeness — and get paid
-        every time someone wants to.
+      <p className="mx-auto mt-3 max-w-lg text-base text-neutral-600">
+        Control your likeness — get paid when brands want in.
       </p>
 
-      <div className="mt-10 grid gap-4 sm:grid-cols-3">
+      <div className="mt-8 grid gap-3 sm:grid-cols-3">
         <PillarCard
           title="Secure by default"
-          body="Your photos, voice, and identity proof live in an encrypted vault. Only you decide what leaves it."
+          body="Encrypted vault. Nothing leaves without you."
           icon="lock"
         />
         <PillarCard
           title="Your rules"
-          body="Set the channels, territories, content types, and AI permissions you’ll allow — before any brand asks."
+          body="Channels, territories, and AI — you set the limits."
           icon="rules"
         />
         <PillarCard
-          title="Fair, transparent pay"
-          body="Set your own floor, see a fair-fee estimate on every request, and approve each use individually."
+          title="Fair pay"
+          body="Your minimum. Fair estimates. You approve each deal."
           icon="rupee"
         />
       </div>
@@ -172,8 +171,8 @@ function PillarCard({
       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-100 text-neutral-800">
         {Icon}
       </div>
-      <h3 className="mt-3 text-base font-semibold text-neutral-950">{title}</h3>
-      <p className="mt-1 text-sm leading-relaxed text-neutral-700">{body}</p>
+      <h3 className="mt-3 text-sm font-semibold text-neutral-950">{title}</h3>
+      <p className="mt-1 text-sm leading-snug text-neutral-600">{body}</p>
     </div>
   );
 }
@@ -184,62 +183,43 @@ function PillarCard({
 
 function ScreenWhatIsLicensing() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-neutral-950 sm:text-3xl">
           What is likeness licensing?
         </h2>
-        <p className="mt-2 max-w-2xl text-sm text-neutral-700 sm:text-base">
-          AI can now create digital versions of real people — their face, voice, and style — for use
-          in ads, videos, and synthetic content. That digital version is called a{" "}
-          <span className="font-medium text-neutral-950">digital replica</span>. Muhr is the layer
-          between you and brands who want to use one.
+        <p className="mt-2 max-w-lg text-sm text-neutral-600">
+          AI can build a{" "}
+          <span className="font-medium text-neutral-900">digital replica</span> of your face and
+          voice. Muhr is where you license it — on your terms.
         </p>
       </div>
 
-      <div className={cx(surfaceCardVariants({ padding: "md" }), "border-amber-200/80 bg-amber-50/70")}>
-        <div className="flex gap-3">
-          <div className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-800">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008Z M11.46 3.302 1.756 19.013a1.875 1.875 0 0 0 1.638 2.857h19.21a1.875 1.875 0 0 0 1.638-2.857L13.54 3.302a1.875 1.875 0 0 0-3.08 0Z" />
-            </svg>
-          </div>
-          <div>
-            <p className="font-semibold text-amber-950">Why this matters</p>
-            <p className="mt-1 text-sm leading-relaxed text-amber-950/90">
-              Without your permission, someone with an AI tool can make it look like you endorse a
-              product you’ve never seen, or say something you never said. Muhr is the paper trail
-              that proves who actually consented, to what, and for how long — and the toolset that
-              makes it easy to grant that consent on your own terms.
-            </p>
-          </div>
-        </div>
-      </div>
+      <p className="rounded-xl border border-amber-200/80 bg-amber-50/70 px-4 py-3 text-sm text-amber-950">
+        <span className="font-semibold">Why it matters:</span> Without consent, AI can fake your
+        endorsement. Muhr records who agreed to what, and when.
+      </p>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <FactCard
-          title="A request comes in"
-          body="A brand sends terms: who they are, what they’re making, where it runs, how long, what they’ll pay."
-        />
-        <FactCard
-          title="You review and decide"
-          body="Accept the ones you like. Decline the ones you don’t. Counter on price, scope, or duration in-app."
-        />
-        <FactCard
-          title="You get paid"
-          body="Once both sides sign and payment clears, the brand receives the assets — under your rules, for your time window."
-        />
-      </div>
+      <ol className="grid gap-2 sm:grid-cols-3">
+        <FactCard step={1} title="Request in" body="Brand sends scope, channels, duration, fee." />
+        <FactCard step={2} title="You decide" body="Accept, decline, or counter in-app." />
+        <FactCard step={3} title="Get paid" body="Sign, payment clears, assets ship on your rules." />
+      </ol>
     </div>
   );
 }
 
-function FactCard({ title, body }: { title: string; body: string }) {
+function FactCard({ step, title, body }: { step: number; title: string; body: string }) {
   return (
-    <div className={cx(surfaceCardVariants({ padding: "md" }), "text-left")}>
-      <p className="text-sm font-semibold text-neutral-950">{title}</p>
-      <p className="mt-1 text-sm text-neutral-700">{body}</p>
-    </div>
+    <li className={cx(surfaceCardVariants({ padding: "md" }), "flex gap-3 text-left")}>
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs font-semibold tabular-nums text-neutral-800">
+        {step}
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-neutral-950">{title}</p>
+        <p className="mt-0.5 text-sm leading-snug text-neutral-600">{body}</p>
+      </div>
+    </li>
   );
 }
 
@@ -248,78 +228,49 @@ function FactCard({ title, body }: { title: string; body: string }) {
  * -------------------------------------------------------------------------- */
 
 const HOW_IT_WORKS_STEPS = [
-  {
-    title: "Upload your character photos",
-    body: "Add 5 high-quality solo photos from different angles. Encrypted and stored in your Vault — only you can access them.",
-    duration: "~5 min",
-  },
-  {
-    title: "Build your character sheet",
-    body: "We use those photos to generate a verified digital character sheet brands can match against. Auto-generated, you review and approve.",
-    duration: "Automatic",
-  },
-  {
-    title: "Set your consent rules",
-    body: "Pick the channels, territories, content categories, and AI permissions you’ll allow. Requests outside your rules never reach you.",
-    duration: "~3 min",
-  },
-  {
-    title: "Receive license requests",
-    body: "Brands send you specific terms via your public Muhr page. You review the full scope, fee, and intended use before deciding.",
-    duration: "Ongoing",
-  },
-  {
-    title: "Accept, sign, get paid",
-    body: "Accept the requests that fit. Both sides sign in-app, payment clears, you deliver the assets — for the exact window you agreed to.",
-    duration: "Per deal",
-  },
+  { title: "Upload character photos", hint: "5 solo shots · encrypted vault", duration: "~5 min" },
+  { title: "Build character sheet", hint: "Auto-generated · you approve", duration: "Auto" },
+  { title: "Set consent rules", hint: "Channels, territories, AI", duration: "~3 min" },
+  { title: "Receive requests", hint: "Brands send terms to review", duration: "Ongoing" },
+  { title: "Sign & get paid", hint: "In-app sign-off · then delivery", duration: "Per deal" },
 ] as const;
 
 function ScreenHowItWorks() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-neutral-950 sm:text-3xl">
           How Muhr works
         </h2>
-        <p className="mt-2 max-w-2xl text-sm text-neutral-700 sm:text-base">
-          A five-step flow from your first upload to your first paid license. You can pause at any
-          point — nothing leaves your Vault until you say so.
+        <p className="mt-2 max-w-lg text-sm text-neutral-600">
+          Five steps to your first paid license. Nothing leaves your Vault until you approve.
         </p>
       </div>
 
-      <ol className="space-y-3">
+      <ol className="space-y-2">
         {HOW_IT_WORKS_STEPS.map((step, i) => (
-          <li key={step.title} className={cx(surfaceCardVariants({ padding: "md" }), "flex gap-4")}>
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 text-sm font-semibold tabular-nums text-neutral-900">
+          <li
+            key={step.title}
+            className={cx(
+              surfaceCardVariants({ padding: "md" }),
+              "flex items-center gap-3 py-3.5"
+            )}
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-neutral-200 bg-neutral-50 text-xs font-semibold tabular-nums text-neutral-900">
               {i + 1}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                 <h3 className="text-sm font-semibold text-neutral-950">{step.title}</h3>
-                <span className="rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-600">
-                  {step.duration}
-                </span>
+                <span className="text-xs text-neutral-500">{step.hint}</span>
               </div>
-              <p className="mt-1 text-sm leading-relaxed text-neutral-700">{step.body}</p>
             </div>
+            <span className="shrink-0 rounded-full border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-500">
+              {step.duration}
+            </span>
           </li>
         ))}
       </ol>
-
-      <div
-        className={cx(
-          surfaceCardVariants({ padding: "md" }),
-          "border-indigo-200/70 bg-indigo-50/60"
-        )}
-      >
-        <p className="text-sm font-semibold text-indigo-950">You stay in control the whole way</p>
-        <p className="mt-1 text-sm leading-relaxed text-indigo-950/85">
-          Every request requires your explicit approval. Pause incoming requests anytime, change
-          your rules, or rotate your prices — none of those actions affect deals you already
-          accepted.
-        </p>
-      </div>
     </div>
   );
 }
@@ -337,21 +288,21 @@ const EARNINGS_SCENARIOS: Array<{
 }> = [
   {
     label: "Single campaign",
-    body: "30-day Instagram + Facebook campaign in India",
+    body: "30d · IG + FB · India",
     durationDays: 30,
     channels: ["Instagram", "Facebook"],
     territories: ["India"],
   },
   {
     label: "Quarterly deal",
-    body: "90 days · Instagram + YouTube · India + UAE",
+    body: "90d · IG + YT · IN + UAE",
     durationDays: 90,
     channels: ["Instagram", "YouTube"],
     territories: ["India", "UAE"],
   },
   {
     label: "Annual partnership",
-    body: "365 days · multi-channel including TV/OTT · Global rights",
+    body: "365d · multi-channel · Global",
     durationDays: 365,
     channels: ["Instagram", "Facebook", "YouTube", "TV / OTT"],
     territories: ["Global"],
@@ -378,22 +329,19 @@ function ScreenEarnings({
   }, [tier]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
         <h2 className="text-2xl font-semibold tracking-tight text-neutral-950 sm:text-3xl">
           What you could earn
         </h2>
-        <p className="mt-2 max-w-2xl text-sm text-neutral-700 sm:text-base">
-          Illustrative ranges for the tier closest to yours. Real deals depend on the brand, the
-          creator’s minimum, and how the terms shake out — but this is the order of magnitude.
+        <p className="mt-2 max-w-lg text-sm text-neutral-600">
+          Ballpark ranges for your tier — real deals vary by brand and terms.
         </p>
       </div>
 
-      <div className={cx(surfaceCardVariants({ padding: "md" }), "space-y-3")}>
-        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
-          Pick the tier closest to yours
-        </p>
-        <div className="flex flex-wrap gap-2">
+      <div className={cx(surfaceCardVariants({ padding: "md" }), "space-y-2.5")}>
+        <p className="text-xs font-medium text-neutral-500">Your tier</p>
+        <div className="flex flex-wrap gap-1.5">
           {PRICING_TIER_ORDER.map((id) => {
             const t = PRICING_TIERS[id];
             const active = id === tier;
@@ -403,7 +351,7 @@ function ScreenEarnings({
                 type="button"
                 onClick={() => onChangeTier(id)}
                 className={cx(
-                  "rounded-lg border px-3 py-1.5 text-xs font-medium transition",
+                  "rounded-lg border px-2.5 py-1 text-xs font-medium transition",
                   active
                     ? "border-neutral-950 bg-neutral-950 text-white"
                     : "border-neutral-200 bg-white text-neutral-800 hover:border-neutral-300 hover:bg-neutral-50"
@@ -422,37 +370,28 @@ function ScreenEarnings({
             );
           })}
         </div>
-        <p className="text-xs leading-relaxed text-neutral-600">{tierData.description}</p>
       </div>
 
-      <ul className="space-y-3">
+      <ul className="space-y-2">
         {scenarios.map((s) => (
-          <li key={s.label} className={cx(surfaceCardVariants({ padding: "md" }))}>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-neutral-950">{s.label}</p>
-                <p className="mt-1 text-xs text-neutral-600">{s.body}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-neutral-500">
-                  Estimated range
-                </p>
-                <p className="mt-0.5 text-base font-semibold tabular-nums text-neutral-950">
-                  ₹{s.rec.lowInr.toLocaleString("en-IN")} – ₹{s.rec.highInr.toLocaleString("en-IN")}
-                </p>
-                <p className="mt-0.5 text-xs tabular-nums text-neutral-600">
-                  mid ₹{s.rec.midInr.toLocaleString("en-IN")}
-                </p>
-              </div>
+          <li
+            key={s.label}
+            className={cx(surfaceCardVariants({ padding: "md" }), "flex items-center justify-between gap-4")}
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-neutral-950">{s.label}</p>
+              <p className="mt-0.5 text-xs text-neutral-500">{s.body}</p>
             </div>
+            <p className="shrink-0 text-right text-sm font-semibold tabular-nums text-neutral-950 sm:text-base">
+              ₹{s.rec.lowInr.toLocaleString("en-IN")}–{s.rec.highInr.toLocaleString("en-IN")}
+            </p>
           </li>
         ))}
       </ul>
 
-      <div className="rounded-md border border-amber-200/80 bg-amber-50/70 px-3 py-2 text-[11px] leading-relaxed text-amber-950">
-        Estimate only — not a guaranteed market rate. Brands often pay above or below this range
-        depending on creative fit, exclusivity, and timing.
-      </div>
+      <p className="text-center text-[11px] text-neutral-500">
+        Estimates only · not guaranteed rates · {tierData.followerBand}
+      </p>
     </div>
   );
 }
@@ -480,35 +419,27 @@ function ScreenGetStarted() {
         <h2 className="mt-4 text-2xl font-semibold tracking-tight text-neutral-950 sm:text-3xl">
           You’re ready to set up
         </h2>
-        <p className="mx-auto mt-2 max-w-2xl text-sm text-neutral-700 sm:text-base">
-          Four quick steps. Your progress saves automatically — pause whenever, pick up where you
-          left off. The whole flow takes about 10–15 minutes the first time.
+        <p className="mx-auto mt-2 max-w-md text-sm text-neutral-600">
+          Four steps · ~15 min · saves as you go
         </p>
       </div>
 
       <ol className={cx(surfaceCardVariants({ padding: "md" }), "divide-y divide-neutral-200/70 px-0 py-0")}>
         {items.map((item, i) => (
-          <li key={item.title} className="flex items-center gap-4 px-5 py-3.5">
+          <li key={item.title} className="flex items-center gap-3 px-5 py-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-neutral-300 bg-white text-xs font-semibold tabular-nums text-neutral-700">
               {i + 1}
             </span>
-            <div className="min-w-0 flex-1">
-              <Link
-                href={item.href}
-                className="text-sm font-medium text-neutral-950 underline-offset-2 hover:underline"
-              >
-                {item.title}
-              </Link>
-            </div>
-            <span className="shrink-0 text-xs text-neutral-500">{item.duration}</span>
+            <Link
+              href={item.href}
+              className="min-w-0 flex-1 text-sm font-medium text-neutral-950 underline-offset-2 hover:underline"
+            >
+              {item.title}
+            </Link>
+            <span className="shrink-0 text-xs text-neutral-400">{item.duration}</span>
           </li>
         ))}
       </ol>
-
-      <p className="text-center text-xs text-neutral-600">
-        Done with the overview? Head to the dashboard — you’ll find quick links to each step there
-        too.
-      </p>
     </div>
   );
 }

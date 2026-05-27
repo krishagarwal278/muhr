@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CANCELLATION_REASON_OPTIONS, type CancellationReasonKey } from "@/lib/license/cancellationReasons";
 import { ghostButtonVariants, primaryButtonVariants } from "@/components/ui/button-recipes";
+import { Modal } from "@/components/ui/modal";
 import type { LicenseRequestRow } from "@/types/license";
 
 type Step = "confirm" | "reason" | "done";
@@ -59,13 +60,14 @@ export function LicenseCancelDialog({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="cancel-license-title"
+    <Modal
+      open
+      onClose={onClose}
+      labelledBy="cancel-license-title"
+      pending={busy}
+      overlayClassName="bg-black/70"
+      panelClassName="max-h-[90vh] max-w-lg overflow-y-auto rounded-2xl border-white/15 bg-neutral-950 p-6 text-zinc-100 shadow-2xl"
     >
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-white/15 bg-neutral-950 p-6 text-zinc-100 shadow-2xl">
         {step === "confirm" ? (
           <div className="space-y-4">
             <h2 id="cancel-license-title" className="text-lg font-semibold tracking-tight text-white">
@@ -182,7 +184,6 @@ export function LicenseCancelDialog({
             </button>
           </div>
         ) : null}
-      </div>
-    </div>
+    </Modal>
   );
 }

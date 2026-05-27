@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -9,7 +9,8 @@ import { createClient } from "@/lib/supabase/client";
 import { muidFromUserId } from "@/lib/profile/muid";
 import { GlobalLicenseMessagesDock } from "@/components/license/GlobalLicenseMessagesDock";
 import { NavTourBootstrap } from "@/components/tour/NavTourBootstrap";
-import { solidButtonVariants, subtleButtonVariants } from "@/components/ui/button-recipes";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { destroyActiveNavTourWithoutCompleting } from "@/lib/tour/navTour";
 
 interface UserProfile {
   id: string;
@@ -85,7 +86,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
-  const logoutCancelRef = useRef<HTMLButtonElement>(null);
 
   const isOnboardingFlow = pathname === "/welcome" || pathname === "/onboarding";
 
@@ -134,16 +134,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (!logoutDialogOpen) return;
-    logoutCancelRef.current?.focus();
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setLogoutDialogOpen(false);
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [logoutDialogOpen]);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -239,7 +229,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </Link>
               <button
                 type="button"
-                onClick={() => setLogoutDialogOpen(true)}
+                onClick={() => {
+                  destroyActiveNavTourWithoutCompleting();
+                  setLogoutDialogOpen(true);
+                }}
                 disabled={loggingOut}
                 aria-label="Log out"
                 title="Log out"
@@ -251,48 +244,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
       )}
-
-      {logoutDialogOpen ? (
-        <div className="fixed inset-0 z-overlay flex items-center justify-center p-4" role="presentation">
-          <button
-            type="button"
-            aria-label="Dismiss"
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-            onClick={() => setLogoutDialogOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="logout-dialog-title"
-            className="relative w-full max-w-sm rounded-xl border border-neutral-200 bg-white p-5 shadow-lg"
-          >
-            <h2 id="logout-dialog-title" className="text-base font-semibold text-neutral-950">
-              Log out?
-            </h2>
-            <p className="mt-2 text-sm text-neutral-600">
-              You will need to sign in again to access your account.
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                ref={logoutCancelRef}
-                type="button"
-                onClick={() => setLogoutDialogOpen(false)}
-                className={subtleButtonVariants()}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={loggingOut}
-                onClick={() => void confirmLogout()}
-                className={solidButtonVariants()}
-              >
-                {loggingOut ? "Signing out…" : "Log out"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {/* Mobile header - hidden during onboarding */}
       {!isOnboardingFlow && (
@@ -318,6 +269,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
       {!isOnboardingFlow && <GlobalLicenseMessagesDock />}
+
+      <ConfirmDialog
+        open={logoutDialogOpen}
+        onClose={() => setLogoutDialogOpen(false)}
+        title="Log out?"
+        description="You will need to sign in again to access your account."
+        confirmLabel="Log out"
+        onConfirm={() => void confirmLogout()}
+        pending={loggingOut}
+      />
     </div>
   );
 }

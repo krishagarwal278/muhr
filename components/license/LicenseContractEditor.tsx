@@ -441,9 +441,9 @@ export function LicenseContractEditor({
       </div>
 
       {!readOnly ? (
-        <p className="border-t border-black/10 pt-3 text-xs text-neutral-600">
-          <span className="font-medium text-neutral-800">Save now</span> syncs to your account · export for
-          signing outside Muhr
+        <p className="border-t border-black/10 pt-3 text-xs text-neutral-700">
+          Autosave keeps a local draft · use the toolbar to sync to your account or export for signing outside
+          Muhr
         </p>
       ) : null}
     </div>

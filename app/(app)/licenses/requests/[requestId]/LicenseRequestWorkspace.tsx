@@ -749,8 +749,8 @@ export function LicenseRequestWorkspace({
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Payment</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-sm text-neutral-800">In-app payouts coming soon (Stripe Connect).</p>
-            <button type="button" disabled className={cx(primaryButtonVariants(), "cursor-not-allowed opacity-45")}>
+            <p className="text-sm text-neutral-700">In-app payouts coming soon (Stripe Connect).</p>
+            <button type="button" disabled className={primaryButtonVariants()}>
               Accept payment (coming soon)
             </button>
           </div>
@@ -762,7 +762,7 @@ export function LicenseRequestWorkspace({
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Message the brand</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-xs text-neutral-600">
+            <p className="text-sm text-neutral-700">
               To {request.brand_email} · replies route back to you
             </p>
             <textarea
@@ -789,7 +789,7 @@ export function LicenseRequestWorkspace({
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Deliver assets</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-xs text-neutral-600">Copy links into your email · expire in ~1 hour</p>
+            <p className="text-sm text-neutral-700">Copy links into your email · expire in ~1 hour</p>
             {assetsLoading ? (
               <div className="h-20 animate-pulse rounded-lg bg-neutral-100" />
             ) : assets.length === 0 ? (
@@ -807,11 +807,11 @@ export function LicenseRequestWorkspace({
                 {assets.map((a) => (
                   <li
                     key={a.id}
-                    className="flex flex-col gap-2 rounded-lg border border-black/10 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white p-3 sm:flex-row sm:items-center sm:gap-4"
                   >
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm text-neutral-950">{vaultAssetLabel(a)}</p>
-                    </div>
+                    <p className="min-w-0 flex-1 text-sm font-medium text-neutral-950">
+                      {vaultAssetLabel(a)}
+                    </p>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       <Link
                         href={`/vault/${a.id}`}

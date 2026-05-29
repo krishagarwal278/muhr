@@ -1,4 +1,6 @@
 import { getRouteHandlerUser } from "@/lib/auth/routeHandlerUser";
+import { sendBrandCounterOfferEmail } from "@/lib/email/sendBrandLicenseNotifications";
+import { shouldEmailExternalBrand } from "@/lib/email/shouldEmailExternalBrand";
 import { toApiError } from "@/lib/errors/apiError";
 import { parseCounterOfferPayload } from "@/lib/license/counterOffer";
 import { logger } from "@/lib/logger";
@@ -44,7 +46,9 @@ export async function POST(
 
     const { data: licenseReq, error: fetchErr } = await supabase
       .from("license_requests")
-      .select("id, creator_id, status")
+      .select(
+        "id, creator_id, status, brand_email, brand_name, brand_user_id, channels, territories, duration_days, budget_inr, creator_profile:profiles!license_requests_creator_id_fkey(handle, display_name)"
+      )
       .eq("id", requestId)
       .maybeSingle();
 
@@ -141,6 +145,54 @@ export async function POST(
       return Response.json(
         { ok: false, error: { code: "db_error", message: "We couldn't save your counter-offer right now. Please try again in a moment." } },
         { status: 500 }
+      );
+    }
+
+    const lr = licenseReq as {
+      brand_email: string;
+      brand_name: string;
+      brand_user_id: string | null;
+      channels: string[];
+      territories: string[];
+      duration_days: number;
+      budget_inr: number | null;
+      creator_profile:
+        | { handle: string | null; display_name: string | null }
+        | { handle: string | null; display_name: string | null }[]
+        | null;
+    };
+
+    if (
+      shouldEmailExternalBrand({
+        brandEmail: lr.brand_email,
+        brandUserId: lr.brand_user_id,
+      })
+    ) {
+      const rawProfile = lr.creator_profile;
+      const profile = Array.isArray(rawProfile) ? rawProfile[0] ?? null : rawProfile;
+      const creatorHandle = profile?.handle?.trim() || "creator";
+      const creatorDisplayName =
+        profile?.display_name?.trim() || profile?.handle?.trim() || "Creator";
+
+      void sendBrandCounterOfferEmail({
+        brandName: lr.brand_name,
+        brandEmail: lr.brand_email,
+        creatorDisplayName,
+        creatorHandle,
+        originalChannels: lr.channels ?? [],
+        originalTerritories: lr.territories ?? [],
+        originalDurationDays: lr.duration_days ?? 30,
+        originalBudgetInr: lr.budget_inr,
+        proposedChannels: channels,
+        proposedTerritories: territories,
+        proposedDurationDays: durationDays,
+        proposedBudgetInr,
+        note: note.length > 0 ? note : null,
+      }).catch((e) =>
+        logger.error("brand_counter_offer_email_failed", {
+          message: e instanceof Error ? e.message : String(e),
+          requestId,
+        })
       );
     }
 

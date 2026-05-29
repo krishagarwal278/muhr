@@ -6,7 +6,7 @@ import {
   LICENSE_CHANNEL_OPTIONS,
   LICENSE_TERRITORY_OPTIONS,
 } from "@/lib/license/counterOffer";
-import { ghostButtonVariants, primaryButtonVariants } from "@/components/ui/button-recipes";
+import { ghostButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
 
 const CHANNELS = [...LICENSE_CHANNEL_OPTIONS];
 const TERRITORIES = [...LICENSE_TERRITORY_OPTIONS];
@@ -17,6 +17,7 @@ interface CounterOfferFormProps {
   originalTerritories: string[];
   originalDurationDays: number;
   originalBudgetInr: number | null;
+  originalIntendedUse?: string;
   onSubmit: (offer: {
     channels: string[];
     territories: string[];
@@ -38,6 +39,7 @@ export function CounterOfferForm({
   originalTerritories,
   originalDurationDays,
   originalBudgetInr,
+  originalIntendedUse,
   onSubmit,
   onCancel,
   busy = false,
@@ -92,6 +94,42 @@ export function CounterOfferForm({
           Adjust the channels, territories, duration, and budget. The brand can accept or decline your
           counter-offer.
         </p>
+      </div>
+
+      <div className="rounded-lg border border-neutral-200/80 bg-white/80 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">
+          Brand&apos;s original offer (for reference)
+        </p>
+        {originalIntendedUse ? (
+          <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-neutral-800">
+            {originalIntendedUse}
+          </p>
+        ) : null}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {originalChannels.map((c) => (
+            <span
+              key={c}
+              className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs text-neutral-800"
+            >
+              {c}
+            </span>
+          ))}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-4 text-xs text-neutral-700">
+          <span>
+            <span className="font-medium text-neutral-600">Duration:</span> {originalDurationDays} days
+          </span>
+          <span>
+            <span className="font-medium text-neutral-600">Budget:</span>{" "}
+            {originalBudgetInr != null
+              ? `₹${originalBudgetInr.toLocaleString("en-IN")}`
+              : "—"}
+          </span>
+          <span>
+            <span className="font-medium text-neutral-600">Territories:</span>{" "}
+            {originalTerritories.join(", ") || "—"}
+          </span>
+        </div>
       </div>
 
       {/* Channels */}
@@ -233,7 +271,7 @@ export function CounterOfferForm({
           type="button"
           onClick={handleSubmit}
           disabled={busy || !canSubmit}
-          className={primaryButtonVariants()}
+          className={solidButtonVariants()}
         >
           {busy ? "Submitting…" : "Submit counter-offer"}
         </button>

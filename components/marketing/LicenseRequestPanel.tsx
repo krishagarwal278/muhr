@@ -154,7 +154,9 @@ export function LicenseRequestPanel({
           </>
         ) : (
           <p className="mt-2 text-neutral-900/75">
-            The creator may reply to you at the email address you entered above.
+            We emailed a copy of your request to{" "}
+            <span className="font-medium">{effectiveBrandEmail}</span>. The creator may reply there, and
+            your requests will appear on your brand dashboard once you sign up with the same email.
           </p>
         )}
       </div>

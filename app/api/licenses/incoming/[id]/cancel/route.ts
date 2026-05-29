@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth/requireUser";
+import { getEmailSiteBaseUrl } from "@/lib/app/publicSiteUrl";
 import { resendSendEmail } from "@/lib/email/resendSend";
 import { toApiError } from "@/lib/errors/apiError";
 import {
@@ -119,7 +120,7 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
       );
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://muhr.app";
+    const appUrl = getEmailSiteBaseUrl();
     const assetSummary = String(row.intended_use ?? "Licensed use").slice(0, 200);
 
     const brandSubject = "License cancelled — immediate notice";

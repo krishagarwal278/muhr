@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { primaryButtonVariants, ghostButtonVariants } from "@/components/ui/button-recipes";
+import { solidButtonVariants, ghostButtonVariants } from "@/components/ui/button-recipes";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
 import { cx } from "@/lib/cx";
 
@@ -158,7 +158,7 @@ export function CounterOffersList({
                   type="button"
                   onClick={() => onAccept(offer.id)}
                   disabled={busy}
-                  className={primaryButtonVariants()}
+                  className={solidButtonVariants()}
                 >
                   Accept counter-offer
                 </button>

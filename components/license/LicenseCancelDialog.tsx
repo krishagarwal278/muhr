@@ -2,8 +2,13 @@
 
 import { useState } from "react";
 import { CANCELLATION_REASON_OPTIONS, type CancellationReasonKey } from "@/lib/license/cancellationReasons";
-import { ghostButtonVariants, primaryButtonVariants } from "@/components/ui/button-recipes";
+import {
+  dangerButtonVariants,
+  solidButtonVariants,
+  subtleButtonVariants,
+} from "@/components/ui/button-recipes";
 import { Modal } from "@/components/ui/modal";
+import { cx } from "@/lib/cx";
 import type { LicenseRequestRow } from "@/types/license";
 
 type Step = "confirm" | "reason" | "done";
@@ -65,125 +70,144 @@ export function LicenseCancelDialog({
       onClose={onClose}
       labelledBy="cancel-license-title"
       pending={busy}
-      overlayClassName="bg-black/70"
-      panelClassName="max-h-[90vh] max-w-lg overflow-y-auto rounded-2xl border-white/15 bg-neutral-950 p-6 text-zinc-100 shadow-2xl"
+      panelClassName="max-h-[90vh] max-w-lg overflow-y-auto"
     >
-        {step === "confirm" ? (
-          <div className="space-y-4">
-            <h2 id="cancel-license-title" className="text-lg font-semibold tracking-tight text-white">
-              Cancel this license?
-            </h2>
-            <p className="text-sm text-zinc-300">
-              This withdraws the accepted request with <span className="font-medium text-zinc-50">{brandName}</span>.
-              Status becomes <span className="font-medium text-amber-300">Withdrawn</span> immediately,
-              we record a reason for our team, and the brand is emailed to cease use. Our team may follow up
-              within 3–5 business days.
-            </p>
-            <ul className="list-disc space-y-1 pl-4 text-xs text-zinc-400">
-              <li>Brand access through this Muhr request ends now</li>
-              <li>You can still export any contract draft from the workspace until you close this</li>
-              <li>Questions: {SUPPORT}</li>
-            </ul>
-            <div className="flex flex-wrap justify-end gap-2 pt-2">
-              <button type="button" onClick={onClose} className={ghostButtonVariants()}>
-                Keep license
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep("reason")}
-                className="rounded-lg bg-red-500/90 px-4 py-2 text-sm font-medium text-white hover:bg-red-500"
-              >
-                Yes, cancel
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {step === "reason" ? (
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold tracking-tight text-white">Why are you cancelling?</h2>
-            <p className="text-xs text-zinc-400">We use this to improve Muhr and for support review only.</p>
-            <fieldset className="space-y-2">
-              {CANCELLATION_REASON_OPTIONS.map((opt) => (
-                <label
-                  key={opt.key}
-                  className="flex cursor-pointer items-start gap-2 rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-zinc-100 hover:border-white/25"
-                >
-                  <input
-                    type="radio"
-                    name="cancel-reason"
-                    className="mt-0.5"
-                    checked={reason === opt.key}
-                    onChange={() => {
-                      setReason(opt.key);
-                      setError(null);
-                    }}
-                  />
-                  <span>{opt.label}</span>
-                </label>
-              ))}
-            </fieldset>
-            {reason === "other" ? (
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={3}
-                placeholder="Briefly describe…"
-                className="w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500"
-              />
-            ) : null}
-            {error ? <p className="text-sm text-red-300">{error}</p> : null}
-            <div className="flex flex-wrap justify-end gap-2 pt-2">
-              <button type="button" onClick={() => setStep("confirm")} className={ghostButtonVariants()}>
-                Back
-              </button>
-              <button
-                type="button"
-                disabled={busy || !reason}
-                onClick={() => void submit()}
-                className={primaryButtonVariants()}
-              >
-                {busy ? "Submitting…" : "Submit cancellation"}
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {step === "done" ? (
-          <div className="space-y-4 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/20 text-emerald-200">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-              </svg>
-            </div>
-            <h2 className="text-lg font-semibold tracking-tight text-white">License cancelled</h2>
-            <p className="text-sm text-zinc-300">
-              Status: <span className="font-medium text-red-300">Withdrawn</span>
-              <br />
-              <span className="text-amber-300">Under review</span> — our team may contact you within 3–5
-              business days.
-            </p>
-            <p className="text-xs text-zinc-400">
-              Questions? <a className="text-emerald-300 hover:underline" href={`mailto:${SUPPORT}`}>{SUPPORT}</a>
-            </p>
-            {emailWarnings?.length ? (
-              <div className="rounded-lg border border-amber-400/40 bg-amber-950/40 p-3 text-left text-xs text-amber-100">
-                <p className="font-medium text-amber-200">Some emails could not be sent:</p>
-                <ul className="mt-1 list-disc pl-4">
-                  {emailWarnings.map((w) => (
-                    <li key={w}>{w}</li>
-                  ))}
-                </ul>
-                <p className="mt-2 text-zinc-300">
-                  Your cancellation is still saved. Check Resend domain limits in development.
-                </p>
-              </div>
-            ) : null}
-            <button type="button" onClick={onClose} className={primaryButtonVariants()}>
-              Close
+      {step === "confirm" ? (
+        <div className="space-y-4">
+          <h2 id="cancel-license-title" className="text-base font-semibold text-neutral-950">
+            Cancel this license?
+          </h2>
+          <p className="text-sm text-neutral-700">
+            This withdraws the accepted request with{" "}
+            <span className="font-medium text-neutral-950">{brandName}</span>. Status becomes{" "}
+            <span className="font-medium text-amber-900">Withdrawn</span> immediately, we record a
+            reason for our team, and the brand is emailed to cease use. Our team may follow up within
+            3–5 business days.
+          </p>
+          <ul className="list-disc space-y-1 pl-4 text-sm text-neutral-700">
+            <li>Brand access through this Muhr request ends now</li>
+            <li>You can still export any contract draft from the workspace until you close this</li>
+            <li>
+              Questions:{" "}
+              <a href={`mailto:${SUPPORT}`} className="font-medium text-emerald-800 hover:underline">
+                {SUPPORT}
+              </a>
+            </li>
+          </ul>
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <button type="button" onClick={onClose} className={subtleButtonVariants()}>
+              Keep license
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep("reason")}
+              className={dangerButtonVariants({ size: "md" })}
+            >
+              Yes, cancel
             </button>
           </div>
-        ) : null}
+        </div>
+      ) : null}
+
+      {step === "reason" ? (
+        <div className="space-y-4">
+          <h2 className="text-base font-semibold text-neutral-950">Why are you cancelling?</h2>
+          <p className="text-sm text-neutral-600">
+            We use this to improve Muhr and for support review only.
+          </p>
+          <fieldset className="space-y-2">
+            {CANCELLATION_REASON_OPTIONS.map((opt) => (
+              <label
+                key={opt.key}
+                className={cx(
+                  "flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm transition",
+                  reason === opt.key
+                    ? "border-neutral-900 bg-neutral-50 text-neutral-950"
+                    : "border-black/10 bg-white text-neutral-800 hover:border-black/20 hover:bg-neutral-50",
+                )}
+              >
+                <input
+                  type="radio"
+                  name="cancel-reason"
+                  className="mt-0.5 accent-neutral-950"
+                  checked={reason === opt.key}
+                  onChange={() => {
+                    setReason(opt.key);
+                    setError(null);
+                  }}
+                />
+                <span>{opt.label}</span>
+              </label>
+            ))}
+          </fieldset>
+          {reason === "other" ? (
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              placeholder="Briefly describe…"
+              className="w-full resize-y rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 outline-none placeholder:text-neutral-500 focus:border-black/20"
+            />
+          ) : null}
+          {error ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+              {error}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <button type="button" onClick={() => setStep("confirm")} className={subtleButtonVariants()}>
+              Back
+            </button>
+            <button
+              type="button"
+              disabled={busy || !reason}
+              onClick={() => void submit()}
+              className={solidButtonVariants()}
+            >
+              {busy ? "Submitting…" : "Submit cancellation"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {step === "done" ? (
+        <div className="space-y-4 text-center">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700">
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+            </svg>
+          </div>
+          <h2 className="text-base font-semibold text-neutral-950">License cancelled</h2>
+          <p className="text-sm text-neutral-700">
+            Status: <span className="font-medium text-red-800">Withdrawn</span>
+            <br />
+            <span className="font-medium text-amber-900">Under review</span> — our team may contact you
+            within 3–5 business days.
+          </p>
+          <p className="text-sm text-neutral-600">
+            Questions?{" "}
+            <a className="font-medium text-emerald-800 hover:underline" href={`mailto:${SUPPORT}`}>
+              {SUPPORT}
+            </a>
+          </p>
+          {emailWarnings?.length ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-left text-sm text-amber-950">
+              <p className="font-medium">Some emails could not be sent:</p>
+              <ul className="mt-1 list-disc pl-4 text-amber-900">
+                {emailWarnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-neutral-700">
+                Your cancellation is still saved. Check Resend domain limits in development.
+              </p>
+            </div>
+          ) : null}
+          <button type="button" onClick={onClose} className={solidButtonVariants()}>
+            Close
+          </button>
+        </div>
+      ) : null}
     </Modal>
   );
 }

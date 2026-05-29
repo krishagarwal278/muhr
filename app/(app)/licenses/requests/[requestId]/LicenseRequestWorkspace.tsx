@@ -15,7 +15,7 @@ import {
   outlineButtonVariants,
   primaryButtonVariants,
 } from "@/components/ui/button-recipes";
-import { dataFromApiJson } from "@/lib/api/response";
+import { dataFromApiJson, apiErrorMessage } from "@/lib/api/response";
 import { profileFromApiJson } from "@/lib/api/profilePayload";
 import { vaultAssetsFromApiJson } from "@/lib/api/vaultPayload";
 import { filterDeliverableVaultAssets } from "@/lib/vault/assetFilters";
@@ -161,6 +161,7 @@ export function LicenseRequestWorkspace({
 
   const isPending = request.status === "pending";
   const isWithdrawn = request.status === "withdrawn";
+  const hasPendingCounterOffer = counterOffers.some((o) => o.status === "pending");
   const canEmailBrand =
     !isBrand && (request.status === "accepted" || request.status === "declined");
   
@@ -201,6 +202,12 @@ export function LicenseRequestWorkspace({
       cancelled = true;
     };
   }, [isBrand, loadCounterOffers]);
+
+  useEffect(() => {
+    if (hasPendingCounterOffer) {
+      setShowCounterOffer(false);
+    }
+  }, [hasPendingCounterOffer]);
 
   async function respond(action: "accept" | "decline") {
     setMessage(null);
@@ -246,11 +253,11 @@ export function LicenseRequestWorkspace({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setMessage(typeof data.error === "string" ? data.error : "Could not submit counter-offer");
+        setMessage(apiErrorMessage(data, "Could not submit counter-offer"));
         return;
       }
       setShowCounterOffer(false);
-      setMessage("Counter-offer sent to the brand. They can accept or decline it.");
+      setMessage("Counter-offer sent. The brand will be notified by email if they are not on Muhr yet.");
       await Promise.all([reloadRequest(), loadCounterOffers()]);
       router.refresh();
     } finally {
@@ -524,6 +531,15 @@ export function LicenseRequestWorkspace({
         <section className="space-y-3">
           <h2 className="text-lg font-medium">Respond</h2>
           <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
+            {hasPendingCounterOffer && !showCounterOffer && !showDecline ? (
+              <div className="rounded-lg border border-purple-200 bg-purple-50/80 px-4 py-3 text-sm text-purple-950">
+                <p className="font-medium">Counter-offer sent — waiting on the brand</p>
+                <p className="mt-1 text-purple-900/80">
+                  Your proposed terms are listed above. You can still accept or decline their original
+                  request, or wait for the brand to respond to your counter-offer.
+                </p>
+              </div>
+            ) : null}
             {showDecline ? (
               <div className="space-y-2">
                 <textarea
@@ -562,6 +578,7 @@ export function LicenseRequestWorkspace({
                 originalTerritories={request.territories ?? []}
                 originalDurationDays={request.duration_days ?? 30}
                 originalBudgetInr={request.budget_inr}
+                originalIntendedUse={request.intended_use}
                 onSubmit={submitCounterOffer}
                 onCancel={() => setShowCounterOffer(false)}
                 busy={busy}
@@ -576,17 +593,19 @@ export function LicenseRequestWorkspace({
                 >
                   Accept request
                 </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setShowCounterOffer(true)}
-                  className={cx(
-                    outlineButtonVariants(),
-                    "border-purple-300 bg-purple-100 text-purple-900 hover:bg-purple-200",
-                  )}
-                >
-                  Negotiate terms
-                </button>
+                {!hasPendingCounterOffer ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setShowCounterOffer(true)}
+                    className={cx(
+                      outlineButtonVariants(),
+                      "border-purple-400 bg-purple-100 text-purple-950 shadow-sm transition hover:border-purple-500 hover:bg-purple-200 hover:text-purple-950",
+                    )}
+                  >
+                    Negotiate terms
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   disabled={busy}

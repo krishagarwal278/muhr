@@ -3,6 +3,8 @@ import {
   aggregateLicenseRequestStatuses,
   pickCanonicalLicenseRequest,
 } from "@/lib/brand/brandLicenseThreadMerge";
+import { linkBrandLicenseRequestsForUser } from "@/lib/license/linkBrandLicenseRequests";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 
 export type BrandLicenseRow = {
   id: string;
@@ -72,6 +74,11 @@ export async function loadBrandDashboard(): Promise<BrandDashboardPayload> {
   }
 
   const supabase = await createServerClient();
+  const admin = createServiceRoleClient();
+  if (admin) {
+    await linkBrandLicenseRequestsForUser(admin, user.id, user.email);
+  }
+
   const { data: rows, error } = await supabase
     .from("license_requests")
     .select(
@@ -170,6 +177,11 @@ export async function loadBrandLicenseList(): Promise<{ rows: BrandLicenseListIt
   }
 
   const supabase = await createServerClient();
+  const admin = createServiceRoleClient();
+  if (admin) {
+    await linkBrandLicenseRequestsForUser(admin, user.id, user.email);
+  }
+
   const { data: rows, error } = await supabase
     .from("license_requests")
     .select(

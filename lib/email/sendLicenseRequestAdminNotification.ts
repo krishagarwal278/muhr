@@ -1,4 +1,5 @@
 import { escapeHtml } from "@/lib/email/escapeHtml";
+import { getEmailSiteBaseUrl } from "@/lib/app/publicSiteUrl";
 import { resendSendEmail } from "@/lib/email/resendSend";
 
 export type LicenseRequestEmailPayload = {
@@ -34,9 +35,9 @@ function rowsHtml(rows: [string, string][]): string {
  * Set LICENSE_REQUEST_NOTIFY_EMAIL to override the default recipient.
  */
 export async function sendLicenseRequestAdminNotification(
-  payload: LicenseRequestEmailPayload,
-  appBaseUrl: string
+  payload: LicenseRequestEmailPayload
 ): Promise<void> {
+  const appBaseUrl = getEmailSiteBaseUrl();
   const to =
     process.env.LICENSE_REQUEST_NOTIFY_EMAIL?.trim() || "krishagarwal278@gmail.com";
 

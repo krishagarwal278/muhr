@@ -2,6 +2,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { getRouteHandlerUser } from "@/lib/auth/routeHandlerUser";
 import { isBrandWorkspaceUser } from "@/lib/brand/brandPreviewSignIn";
+import { sendBrandOfferConfirmationEmail } from "@/lib/email/sendBrandLicenseNotifications";
+import { shouldEmailExternalBrand } from "@/lib/email/shouldEmailExternalBrand";
 import { sendLicenseRequestAdminNotification } from "@/lib/email/sendLicenseRequestAdminNotification";
 import { resendSendEmail } from "@/lib/email/resendSend";
 import { RateLimitError, toApiError } from "@/lib/errors/apiError";
@@ -320,29 +322,24 @@ export async function POST(request: Request) {
       typeof profile.licensing_notes === "string" && profile.licensing_notes.trim()
         ? profile.licensing_notes.trim()
         : null;
-    const appBaseUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://muhr.app";
-
     try {
-      await sendLicenseRequestAdminNotification(
-        {
-          requestId: row.id,
-          requestToken: row.request_token,
-          createdAtIso: row.created_at,
-          creatorHandle: handleNorm,
-          creatorDisplayName,
-          creatorLicensingNotes,
-          brandEmail: brand_email,
-          brandName: brand_name,
-          brandCompany: brand_company,
-          brandWebsite: brand_website,
-          intendedUse: intended_use,
-          channels: [...channels],
-          territories: [...territories],
-          durationDays: duration_days,
-          budgetInr: budget_inr,
-        },
-        appBaseUrl
-      );
+      await sendLicenseRequestAdminNotification({
+        requestId: row.id,
+        requestToken: row.request_token,
+        createdAtIso: row.created_at,
+        creatorHandle: handleNorm,
+        creatorDisplayName,
+        creatorLicensingNotes,
+        brandEmail: brand_email,
+        brandName: brand_name,
+        brandCompany: brand_company,
+        brandWebsite: brand_website,
+        intendedUse: intended_use,
+        channels: [...channels],
+        territories: [...territories],
+        durationDays: duration_days,
+        budgetInr: budget_inr,
+      });
     } catch (e) {
       logger.error("license_request_admin_email_failed", {
         message: e instanceof Error ? e.message : String(e),
@@ -359,6 +356,26 @@ export async function POST(request: Request) {
         message: e instanceof Error ? e.message : "unknown",
       })
     );
+
+    if (shouldEmailExternalBrand({ brandEmail: brand_email, brandUserId: brand_user_id })) {
+      void sendBrandOfferConfirmationEmail({
+          brandName: brand_name,
+          brandEmail: brand_email,
+          creatorDisplayName,
+          creatorHandle: handleNorm,
+          intendedUse: intended_use,
+          channels: [...channels],
+          territories: [...territories],
+          durationDays: duration_days,
+          budgetInr: budget_inr,
+          requestId: row.id,
+        }).catch((e) =>
+        logger.error("brand_offer_confirmation_email_failed", {
+          message: e instanceof Error ? e.message : String(e),
+          requestId: row.id,
+        })
+      );
+    }
 
     return Response.json({
       ok: true,

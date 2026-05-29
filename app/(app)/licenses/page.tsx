@@ -21,26 +21,7 @@ export default function LicensesPage() {
 
       <IncomingLicenseRequests />
 
-      {/* Empty state — formal license agreements (future) */}
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-black/15 bg-white/60 py-16">
-        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-black/[0.03]">
-          <svg
-            className="h-7 w-7 text-neutral-700"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z"
-            />
-          </svg>
-        </div>
-        <h3 className="text-lg font-medium">No licenses yet</h3>
-        <p className="mt-1 text-center text-sm text-neutral-700">Accepted deals show up here.</p>
-      </div>
+      {/* Formal license agreements (future) — hide when accepted deals already appear in history */}
     </div>
   );
 }

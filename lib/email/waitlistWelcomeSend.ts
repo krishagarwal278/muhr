@@ -1,4 +1,5 @@
 import type { UserType } from "@/types";
+import { getEmailSiteBaseUrl } from "@/lib/app/publicSiteUrl";
 import { resendSendEmail } from "@/lib/email/resendSend";
 
 /**
@@ -10,7 +11,7 @@ export async function sendWaitlistWelcomeEmail(email: string, userType: UserType
   }
 
   const founderName = process.env.MUHR_FOUNDER_NAME?.trim() || "Krish";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://muhr.app";
+  const appUrl = getEmailSiteBaseUrl();
   const audience =
     userType === "business"
       ? "help teams license likeness cleanly, keep a paper trail that holds up, and move faster when something goes wrong"

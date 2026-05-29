@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth/requireUser";
+import { getEmailSiteBaseUrl } from "@/lib/app/publicSiteUrl";
 import { resendSendEmail } from "@/lib/email/resendSend";
 import { toApiError } from "@/lib/errors/apiError";
 import { logger } from "@/lib/logger";
@@ -62,7 +63,7 @@ export async function POST(
       );
     }
 
-    const appUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://muhr.app";
+    const appUrl = getEmailSiteBaseUrl();
     const meta = user.user_metadata as Record<string, unknown> | undefined;
     const fullName =
       typeof meta?.full_name === "string" && meta.full_name.trim()

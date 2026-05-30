@@ -130,6 +130,18 @@ export default async function AssetDetailPage({
             />
           )}
 
+          {asset.signed_url && asset.asset_type === "character_sheet" && !asset.encryption_key_id && (
+            <div className="relative aspect-[4/3] w-full bg-neutral-950">
+              <SignedStorageImage
+                src={asset.signed_url}
+                alt={asset.file_name}
+                fill
+                sizes="(max-width: 768px) 100vw, 672px"
+                className="object-contain"
+              />
+            </div>
+          )}
+
           {asset.signed_url && asset.asset_type === "character_sheet" && asset.encryption_key_id && (
             <div className="relative aspect-[4/3] w-full bg-neutral-950">
               <DecryptedFacePhoto
@@ -174,7 +186,9 @@ export default async function AssetDetailPage({
                 <span className="text-sm text-neutral-900/55">Type</span>
                 <span className="text-sm capitalize">
                   {asset.asset_type === "character_sheet"
-                    ? "Character sheet (encrypted)"
+                    ? asset.encryption_key_id
+                      ? "Character sheet (legacy encrypted)"
+                      : "Character sheet"
                     : asset.asset_type.replace("_", " ")}
                 </span>
               </div>

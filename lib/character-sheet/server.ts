@@ -44,7 +44,7 @@ export async function fetchCharacterSheetStatus(
       .maybeSingle(),
     supabase
       .from("vault_assets")
-      .select("id")
+      .select("id, encryption_key_id, share_file_path")
       .eq("user_id", userId)
       .eq("asset_type", "character_sheet")
       .order("created_at", { ascending: false })
@@ -59,6 +59,17 @@ export async function fetchCharacterSheetStatus(
 
   const vaultAssetId = sheetRes.data?.vault_asset_id ?? vaultRes.data?.id ?? null;
   const sealed = !!vaultAssetId;
+  const legacyEncrypted =
+    !!vaultRes.data?.encryption_key_id && !vaultRes.data?.share_file_path;
+
+  let pendingBrandDeliveries = 0;
+  if (vaultAssetId && legacyEncrypted) {
+    const { count } = await supabase
+      .from("license_deliveries")
+      .select("id", { count: "exact", head: true })
+      .eq("vault_asset_id", vaultAssetId);
+    pendingBrandDeliveries = count ?? 0;
+  }
 
   let status: CharacterSheetStatus = "locked";
   if (sealed) status = "sealed";
@@ -77,6 +88,8 @@ export async function fetchCharacterSheetStatus(
     generationMode:
       (sheetRes.data?.generation_mode as CharacterSheetStatusResponse["generationMode"]) ?? null,
     errorMessage: sheetRes.data?.error_message ?? null,
+    legacyEncrypted: legacyEncrypted || undefined,
+    pendingBrandDeliveries: pendingBrandDeliveries || undefined,
   };
 }
 

@@ -8,6 +8,7 @@ import { LicenseCancelDialog } from "@/components/license/LicenseCancelDialog";
 import { LicenseContractEditor } from "@/components/license/LicenseContractEditor";
 import { CounterOfferForm } from "@/components/license/CounterOfferForm";
 import { CounterOffersList } from "@/components/license/CounterOffersList";
+import { AssetDeliveryZone } from "@/components/license/AssetDeliveryZone";
 import { cancellationReasonLabel } from "@/lib/license/cancellationReasons";
 import {
   dangerButtonVariants,
@@ -22,24 +23,9 @@ import { filterDeliverableVaultAssets } from "@/lib/vault/assetFilters";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
 import { cx } from "@/lib/cx";
 import type { LicenseRequestRow } from "@/types/license";
+import type { VaultAssetWithUrl } from "@/lib/api/vaultPayload";
 
-type VaultAssetRow = {
-  id: string;
-  file_path: string;
-  mime_type?: string | null;
-  signed_url?: string | null;
-  created_at?: string;
-};
-
-function vaultAssetLabel(asset: VaultAssetRow): string {
-  const path = asset.file_path.toLowerCase();
-  if (path.includes("character_sheet")) return "Character sheet";
-  if (path.includes("face")) return "Face photo";
-  if (path.includes("voice")) return "Voice sample";
-  if (asset.mime_type?.startsWith("image/")) return "Image";
-  if (asset.mime_type?.startsWith("audio/")) return "Audio";
-  return "Vault file";
-}
+type VaultAssetRow = VaultAssetWithUrl;
 
 type CounterOfferRow = {
   id: string;
@@ -122,7 +108,6 @@ export function LicenseRequestWorkspace({
   const [assetsLoading, setAssetsLoading] = useState(true);
   const [counterOffers, setCounterOffers] = useState<CounterOfferRow[]>([]);
   const [counterOffersLoading, setCounterOffersLoading] = useState(true);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [brandSignatoryName, setBrandSignatoryName] = useState("");
 
   const brandPaymentCleared = Boolean(request.brand_payment_cleared_at);
@@ -337,21 +322,6 @@ export function LicenseRequestWorkspace({
       router.refresh();
     } finally {
       setBusy(false);
-    }
-  }
-
-  async function copyAssetLink(asset: VaultAssetRow) {
-    const url = asset.signed_url;
-    if (!url) {
-      setMessage("No download link available. Try refreshing the page.");
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiedId(asset.id);
-      setTimeout(() => setCopiedId(null), 2000);
-    } catch {
-      setMessage("Could not copy to clipboard.");
     }
   }
 
@@ -805,54 +775,11 @@ export function LicenseRequestWorkspace({
 
       {/* Deliver assets */}
       {request.status === "accepted" && !isBrand && (
-        <section className="space-y-3">
-          <h2 className="text-lg font-medium">Deliver assets</h2>
-          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-sm text-neutral-700">Copy links into your email · expire in ~1 hour</p>
-            {assetsLoading ? (
-              <div className="h-20 animate-pulse rounded-lg bg-neutral-100" />
-            ) : assets.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-black/20 bg-neutral-50/80 p-4 text-center text-sm text-neutral-800">
-                <p className="font-medium text-neutral-900">No vault assets yet.</p>
-                <Link
-                  href="/vault/upload"
-                  className="mt-2 inline-block font-semibold text-emerald-800 underline-offset-2 hover:text-emerald-950 hover:underline"
-                >
-                  Upload assets
-                </Link>
-              </div>
-            ) : (
-              <ul className="space-y-2">
-                {assets.map((a) => (
-                  <li
-                    key={a.id}
-                    className="flex flex-col gap-3 rounded-lg border border-black/10 bg-white p-3 sm:flex-row sm:items-center sm:gap-4"
-                  >
-                    <p className="min-w-0 flex-1 text-sm font-medium text-neutral-950">
-                      {vaultAssetLabel(a)}
-                    </p>
-                    <div className="flex shrink-0 flex-wrap gap-2">
-                      <Link
-                        href={`/vault/${a.id}`}
-                        className={outlineButtonVariants({ size: "sm" })}
-                      >
-                        Open
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={() => void copyAssetLink(a)}
-                        disabled={!a.signed_url}
-                        className={primaryButtonVariants({ size: "sm" })}
-                      >
-                        {copiedId === a.id ? "Copied" : "Copy link"}
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
+        <AssetDeliveryZone
+          request={request}
+          assets={assets}
+          assetsLoading={assetsLoading}
+        />
       )}
 
       {cancelOpen ? (

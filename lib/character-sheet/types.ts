@@ -26,6 +26,10 @@ export interface CharacterSheetStatusResponse {
   stats: CharacterSheetStats | null;
   generationMode: CharacterSheetGenerationMode | null;
   errorMessage: string | null;
+  /** Sealed sheet stored with vault password encryption (pre-plaintext delivery). */
+  legacyEncrypted?: boolean;
+  /** Active license deliveries waiting on a brand-viewable copy. */
+  pendingBrandDeliveries?: number;
 }
 
 export interface CharacterSheetGenerateResponse {

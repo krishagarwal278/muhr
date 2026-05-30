@@ -42,8 +42,24 @@ describe("vault asset filters", () => {
 
   it("includes plain face photos and character sheets for delivery", () => {
     const face = { ...base, asset_type: "face_photo" as const };
-    const sheet = { ...base, asset_type: "character_sheet" as const, encryption_key_id: "k" };
-    const list = filterDeliverableVaultAssets([face, sheet]);
+    const sheet = { ...base, asset_type: "character_sheet" as const };
+    const legacyEncryptedSheet = {
+      ...base,
+      asset_type: "character_sheet" as const,
+      encryption_key_id: "k",
+    };
+    const list = filterDeliverableVaultAssets([face, sheet, legacyEncryptedSheet]);
     expect(list).toHaveLength(2);
+    expect(isDeliverableVaultAsset(legacyEncryptedSheet)).toBe(false);
+  });
+
+  it("allows legacy encrypted character sheets once a share copy exists", () => {
+    const legacyWithShare = {
+      ...base,
+      asset_type: "character_sheet" as const,
+      encryption_key_id: "k",
+      share_file_path: "u1/brand_delivery/lic/sheet.jpg",
+    };
+    expect(isDeliverableVaultAsset(legacyWithShare)).toBe(true);
   });
 });

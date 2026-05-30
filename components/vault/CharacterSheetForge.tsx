@@ -7,7 +7,6 @@ import { CharacterSheetPreview } from "@/components/vault/CharacterSheetPreview"
 import { buildCharacterSheetPngBlob } from "@/lib/character-sheet/buildSheetBlob";
 import { downloadBlob } from "@/lib/character-sheet/captureToBlob";
 import { sheetTheme as t } from "@/lib/character-sheet/theme";
-import { encryptFileWithVaultPassword } from "@/lib/vault/crypto";
 import type {
   CharacterSheetGenerateResponse,
   CharacterSheetStatusResponse,
@@ -28,7 +27,6 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
   const [step, setStep] = useState<ForgeStep>("idle");
   const [forgeProgress, setForgeProgress] = useState(0);
   const [generated, setGenerated] = useState<CharacterSheetGenerateResponse | null>(null);
-  const [vaultPassword, setVaultPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [isRegenerate, setIsRegenerate] = useState(false);
@@ -111,10 +109,6 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
 
   async function sealToVault() {
     if (!generated || !previewRef.current) return;
-    if (!vaultPassword || vaultPassword.trim().length < 8) {
-      setError("Vault password must be at least 8 characters.");
-      return;
-    }
 
     setStep("sealing");
     setError(null);
@@ -124,19 +118,10 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
       const mime = blob.type || "image/jpeg";
       const ext = mime.includes("png") ? "png" : "jpg";
       const file = new File([blob], `muhr-character-sheet.${ext}`, { type: mime });
-      const { encryptedFile, meta } = await encryptFileWithVaultPassword(file, vaultPassword);
 
       const formData = new FormData();
-      formData.append("file", encryptedFile);
+      formData.append("file", file);
       formData.append("asset_type", "character_sheet");
-      formData.append("encryption_version", String(meta.encryption_version));
-      formData.append("encryption_alg", meta.encryption_alg);
-      formData.append("encryption_iv", meta.encryption_iv_b64);
-      formData.append("wrapped_data_key", meta.wrapped_data_key_b64);
-      formData.append("wrapped_key_iv", meta.wrapped_key_iv_b64);
-      formData.append("wrapped_key_salt", meta.wrapped_key_salt_b64);
-      formData.append("original_file_name", `Character Sheet — Encrypted.${ext}`);
-      formData.append("original_mime_type", mime);
 
       const uploadRes = await fetch("/api/vault/upload", { method: "POST", body: formData });
       const uploadJson = await uploadRes.json().catch(() => null);
@@ -207,13 +192,27 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
             <h2 className="text-2xl font-semibold tracking-tight">Build your character sheet</h2>
             <p className="text-sm" style={{ color: t.textMuted }}>
               {sealed
-                ? "Your password-protected sheet is in the Vault. Regenerate anytime to rebuild from your latest photos and measurements in Profile."
-                : "Turn your photos and measurements into a brand-ready reference sheet. Export it for outreach, then seal an encrypted copy in your Vault."}
+                ? "Your character sheet is in the Vault. Regenerate anytime to rebuild from your latest photos and measurements in Profile."
+                : "Turn your photos and measurements into a brand-ready reference sheet, then seal it in your Vault for delivery to brands."}
             </p>
 
             {sealed && (
               <p className="text-xs" style={{ color: t.textDim }}>
                 {status.photoCount}/{status.minPhotos} photos · {status.hasMeasurements ? "Stats synced" : "Add measurements in Profile"}
+              </p>
+            )}
+
+            {sealed && status.legacyEncrypted && (status.pendingBrandDeliveries ?? 0) > 0 && (
+              <p
+                className="rounded-lg border px-3 py-2 text-xs"
+                style={{
+                  borderColor: "rgba(251,191,36,0.45)",
+                  backgroundColor: "rgba(251,191,36,0.12)",
+                  color: "#fde68a",
+                }}
+              >
+                Brands cannot view your delivered character sheet yet. Regenerate below to publish a
+                viewable copy, or enable viewing from the license request page.
               </p>
             )}
 
@@ -360,19 +359,6 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
                     aiImageUrl={generated.mode === "ai" ? generated.imageUrl : undefined}
                   />
                 </div>
-                <div className="rounded-lg border p-4" style={{ borderColor: t.border, backgroundColor: t.panel }}>
-                  <label className="mb-1.5 block text-xs font-medium" style={{ color: t.textMuted }}>
-                    Vault password (for sealing only)
-                  </label>
-                  <input
-                    type="password"
-                    value={vaultPassword}
-                    onChange={(e) => setVaultPassword(e.target.value)}
-                    placeholder="Encrypt before storing in Vault"
-                    className="w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none"
-                    style={{ borderColor: t.border, color: t.text }}
-                  />
-                </div>
                 {error && <p className="text-sm text-red-400">{error}</p>}
                 <button
                   type="button"
@@ -386,7 +372,7 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
                       : "Sealing to Vault…"
                     : isRegenerate
                       ? "Replace sealed copy in Vault"
-                      : "Seal encrypted copy in Vault"}
+                      : "Seal in Vault"}
                 </button>
               </div>
             )}
@@ -404,8 +390,8 @@ export function CharacterSheetForge({ status, kycVerified, onSealed }: Character
                 </h3>
                 <p className="mt-2 max-w-sm text-sm" style={{ color: t.textMuted }}>
                   {isRegenerate
-                    ? "Your Vault now has the new encrypted sheet. View & download uses the latest version."
-                    : "Download the PNG anytime from the asset page to share with brands. Your Vault copy stays encrypted."}
+                    ? "Your Vault now has the updated sheet. Deliver it again from any accepted license request."
+                    : "Your sheet is ready in the Vault and can be delivered to brands from license requests."}
                 </p>
                 <button
                   type="button"

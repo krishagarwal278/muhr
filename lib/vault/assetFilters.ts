@@ -29,7 +29,9 @@ export function isVaultGalleryFacePhoto(asset: VaultAsset): boolean {
 /** Assets a creator can share with a brand via signed links. */
 export function isDeliverableVaultAsset(asset: VaultAsset): boolean {
   if (!isActiveVaultAsset(asset)) return false;
-  if (asset.asset_type === "character_sheet") return true;
+  if (asset.asset_type === "character_sheet") {
+    return !asset.encryption_key_id || !!asset.share_file_path;
+  }
   if (asset.asset_type === "face_photo") return !asset.encryption_key_id;
   if (asset.asset_type === "voice_sample" || asset.asset_type === "document") return true;
   return false;

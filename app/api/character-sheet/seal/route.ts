@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth/requireUser";
 import { markCharacterSheetSealed } from "@/lib/character-sheet/server";
 import { toApiError } from "@/lib/errors/apiError";
+import { prepareBrandSharesForVaultAsset } from "@/lib/vault/ensureBrandShareCopy";
 import { createRouteClient } from "@/lib/supabase/route";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -70,12 +71,42 @@ export async function POST(request: Request) {
         .maybeSingle();
 
       if (oldAsset) {
+        const { data: deliveriesToRemigrate } = await supabase
+          .from("license_deliveries")
+          .select("license_request_id, delivered_by")
+          .eq("vault_asset_id", replaceId);
+
+        // Migrate deliveries before deleting the old asset (FK is ON DELETE CASCADE).
+        if (deliveriesToRemigrate && deliveriesToRemigrate.length > 0) {
+          await supabase
+            .from("license_deliveries")
+            .update({ vault_asset_id: parsed.data.vaultAssetId })
+            .eq("vault_asset_id", replaceId);
+        }
+
         const admin = createServiceRoleClient();
         const storageClient = admin ?? supabase;
         await storageClient.storage.from("assets").remove([oldAsset.file_path]);
         await supabase.from("vault_assets").delete().eq("id", replaceId).eq("user_id", user.id);
+
+        // Re-upsert in case a past bug cascade-deleted rows before migration ran.
+        if (deliveriesToRemigrate && deliveriesToRemigrate.length > 0) {
+          await supabase.from("license_deliveries").upsert(
+            deliveriesToRemigrate.map((d) => ({
+              license_request_id: d.license_request_id,
+              vault_asset_id: parsed.data.vaultAssetId,
+              delivered_by: d.delivered_by,
+            })),
+            { onConflict: "license_request_id,vault_asset_id" }
+          );
+        }
       }
     }
+
+    const admin = createServiceRoleClient();
+    const storageClient = admin ?? supabase;
+    const dbClient = admin ?? supabase;
+    await prepareBrandSharesForVaultAsset(storageClient, dbClient, parsed.data.vaultAssetId);
 
     return Response.json({ ok: true });
   } catch (err) {

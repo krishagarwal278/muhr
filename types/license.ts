@@ -41,3 +41,25 @@ export type LicenseRequestRow = {
   cancellation_reason?: string | null;
   cancellation_note?: string | null;
 };
+
+export type LicenseDeliveryRow = {
+  id: string;
+  license_request_id: string;
+  vault_asset_id: string;
+  delivered_by: string;
+  delivered_at: string;
+};
+
+/** Delivery row enriched with vault asset metadata (joined on the server). */
+export type LicenseDeliveryWithAsset = LicenseDeliveryRow & {
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
+  asset_type: string;
+  /** Populated on demand via service-role signed URL. */
+  signed_url?: string | null;
+  view_blocked?: boolean;
+  view_blocked_reason?: string | null;
+  brand_view_ready?: boolean;
+};

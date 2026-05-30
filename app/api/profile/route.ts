@@ -20,6 +20,7 @@ import {
   sanitizeProfileLinks,
   type ProfileLinkInput,
 } from "@/lib/profile/links";
+import { loadAvatarPath, signedProfileAvatarUrl } from "@/lib/profile/avatar";
 import { muidFromUserId } from "@/lib/profile/muid";
 import { createRouteClient } from "@/lib/supabase/route";
 
@@ -44,6 +45,7 @@ type ProfileRow = {
   profile_links?: unknown;
   social_platform?: string | null;
   social_username?: string | null;
+  avatar_path?: string | null;
 };
 
 function isMissingColumnError(error: { code?: string; message?: string } | null): boolean {
@@ -66,7 +68,8 @@ function isMissingColumnError(error: { code?: string; message?: string } | null)
 function profileJsonFromRow(
   profile: ProfileRow | null,
   userId: string,
-  email: string | null | undefined
+  email: string | null | undefined,
+  avatarUrl: string | null = null
 ) {
   const stored = coerceProfileLinksFromStorage(profile?.profile_links);
   const profileLinks = stored.length > 0 ? stored : profileLinksFromLegacyRow(profile ?? {});
@@ -112,8 +115,12 @@ function profileJsonFromRow(
     profileLinks,
     muid: muidFromUserId(userId),
     email: email ?? null,
+    avatarUrl,
   };
 }
+
+const PROFILE_SELECT =
+  "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code, platform_license_signed, profile_links, social_platform, social_username";
 
 async function loadProfileRow(
   supabase: SupabaseClient,
@@ -121,14 +128,14 @@ async function loadProfileRow(
 ): Promise<{ data: ProfileRow | null; error: { code?: string; message?: string } | null }> {
   const full = await supabase
     .from("profiles")
-    .select(
-      "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code, platform_license_signed, profile_links, social_platform, social_username"
-    )
+    .select(PROFILE_SELECT)
     .eq("id", userId)
     .maybeSingle();
 
   if (!full.error) {
-    return { data: full.data as ProfileRow | null, error: null };
+    const row = full.data as ProfileRow | null;
+    const avatar_path = row ? await loadAvatarPath(supabase, userId) : null;
+    return { data: row ? { ...row, avatar_path } : null, error: null };
   }
   if (!isMissingColumnError(full.error)) {
     return { data: null, error: full.error };
@@ -143,7 +150,9 @@ async function loadProfileRow(
     .maybeSingle();
 
   if (!withFollowers.error) {
-    return { data: withFollowers.data as ProfileRow | null, error: null };
+    const row = withFollowers.data as ProfileRow | null;
+    const avatar_path = row ? await loadAvatarPath(supabase, userId) : null;
+    return { data: row ? { ...row, avatar_path } : null, error: null };
   }
   if (!isMissingColumnError(withFollowers.error)) {
     return { data: null, error: withFollowers.error };
@@ -155,10 +164,23 @@ async function loadProfileRow(
     .eq("id", userId)
     .maybeSingle();
 
+  const row = fallback.data as ProfileRow | null;
+  const avatar_path = row ? await loadAvatarPath(supabase, userId) : null;
   return {
-    data: fallback.data as ProfileRow | null,
+    data: row ? { ...row, avatar_path } : null,
     error: fallback.error,
   };
+}
+
+async function profileApiData(
+  supabase: SupabaseClient,
+  userId: string,
+  email: string | null | undefined
+) {
+  const { data: profile, error } = await loadProfileRow(supabase, userId);
+  if (error) return { error };
+  const avatarUrl = await signedProfileAvatarUrl(supabase, profile?.avatar_path);
+  return { data: profileJsonFromRow(profile, userId, email, avatarUrl) };
 }
 
 export async function GET() {
@@ -166,10 +188,9 @@ export async function GET() {
     const user = await requireUser();
     const supabase = await createRouteClient();
 
-    const { data: profile, error } = await loadProfileRow(supabase, user.id);
-
-    if (error) {
-      logger.error("profile_get_error", { userId: user.id, code: error.code });
+    const result = await profileApiData(supabase, user.id, user.email);
+    if (result.error) {
+      logger.error("profile_get_error", { userId: user.id, code: result.error.code });
       return Response.json(
         { ok: false, error: { code: "db_error", message: "Failed to load profile" } },
         { status: 500 }
@@ -178,7 +199,7 @@ export async function GET() {
 
     return Response.json({
       ok: true,
-      data: profileJsonFromRow(profile, user.id, user.email),
+      data: result.data,
     });
   } catch (err) {
     const { status, code, message } = toApiError(err);
@@ -473,13 +494,11 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("profiles")
       .update(updates)
       .eq("id", user.id)
-      .select(
-        "handle, display_name, accepting_requests, licensing_notes, min_license_fee_inr, follower_count, full_name, phone, address, address_line1, address_line2, address_city, address_pin_code, platform_license_signed, profile_links, social_platform, social_username"
-      )
+      .select(PROFILE_SELECT)
       .single();
 
     if (error) {
@@ -519,10 +538,16 @@ export async function PATCH(request: Request) {
       );
     }
 
-    return Response.json({
-      ok: true,
-      data: profileJsonFromRow(data as ProfileRow | null, user.id, user.email),
-    });
+    const result = await profileApiData(supabase, user.id, user.email);
+    if (result.error) {
+      logger.error("profile_patch_reload_error", { userId: user.id, code: result.error.code });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Saved but could not reload profile" } },
+        { status: 500 }
+      );
+    }
+
+    return Response.json({ ok: true, data: result.data });
   } catch (err) {
     const { status, code, message } = toApiError(err);
     return Response.json({ ok: false, error: { code, message } }, { status });

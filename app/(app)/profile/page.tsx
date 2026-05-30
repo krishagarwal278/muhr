@@ -188,11 +188,13 @@ export default function ProfilePage() {
               <CompleteProfileSection onUpdated={() => void refreshCompletion()} />
             </div>
           </div>
-          <div>
+          <div className="space-y-1">
             <p className="text-sm font-medium text-neutral-950">Password</p>
-            <p className="mt-1 text-sm text-neutral-700">
+            <p className="text-sm text-neutral-700">
               We will email a one-time link to set a new password.
             </p>
+          </div>
+          <div>
             {resetErr && (
               <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
                 {resetErr}
@@ -209,7 +211,7 @@ export default function ProfilePage() {
               disabled={resetBusy}
               className={ghostButtonVariants()}
             >
-              {resetBusy ? "Sending…" : "Email me a reset link"}
+              {resetBusy ? "Sending…" : "Send Reset Link"}
             </button>
           </div>
         </div>

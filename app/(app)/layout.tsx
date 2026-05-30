@@ -11,12 +11,15 @@ import { GlobalLicenseMessagesDock } from "@/components/license/GlobalLicenseMes
 import { NavTourBootstrap } from "@/components/tour/NavTourBootstrap";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { destroyActiveNavTourWithoutCompleting } from "@/lib/tour/navTour";
+import { ProfileAvatar, PROFILE_AVATAR_UPDATED_EVENT } from "@/components/profile/ProfileAvatar";
+import { profileFromApiJson } from "@/lib/api/profilePayload";
 
 interface UserProfile {
   id: string;
   shortId: string;
   name: string;
   email: string;
+  avatarUrl: string | null;
 }
 
 const navItems = [
@@ -109,12 +112,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       if (cancelled) return;
 
       if (authUser) {
-        setUser({
-          id: authUser.id,
-          shortId: muidFromUserId(authUser.id),
-          name: displayNameFromAuthUser(authUser),
-          email: authUser.email ?? "",
-        });
+        let avatarUrl: string | null = null;
+        try {
+          const profileRes = await fetch("/api/profile");
+          const profile = profileFromApiJson(await profileRes.json().catch(() => null));
+          if (profileRes.ok) avatarUrl = profile?.avatarUrl ?? null;
+        } catch {
+          // avatar is optional
+        }
+        if (!cancelled) {
+          setUser({
+            id: authUser.id,
+            shortId: muidFromUserId(authUser.id),
+            name: displayNameFromAuthUser(authUser),
+            email: authUser.email ?? "",
+            avatarUrl,
+          });
+        }
         return;
       }
 
@@ -133,6 +147,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  useEffect(() => {
+    function onAvatarUpdated(e: Event) {
+      const url = (e as CustomEvent<{ avatarUrl: string | null }>).detail?.avatarUrl ?? null;
+      setUser((u) => (u ? { ...u, avatarUrl: url } : u));
+    }
+    window.addEventListener(PROFILE_AVATAR_UPDATED_EVENT, onAvatarUpdated);
+    return () => window.removeEventListener(PROFILE_AVATAR_UPDATED_EVENT, onAvatarUpdated);
   }, []);
 
   async function handleLogout() {
@@ -219,9 +242,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 href="/profile"
                 className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 -m-2 transition hover:bg-black/5"
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-sm font-semibold text-white">
-                  {user?.name?.charAt(0).toUpperCase() || "U"}
-                </div>
+                <ProfileAvatar
+                  name={user?.name || "User"}
+                  avatarUrl={user?.avatarUrl}
+                  size="sm"
+                  className="shrink-0"
+                />
                 <div className="min-w-0 flex-1 truncate">
                   <p className="truncate text-sm font-medium text-neutral-950">{user?.name || "Loading..."}</p>
                   <p className="truncate text-[11px] font-mono font-medium text-neutral-700">{user?.shortId || "..."}</p>

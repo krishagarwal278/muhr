@@ -26,6 +26,7 @@ export type ProfileApiPayload = {
   }>;
   muid?: string;
   email?: string | null;
+  avatarUrl?: string | null;
 };
 
 export function profileFromApiJson(json: unknown): ProfileApiPayload | null {

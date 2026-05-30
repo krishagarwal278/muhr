@@ -5,6 +5,7 @@ import { formatFollowerCount } from "@/lib/pricing/followers";
 import { parsePhoneE164 } from "@/lib/profile/basics";
 import { getPublicShareableSiteBase } from "@/lib/app/publicSiteUrl";
 import { profileApiErrorMessage, profileFromApiJson } from "@/lib/api/profilePayload";
+import { ProfileAvatar } from "@/components/profile/ProfileAvatar";
 import { ProfileLinksEditor } from "@/components/profile/ProfileLinksEditor";
 import { ProfileLinksDisplay } from "@/components/profile/ProfileLinksDisplay";
 import { SectionCard } from "@/components/ui/section-card";
@@ -24,6 +25,7 @@ interface ProfileOverviewSectionProps {
 }
 
 interface OverviewState {
+  avatarUrl: string | null;
   fullName: string;
   phone: string;
   addressLine1: string;
@@ -54,6 +56,7 @@ interface EditState {
 }
 
 const INITIAL_OVERVIEW: OverviewState = {
+  avatarUrl: null,
   fullName: "",
   phone: "",
   addressLine1: "",
@@ -97,6 +100,7 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
       const data = profileFromApiJson(await res.json().catch(() => null));
       if (res.ok && data) {
         setOverview({
+          avatarUrl: data.avatarUrl ?? null,
           fullName: data.fullName ?? data.displayName ?? "",
           phone: data.phone ?? "",
           addressLine1: data.addressLine1 ?? data.address ?? "",
@@ -226,6 +230,7 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
       }
       const saved = profileFromApiJson(json);
       setOverview({
+        avatarUrl: saved?.avatarUrl ?? overview.avatarUrl,
         fullName: editValues.fullName.trim(),
         phone,
         addressLine1: editValues.addressLine1.trim(),
@@ -272,7 +277,6 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
     <SectionCard
       id="profile-overview"
       title="Profile overview"
-      description={overview.handle ? `Public URL: ${publicUrl}` : undefined}
       className="scroll-mt-24"
       headerAction={
         !loading && !editing ? (
@@ -295,30 +299,88 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
         <EditForm
           values={editValues}
           email={overview.email}
+          avatarName={overview.fullName || overview.email || "User"}
+          avatarUrl={overview.avatarUrl}
+          onAvatarChange={(avatarUrl) => setOverview((o) => ({ ...o, avatarUrl }))}
           onUpdate={updateEdit}
           onSave={handleSave}
           onCancel={cancelEditing}
           saving={saving}
         />
       ) : (
-        <DisplayView overview={overview} phoneDisplay={phoneDisplay} publicUrl={publicUrl} />
+        <>
+          <ProfileOverviewHeader
+            overview={overview}
+            publicUrl={publicUrl}
+            onAvatarChange={(avatarUrl) => setOverview((o) => ({ ...o, avatarUrl }))}
+          />
+          <DisplayView overview={overview} phoneDisplay={phoneDisplay} />
+        </>
       )}
     </SectionCard>
+  );
+}
+
+interface ProfileOverviewHeaderProps {
+  overview: OverviewState;
+  publicUrl: string;
+  onAvatarChange: (avatarUrl: string | null) => void;
+}
+
+function ProfileOverviewHeader({ overview, publicUrl, onAvatarChange }: ProfileOverviewHeaderProps) {
+  return (
+    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start">
+      <ProfileAvatar
+        name={overview.fullName || overview.email || "User"}
+        avatarUrl={overview.avatarUrl}
+        size="lg"
+        editable
+        layout="inline"
+        className="shrink-0"
+        onAvatarChange={onAvatarChange}
+      />
+      <div className="min-w-0 space-y-0.5 sm:pt-1">
+        <p className="text-base font-semibold text-neutral-950">{overview.fullName || "—"}</p>
+        {overview.email ? <p className="text-sm text-neutral-700">{overview.email}</p> : null}
+        {publicUrl ? <p className="break-all text-sm text-neutral-600">{publicUrl}</p> : null}
+      </div>
+    </div>
   );
 }
 
 interface EditFormProps {
   values: EditState;
   email: string;
+  avatarName: string;
+  avatarUrl: string | null;
+  onAvatarChange: (avatarUrl: string | null) => void;
   onUpdate: <K extends keyof EditState>(key: K, value: EditState[K]) => void;
   onSave: () => void;
   onCancel: () => void;
   saving: boolean;
 }
 
-function EditForm({ values, email, onUpdate, onSave, onCancel, saving }: EditFormProps) {
+function EditForm({
+  values,
+  email,
+  avatarName,
+  avatarUrl,
+  onAvatarChange,
+  onUpdate,
+  onSave,
+  onCancel,
+  saving,
+}: EditFormProps) {
   return (
     <div className="space-y-4">
+      <ProfileAvatar
+        name={avatarName}
+        avatarUrl={avatarUrl}
+        size="lg"
+        editable
+        layout="inline"
+        onAvatarChange={onAvatarChange}
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <FormField label="Full name" required>
           <FormInput
@@ -462,15 +524,12 @@ function EditForm({ values, email, onUpdate, onSave, onCancel, saving }: EditFor
 interface DisplayViewProps {
   overview: OverviewState;
   phoneDisplay: string;
-  publicUrl: string;
 }
 
-function DisplayView({ overview, phoneDisplay, publicUrl }: DisplayViewProps) {
+function DisplayView({ overview, phoneDisplay }: DisplayViewProps) {
   return (
-    <DataItemsGrid columns={2}>
-      <DataItem label="Name" value={overview.fullName || "—"} />
+    <DataItemsGrid columns={2} className="gap-x-6">
       <DataItem label="Phone" value={phoneDisplay} />
-      <DataItem label="Email" value={overview.email || "—"} />
       <DataItem label="Address" value={overview.addressLine1 || "—"} />
       {overview.addressLine2 && (
         <DataItem label="Address line 2" value={overview.addressLine2} />
@@ -484,10 +543,6 @@ function DisplayView({ overview, phoneDisplay, publicUrl }: DisplayViewProps) {
       <DataItem
         label="Muhr handle"
         value={overview.handle ? `@${overview.handle}` : "—"}
-      />
-      <DataItem
-        label="Public URL"
-        value={publicUrl || "—"}
       />
       <DataItem
         label="Accept license requests"

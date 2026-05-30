@@ -24,7 +24,6 @@ Copy `.env.example` to `.env.local` and fill in values:
 - `RESEND_API_KEY` (server-only)
 - `FAL_KEY` (server-only, for image generation)
 - `BRAND_PREVIEW_EMAILS` (optional, comma-separated emails for brand workspace access)
-- `DEV_AUTH_BYPASS` (local dev only; keep unset elsewhere)
 
 ## Notes
 

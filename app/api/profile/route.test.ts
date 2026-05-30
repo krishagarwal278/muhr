@@ -9,6 +9,27 @@ import { createRouteClient } from "@/lib/supabase/route";
 import { GET, PATCH } from "./route";
 import { UnauthorizedError } from "@/lib/errors/apiError";
 
+function profileSupabaseMock(profileRow: Record<string, unknown> | null) {
+  const chain = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    maybeSingle: vi.fn().mockResolvedValue({
+      data: profileRow ? { avatar_path: null, ...profileRow } : null,
+      error: null,
+    }),
+    update: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({ data: profileRow, error: null }),
+  };
+  return {
+    from: vi.fn(() => chain),
+    storage: {
+      from: vi.fn(() => ({
+        createSignedUrl: vi.fn().mockResolvedValue({ data: { signedUrl: null }, error: null }),
+      })),
+    },
+  };
+}
+
 describe("GET /api/profile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -34,13 +55,7 @@ describe("GET /api/profile", () => {
       profile_links: [{ platform: "instagram", value: "testuser" }],
     };
 
-    const mockSupabase = {
-      from: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValue({ data: mockProfile, error: null }),
-    };
-    vi.mocked(createRouteClient).mockResolvedValue(mockSupabase as never);
+    vi.mocked(createRouteClient).mockResolvedValue(profileSupabaseMock(mockProfile) as never);
 
     const response = await GET();
     const json = await response.json();
@@ -58,13 +73,7 @@ describe("GET /api/profile", () => {
     const mockUser = { id: "user-123", email: "test@example.com" };
     vi.mocked(requireUser).mockResolvedValue(mockUser as never);
 
-    const mockSupabase = {
-      from: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
-    };
-    vi.mocked(createRouteClient).mockResolvedValue(mockSupabase as never);
+    vi.mocked(createRouteClient).mockResolvedValue(profileSupabaseMock(null) as never);
 
     const response = await GET();
     const json = await response.json();
@@ -104,13 +113,7 @@ describe("PATCH /api/profile", () => {
       profile_links: [{ platform: "youtube", value: "https://www.youtube.com/@newhandle" }],
     };
 
-    const mockSupabase = {
-      from: vi.fn().mockReturnThis(),
-      update: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({ data: updatedProfile, error: null }),
-    };
+    const mockSupabase = profileSupabaseMock(updatedProfile);
     vi.mocked(createRouteClient).mockResolvedValue(mockSupabase as never);
 
     const request = new Request("http://test", {
@@ -126,8 +129,9 @@ describe("PATCH /api/profile", () => {
     const json = await response.json();
 
     expect(json.ok).toBe(true);
-    expect(mockSupabase.update).toHaveBeenCalled();
-    expect(mockSupabase.update).toHaveBeenCalledWith({
+    const profiles = mockSupabase.from.mock.results[0]?.value;
+    expect(profiles.update).toHaveBeenCalled();
+    expect(profiles.update).toHaveBeenCalledWith({
       handle: "newhandle",
       profile_links: [{ platform: "youtube", value: "https://www.youtube.com/@newhandle" }],
     });
@@ -273,13 +277,7 @@ describe("PATCH /api/profile", () => {
       social_username: "creator",
     };
 
-    const mockSupabase = {
-      from: vi.fn().mockReturnThis(),
-      update: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({ data: updatedProfile, error: null }),
-    };
+    const mockSupabase = profileSupabaseMock(updatedProfile);
     vi.mocked(createRouteClient).mockResolvedValue(mockSupabase as never);
 
     const request = new Request("http://test", {
@@ -294,7 +292,8 @@ describe("PATCH /api/profile", () => {
     expect(response.status).toBe(200);
     expect(json.ok).toBe(true);
     expect(json.data.profileLinks).toHaveLength(3);
-    expect(mockSupabase.update).toHaveBeenCalledWith(
+    const profiles = mockSupabase.from.mock.results[0]?.value;
+    expect(profiles.update).toHaveBeenCalledWith(
       expect.objectContaining({
         profile_links: expect.arrayContaining([
           { platform: "instagram", value: "creator" },
@@ -327,13 +326,7 @@ describe("PATCH /api/profile", () => {
       ],
     };
 
-    const mockSupabase = {
-      from: vi.fn().mockReturnThis(),
-      select: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      maybeSingle: vi.fn().mockResolvedValue({ data: mockProfile, error: null }),
-    };
-    vi.mocked(createRouteClient).mockResolvedValue(mockSupabase as never);
+    vi.mocked(createRouteClient).mockResolvedValue(profileSupabaseMock(mockProfile) as never);
 
     const response = await GET();
     const json = await response.json();

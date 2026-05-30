@@ -65,11 +65,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Local break-glass only: never honored in production builds (`NODE_ENV === "production"`).
-  if (process.env.NODE_ENV !== "production" && process.env.DEV_AUTH_BYPASS === "1") {
-    return NextResponse.next();
-  }
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;

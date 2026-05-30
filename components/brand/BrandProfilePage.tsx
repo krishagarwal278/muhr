@@ -6,7 +6,7 @@ import { BrandProfileForm } from "./BrandProfileForm";
 type ApiResp<T> = { ok: boolean; data?: T; error?: { code: string; message: string } };
 
 export default function BrandProfilePageClient() {
-  const [initial, setInitial] = useState<any | null>(null);
+  const [initial, setInitial] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -17,10 +17,12 @@ export default function BrandProfilePageClient() {
       setLoading(true);
       try {
         const res = await fetch('/api/brand/profile');
-        const json: ApiResp<any> = await res.json();
-        if (!cancelled && json.ok) setInitial(json.data ?? {});
+        const json: ApiResp<Record<string, unknown>> = await res.json();
+        if (!cancelled && json.ok) setInitial((json.data as Record<string, unknown>) ?? {});
       } catch (e) {
-        // ignore
+        // log and ignore
+        // eslint-disable-next-line no-console
+        console.error(e);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -29,7 +31,7 @@ export default function BrandProfilePageClient() {
     return () => { cancelled = true; };
   }, []);
 
-  async function handleSubmit(values: any) {
+  async function handleSubmit(values: Record<string, unknown>) {
     setBusy(true);
     setSaved(false);
     try {
@@ -48,7 +50,7 @@ export default function BrandProfilePageClient() {
   return (
     <div>
       <BrandProfileForm initial={initial ?? undefined} onSubmit={handleSubmit} busy={busy} />
-      {loading ? <p className="mt-3 text-sm text-neutral-500">Loading</p> : null}
+      {loading ? <p className="mt-3 text-sm text-neutral-500">Loading</p> : null}
       {saved ? <p className="mt-3 text-sm text-emerald-800">Saved.</p> : null}
     </div>
   );

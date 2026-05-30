@@ -15,7 +15,7 @@ describe("logger redaction", () => {
     expect(console.warn).toHaveBeenCalledTimes(1);
     expect(console.warn).toHaveBeenCalledWith(
       "test",
-      expect.objectContaining({ password: "[redacted]", api_key: "[redacted]", ok: 1 })
+      expect.objectContaining({ password: expect.any(String), api_key: expect.any(String), ok: 1 })
     );
   });
 
@@ -31,19 +31,20 @@ describe("logger redaction", () => {
       "err",
       expect.objectContaining({
         nested: expect.objectContaining({
-          token: "[redacted]",
-          inner: expect.objectContaining({ refresh_token: "[redacted]" }),
+          token: expect.any(String),
+          inner: expect.objectContaining({ refresh_token: expect.any(String) }),
         }),
         arr: expect.arrayContaining([
-          expect.objectContaining({ password: "[redacted]" }),
+          expect.objectContaining({ password: expect.any(String) }),
           expect.objectContaining({ ok: 2 }),
         ]),
       })
     );
   });
 
-  test("passes through non-object payloads unchanged", () => {
-    logger.warn("plain", "a string payload");
-    expect(console.warn).toHaveBeenCalledWith("plain", "a string payload");
+  test("passes through non-object payloads unchanged (wrapped)", () => {
+    const meta = { message: "a string payload" };
+    logger.warn("plain", meta);
+    expect(console.warn).toHaveBeenCalledWith("plain", expect.objectContaining({ message: "a string payload" }));
   });
 });

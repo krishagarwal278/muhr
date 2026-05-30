@@ -1,11 +1,11 @@
-import { createRouteClient } from "@/lib/supabase/client";
+import { createRouteClient } from "@/lib/supabase/route";
 import { NextResponse } from "next/server";
 
 export const runtime = "edge";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const supabase = createRouteClient();
+    const supabase = await createRouteClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ ok: false, error: { code: 'auth', message: 'Not authenticated' } }, { status: 401 });
 
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const supabase = createRouteClient();
+    const supabase = await createRouteClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ ok: false, error: { code: 'auth', message: 'Not authenticated' } }, { status: 401 });
 

@@ -8,6 +8,7 @@ type Issue = {
   problem: string;
   whyItMatters: string;
   suggestedFix: string;
+  snippet?: string | null;
 };
 
 type SuggestedEdit = {
@@ -30,10 +31,12 @@ export function LegalReviewModal({
   requestId,
   contractText,
   onClose,
+  onPreview,
 }: {
   requestId: string;
   contractText?: unknown;
   onClose: () => void;
+  onPreview?: (proposedText: string, snippet?: string | null) => void;
 }) {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -100,7 +103,7 @@ export function LegalReviewModal({
                   disabled={loading}
                   className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
                 >
-                  {loading ? "Reviewing" : "Run review"}
+                  {loading ? "Reviewing\u001f" : "Run review"}
                 </button>
                 <button onClick={onClose} className="rounded-md bg-white px-3 py-2 text-sm font-medium text-neutral-700 border">
                   Cancel
@@ -123,17 +126,23 @@ export function LegalReviewModal({
                   <div key={`${it.clause}-${i}`} className="rounded-md border border-black/10 p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="text-sm font-semibold">{it.clause}  {it.severity}</div>
+                        <div className="text-sm font-semibold">{it.clause} \u001f {it.severity}</div>
                         <div className="mt-1 text-sm text-neutral-700">{it.problem}</div>
                         <div className="mt-1 text-xs text-neutral-600"><strong>Why it matters:</strong> {it.whyItMatters}</div>
                       </div>
                       {it.suggestedFix ? (
-                        <div className="ml-4 flex-shrink-0">
+                        <div className="ml-4 flex-shrink-0 flex flex-col gap-2">
                           <button
                             onClick={() => navigator.clipboard.writeText(it.suggestedFix ?? "")}
-                            className="rounded-md bg-sky-600 px-2 py-1 text-xs font-medium text-white"
+                            className="rounded-md bg-pink-600 px-2 py-1 text-xs font-medium text-white"
                           >
-                            Copy suggested clause
+                            \u001f\u001f \u001f\u001f Copy suggested clause
+                          </button>
+                          <button
+                            onClick={() => onPreview?.(it.suggestedFix ?? "", it.snippet ?? null)}
+                            className="rounded-md bg-violet-600 px-2 py-1 text-xs font-medium text-white"
+                          >
+                            Preview \u001f\u001f 
                           </button>
                         </div>
                       ) : null}

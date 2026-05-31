@@ -26,7 +26,15 @@ type LegalReviewResult = {
   disclaimer: string;
 };
 
-export function LegalReviewModal({ requestId, contractText, onClose }: { requestId: string; contractText?: string; onClose: () => void }) {
+export function LegalReviewModal({
+  requestId,
+  contractText,
+  onClose,
+}: {
+  requestId: string;
+  contractText?: unknown;
+  onClose: () => void;
+}) {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +51,9 @@ export function LegalReviewModal({ requestId, contractText, onClose }: { request
       const res = await fetch(`/api/licenses/incoming/${requestId}/review`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contract_text: contractText }),
+        body: JSON.stringify(
+          contractText !== undefined && contractText !== null ? { contract_text: contractText } : {}
+        ),
       });
       const json = await res.json().catch(() => null);
       if (!res.ok) {

@@ -455,13 +455,14 @@ export function LicenseContractEditor({
           Muhr
         </p>
       ) : null}
-    {showReview ? (
-      <LegalReviewModal
-        requestId={request.id}
-        contractText={editor ? editor.getText() : undefined}
-        onClose={() => setShowReview(false)}
-      />
-    ) : null}
+
+      {showReview ? (
+        <LegalReviewModal
+          requestId={request.id}
+          contractText={editor?.getJSON() ?? request.contract_body}
+          onClose={() => setShowReview(false)}
+        />
+      ) : null}
     </div>
   );
 }

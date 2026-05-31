@@ -1,9 +1,15 @@
+import { z } from "zod";
 import { requireUser } from "@/lib/auth/requireUser";
 import { toApiError } from "@/lib/errors/apiError";
 import { logger } from "@/lib/logger";
 import { createRouteClient } from "@/lib/supabase/route";
-import { runLegalReview, tiptapToPlainText } from "@/lib/ai/legalReview";
-import { z } from "zod";
+import { createServiceRoleClient } from "@/lib/supabase/service";
+import {
+  computeFingerprint,
+  mapLegalReviewError,
+  runLegalReview,
+  tiptapToPlainText,
+} from "@/lib/ai/legalReview";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,14 +82,85 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     // Do not log the contract text. Log only that a review started and the length.
     logger.warn("license_review_started", { requestId: id, userId: user.id, contractLength: contractText.length });
 
-    const review = await runLegalReview(contractText, metadata);
+    // fingerprint for cache
+    const fingerprint = computeFingerprint(contractText, metadata as Record<string, unknown>);
+
+    // Try to use service role client for cache & counters if available
+    const service = createServiceRoleClient();
+
+    // Check cache
+    if (service) {
+      try {
+        const { data: cached, error: cacheErr } = await service
+          .from("ai_review_cache")
+          .select("result, expires_at")
+          .eq("fingerprint", fingerprint)
+          .maybeSingle();
+        if (!cacheErr && cached?.expires_at && new Date(cached.expires_at) > new Date()) {
+          return Response.json({ ok: true, review: cached.result });
+        }
+      } catch (e) {
+        logger.warn("ai_cache_lookup_failed", { err: e });
+      }
+    }
+
+    // Enforce per-user daily cap via DB function (atomic)
+    const dailyLimit = parseInt(process.env.OPENAI_DAILY_LIMIT ?? '20', 10);
+    const estimatedCents = parseInt(process.env.AI_REVIEW_EST_COST_CENTS ?? '50', 10);
+    if (service) {
+      try {
+        const day = new Date().toISOString().slice(0,10);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rpcRes: any = await (service as any).rpc('ai_review_increment', { p_user: user.id, p_inc_count: 1, p_inc_cents: estimatedCents, p_day: day, p_limit: dailyLimit });
+        const row0 = Array.isArray(rpcRes) ? rpcRes[0] as { ok?: boolean } : (rpcRes as { ok?: boolean } | undefined);
+        if (row0 && row0.ok === false) {
+          return Response.json({ ok: false, error: { code: 'over_quota', message: 'Daily review quota exceeded' } }, { status: 429 });
+        }
+      } catch (e) {
+        // If rpc not available or failed, fall back to best-effort (do not block review)
+        logger.warn('ai_counter_rpc_failed', { err: e });
+      }
+    }
+
+    // Run the legal review (server-side LLM call)
+    const review = await runLegalReview(contractText, metadata as Record<string, unknown>);
 
     logger.warn("license_review_completed", { requestId: id, userId: user.id, overallRisk: review.overallRisk });
 
+    // Insert into cache with TTL
+    if (service) {
+      try {
+        const ttlDays = parseInt(process.env.AI_CACHE_TTL_DAYS ?? '7', 10);
+        const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString();
+        await service.from('ai_review_cache').insert([{ fingerprint, result: review, created_at: new Date().toISOString(), expires_at: expiresAt }]);
+      } catch (e) {
+        logger.warn('ai_cache_insert_failed', { err: e });
+      }
+
+      // Optional persistence behind feature flag
+      try {
+        if (process.env.SAVE_LEGAL_REVIEW_PERSISTENCE === 'true') {
+          await service.from('legal_reviews').insert([{ license_request_id: id, user_id: user.id, overall_risk: review.overallRisk, result: review }]);
+        }
+      } catch (e) {
+        logger.warn('ai_persist_failed', { err: e });
+      }
+    }
+
     return Response.json({ ok: true, review });
   } catch (err) {
-    const { status, code, message } = toApiError(err);
-    logger.error("license_review_error", { err });
-    return Response.json({ ok: false, error: { code, message } }, { status });
+    const api = toApiError(err);
+    if (api.code !== "internal_error") {
+      return Response.json({ ok: false, error: { code: api.code, message: api.message } }, { status: api.status });
+    }
+    const mapped = mapLegalReviewError(err);
+    logger.error("license_review_error", {
+      code: mapped.code,
+      message: err instanceof Error ? err.message : String(err),
+    });
+    return Response.json(
+      { ok: false, error: { code: mapped.code, message: mapped.message } },
+      { status: mapped.status }
+    );
   }
 }

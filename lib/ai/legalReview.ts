@@ -23,6 +23,59 @@ export const ReviewResponseSchema = z.object({
 
 export type ReviewResponse = z.infer<typeof ReviewResponseSchema>;
 
+const DEFAULT_DISCLAIMER =
+  "This is an AI-assisted contract review, not legal advice. Consult a qualified lawyer before signing.";
+
+function coerceSeverity(value: unknown): "info" | "warning" | "critical" {
+  const v = String(value ?? "info").toLowerCase();
+  if (v === "critical" || v === "high") return "critical";
+  if (v === "warning" || v === "medium") return "warning";
+  return "info";
+}
+
+function coerceOverallRisk(value: unknown): "low" | "medium" | "high" {
+  const v = String(value ?? "medium").toLowerCase();
+  if (v === "high" || v === "critical") return "high";
+  if (v === "low") return "low";
+  return "medium";
+}
+
+/** Coerce common LLM JSON variants into the shape our zod schema expects. */
+export function normalizeReviewPayload(raw: unknown): unknown {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+  const o = raw as Record<string, unknown>;
+  const issuesRaw = Array.isArray(o.issues) ? o.issues : [];
+  const issues = issuesRaw.map((item, index) => {
+    const it =
+      item && typeof item === "object" && !Array.isArray(item)
+        ? (item as Record<string, unknown>)
+        : {};
+    return {
+      id: String(it.id ?? `issue-${index + 1}`),
+      clause: typeof it.clause === "string" ? it.clause : undefined,
+      severity: coerceSeverity(it.severity),
+      message: String(it.message ?? it.problem ?? it.summary ?? "Review finding"),
+      suggestion:
+        typeof it.suggestion === "string"
+          ? it.suggestion
+          : typeof it.suggestedFix === "string"
+            ? it.suggestedFix
+            : undefined,
+      snippet: typeof it.snippet === "string" ? it.snippet : undefined,
+    };
+  });
+
+  return {
+    overallRisk: coerceOverallRisk(o.overallRisk ?? o.overall_risk),
+    summary: String(o.summary ?? "Review complete."),
+    issues,
+    missingClauses: Array.isArray(o.missingClauses) ? o.missingClauses.map(String) : [],
+    riskyClauses: Array.isArray(o.riskyClauses) ? o.riskyClauses.map(String) : [],
+    suggestedEdits: Array.isArray(o.suggestedEdits) ? o.suggestedEdits : [],
+    disclaimer: String(o.disclaimer ?? "").trim() || DEFAULT_DISCLAIMER,
+  };
+}
+
 async function callOpenAI(payload: unknown) {
   const key = process.env.OPENAI_API_KEY;
   if (!key) throw new Error("OPENAI_API_KEY not set");
@@ -128,5 +181,43 @@ export async function runLegalReview(
     }
   }
 
-  return ReviewResponseSchema.parse(parsed);
+  return ReviewResponseSchema.parse(normalizeReviewPayload(parsed));
+}
+
+export function mapLegalReviewError(err: unknown): { status: number; code: string; message: string } {
+  if (err instanceof z.ZodError) {
+    return {
+      status: 422,
+      code: "invalid_review",
+      message: "Could not read the AI review. Try again.",
+    };
+  }
+  if (err instanceof Error) {
+    if (err.message.includes("OPENAI_API_KEY")) {
+      return {
+        status: 503,
+        code: "ai_not_configured",
+        message: "AI review is not configured. Add OPENAI_API_KEY to .env.local and restart the dev server.",
+      };
+    }
+    if (err.message.startsWith("OpenAI error:")) {
+      return {
+        status: 502,
+        code: "ai_upstream",
+        message: "AI service error. Try again in a moment.",
+      };
+    }
+    if (err.message.includes("Failed to parse JSON") || err.message.includes("No assistant content")) {
+      return {
+        status: 502,
+        code: "invalid_review",
+        message: "Could not parse the AI response. Try again.",
+      };
+    }
+  }
+  return {
+    status: 500,
+    code: "internal_error",
+    message: "Something went wrong",
+  };
 }

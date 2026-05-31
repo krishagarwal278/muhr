@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { redactPII } from "./redact";
 
 export const ReviewIssueSchema = z.object({
   id: z.string(),
@@ -39,67 +40,69 @@ async function callOpenAI(payload: unknown) {
 }
 
 export function tiptapToPlainText(doc: unknown): string {
-  // Very small TipTap/ProseMirror JSON -> plain text extractor
   function walk(node: unknown): string {
     if (!node) return "";
     if (typeof node === "string") return node;
     if (Array.isArray(node)) return node.map(walk).join("");
     if (typeof node === "object" && node !== null) {
       const n = node as Record<string, unknown>;
-      const type = typeof n.type === "string" ? (n.type as string) : undefined;
-      if (typeof (n.text as unknown) === "string") return n.text as string;
+      const type = typeof n.type === "string" ? n.type : undefined;
+      if (typeof n.text === "string") return n.text;
       if (type === "paragraph" || type === "heading") {
-        const inner = Array.isArray(n.content) ? (n.content as unknown[]).map(walk).join("") : "";
+        const inner = Array.isArray(n.content) ? n.content.map(walk).join("") : "";
         return inner + "\n\n";
       }
       if (type === "bulletList" || type === "orderedList") {
-        const arr = Array.isArray(n.content) ? (n.content as unknown[]) : [];
+        const arr = Array.isArray(n.content) ? n.content : [];
         return arr.map((item) => walk(item)).join("\n") + "\n";
       }
       if (type === "listItem") {
-        const arr = Array.isArray(n.content) ? (n.content as unknown[]) : [];
+        const arr = Array.isArray(n.content) ? n.content : [];
         return "- " + arr.map(walk).join("") + "\n";
       }
-      // default: recurse
-      const arr = Array.isArray(n.content) ? (n.content as unknown[]) : [];
+      const arr = Array.isArray(n.content) ? n.content : [];
       return arr.map(walk).join("");
     }
     return "";
   }
 
   if (typeof doc !== "object" || doc === null) return "";
-  // If doc has content array
   const d = doc as { content?: unknown[] };
   if (Array.isArray(d.content)) return d.content.map(walk).join("");
   return JSON.stringify(doc);
 }
 
-export async function runLegalReview(plainText: string) {
-  // Build a concise prompt asking for JSON output following our schema
+export async function runLegalReview(
+  plainText: string,
+  metadata: Record<string, unknown> | null = null
+): Promise<ReviewResponse> {
+  const model = process.env.OPENAI_MODEL ?? "gpt-3.5-turbo";
+  const redact = process.env.AI_REDACT === "true";
+  const textToSend = redact ? redactPII(plainText) : plainText;
+
   const system = `You are a helpful contract reviewer assistant. Given a plain-text license contract, identify potential issues categorized by clause (Approvals, Deliverables, IP, Warranties, Indemnity, Payment, Duration, Budget, Usage, Other). Return JSON only, matching this shape: {"summary":"short TL;DR", "issues":[{"id":"uuid-or-short","clause":"Approvals","severity":"info|warning|critical","message":"explain risk in plain language","suggestion":"suggested replacement text (optional)","snippet":"contract excerpt (optional)"}]} Do not include any other text.`;
 
-  const user = `Contract:\n\n${plainText}\n\nRespond with JSON only.`;
+  const metadataBlock = metadata ? `Contract metadata:\n${JSON.stringify(metadata)}\n\n` : "";
+  const user = `${metadataBlock}Contract:\n\n${textToSend}\n\nRespond with JSON only.`;
 
   const payload = {
-    model: "gpt-3.5-turbo",
+    model,
     messages: [
       { role: "system", content: system },
       { role: "user", content: user },
     ],
     temperature: 0,
-    max_tokens: 800,
+    max_tokens: 1200,
   };
 
   const json = await callOpenAI(payload);
   const assistant = String(json?.choices?.[0]?.message?.content ?? "");
   if (!assistant) throw new Error("No assistant content returned");
 
-  // Attempt to parse JSON from assistant
   let parsed: unknown;
   try {
     parsed = JSON.parse(assistant);
   } catch {
-    // Try to extract JSON substring
     const m = assistant.match(/\{[\s\S]*\}$/);
     if (m) {
       try {
@@ -112,6 +115,5 @@ export async function runLegalReview(plainText: string) {
     }
   }
 
-  const result = ReviewResponseSchema.parse(parsed);
-  return result as ReviewResponse;
+  return ReviewResponseSchema.parse(parsed);
 }

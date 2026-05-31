@@ -1,30 +1,27 @@
+import crypto from "crypto";
 import { z } from "zod";
+import { redactPII } from "./redact";
 
-export const LegalReviewIssueSchema = z.object({
-  severity: z.enum(["low", "medium", "high"]),
-  clause: z.string(),
-  problem: z.string(),
-  whyItMatters: z.string(),
-  suggestedFix: z.string(),
+export const ReviewIssueSchema = z.object({
+  id: z.string(),
+  clause: z.string().optional(),
+  severity: z.enum(["info", "warning", "critical"]),
+  message: z.string(),
+  suggestion: z.string().optional(),
+  snippet: z.string().optional(),
 });
 
-export const LegalReviewEditSchema = z.object({
-  currentText: z.string().optional(),
-  proposedText: z.string(),
-  reason: z.string(),
-});
-
-export const LegalReviewResultSchema = z.object({
+export const ReviewResponseSchema = z.object({
   overallRisk: z.enum(["low", "medium", "high"]),
   summary: z.string(),
-  issues: z.array(LegalReviewIssueSchema),
-  missingClauses: z.array(z.string()),
-  riskyClauses: z.array(z.string()),
-  suggestedEdits: z.array(LegalReviewEditSchema),
+  issues: z.array(ReviewIssueSchema),
+  missingClauses: z.array(z.string()).optional(),
+  riskyClauses: z.array(z.string()).optional(),
+  suggestedEdits: z.array(z.object({ currentText: z.string().optional(), proposedText: z.string(), reason: z.string().optional() })).optional(),
   disclaimer: z.string(),
 });
 
-export type LegalReviewResult = z.infer<typeof LegalReviewResultSchema>;
+export type ReviewResponse = z.infer<typeof ReviewResponseSchema>;
 
 async function callOpenAI(payload: unknown) {
   const key = process.env.OPENAI_API_KEY;
@@ -49,49 +46,60 @@ async function callOpenAI(payload: unknown) {
 }
 
 export function tiptapToPlainText(doc: unknown): string {
-  // Very small TipTap/ProseMirror JSON -> plain text extractor
   function walk(node: unknown): string {
     if (!node) return "";
     if (typeof node === "string") return node;
     if (Array.isArray(node)) return node.map(walk).join("");
     if (typeof node === "object" && node !== null) {
       const n = node as Record<string, unknown>;
-      const type = typeof n.type === "string" ? (n.type as string) : undefined;
-      if (typeof (n.text as unknown) === "string") return n.text as string;
+      const type = typeof n.type === "string" ? n.type : undefined;
+      if (typeof n.text === "string") return n.text;
       if (type === "paragraph" || type === "heading") {
-        const inner = Array.isArray(n.content) ? (n.content as unknown[]).map(walk).join("") : "";
+        const inner = Array.isArray(n.content) ? n.content.map(walk).join("") : "";
         return inner + "\n\n";
       }
       if (type === "bulletList" || type === "orderedList") {
-        const arr = Array.isArray(n.content) ? (n.content as unknown[]) : [];
+        const arr = Array.isArray(n.content) ? n.content : [];
         return arr.map((item) => walk(item)).join("\n") + "\n";
       }
       if (type === "listItem") {
-        const arr = Array.isArray(n.content) ? (n.content as unknown[]) : [];
+        const arr = Array.isArray(n.content) ? n.content : [];
         return "- " + arr.map(walk).join("") + "\n";
       }
-      // default: recurse
-      const arr = Array.isArray(n.content) ? (n.content as unknown[]) : [];
+      const arr = Array.isArray(n.content) ? n.content : [];
       return arr.map(walk).join("");
     }
     return "";
   }
 
   if (typeof doc !== "object" || doc === null) return "";
-  // If doc has content array
   const d = doc as { content?: unknown[] };
   if (Array.isArray(d.content)) return d.content.map(walk).join("");
   return JSON.stringify(doc);
 }
 
-export async function runLegalReview(contractText: string, metadata: Record<string, unknown> | null): Promise<LegalReviewResult> {
-  const system = `You are an AI legal contract review assistant for creator likeness licensing contracts.\n\nYou are not a lawyer and must not provide legal advice. Analyze the contract for business/legal risk, missing clauses, ambiguity, creator protection, licensee obligations, AI likeness rights, payment terms, usage scope, approval rights, IP ownership, indemnity, governing law, and enforcement. Return only valid JSON matching the requested schema. Do not include markdown. Do not invent facts. If information is missing, mark it as a risk.`;
+export function computeFingerprint(plainText: string, metadata: Record<string, unknown> | null = null) {
+  const hash = crypto.createHash("sha256");
+  hash.update(plainText);
+  if (metadata) hash.update(JSON.stringify(metadata));
+  return hash.digest("hex");
+}
+
+export async function runLegalReview(
+  plainText: string,
+  metadata: Record<string, unknown> | null = null
+): Promise<ReviewResponse> {
+  const model = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+  const redact = process.env.AI_REDACT === "true";
+  const textToSend = redact ? redactPII(plainText) : plainText;
+
+  const system = `You are a helpful contract reviewer assistant. Given a plain-text license contract, identify potential issues categorized by clause (Approvals, Deliverables, IP, Warranties, Indemnity, Payment, Duration, Budget, Usage, Other). Return JSON only, matching this shape: {\n  \"overallRisk\": \"low|medium|high\",\n  \"summary\": \"short TL;DR\",\n  \"issues\": [ { \"id\": \"uuid-or-short\", \"clause\": \"Approvals\", \"severity\": \"info|warning|critical\", \"message\": \"explain risk in plain language\", \"suggestion\": \"suggested replacement text (optional)\", \"snippet\": \"contract excerpt (optional)\" } ],\n  \"missingClauses\": [\"string\"],\n  \"riskyClauses\": [\"string\"],\n  \"suggestedEdits\": [ { \"currentText\": \"optional\", \"proposedText\": \"required\", \"reason\": \"optional\" } ],\n  \"disclaimer\": \"required disclaimer string\"\n}\nDo not include any other text.`;
 
   const metadataBlock = metadata ? `Contract metadata:\n${JSON.stringify(metadata)}\n\n` : "";
-  const user = `Review the following contract and metadata, then return JSON only matching the schema: overallRisk (low|medium|high), summary, issues[], missingClauses[], riskyClauses[], suggestedEdits[], disclaimer.\n\n${metadataBlock}Contract text:\n\n${contractText}\n\nRespond with JSON only.`;
+  const user = `${metadataBlock}Contract:\n\n${textToSend}\n\nRespond with JSON only.`;
 
   const payload = {
-    model: "gpt-3.5-turbo",
+    model,
     messages: [
       { role: "system", content: system },
       { role: "user", content: user },
@@ -104,7 +112,6 @@ export async function runLegalReview(contractText: string, metadata: Record<stri
   const assistant = String(json?.choices?.[0]?.message?.content ?? "");
   if (!assistant) throw new Error("No assistant content returned");
 
-  // parse JSON
   let parsed: unknown;
   try {
     parsed = JSON.parse(assistant);
@@ -121,14 +128,5 @@ export async function runLegalReview(contractText: string, metadata: Record<stri
     }
   }
 
-  // Validate shape
-  const validated = LegalReviewResultSchema.parse(parsed);
-
-  // enforce required disclaimer sentence
-  const required = "This is an AI-assisted contract review, not legal advice. Consult a qualified lawyer before signing.";
-  if (!validated.disclaimer.includes(required)) {
-    validated.disclaimer = `${required} ${validated.disclaimer}`.trim();
-  }
-
-  return validated;
+  return ReviewResponseSchema.parse(parsed);
 }

@@ -3,24 +3,34 @@
 import { useState } from "react";
 
 type Issue = {
-  id: string;
-  clause?: string;
-  severity: "info" | "warning" | "critical";
-  message: string;
-  suggestion?: string;
-  snippet?: string;
+  severity: "low" | "medium" | "high";
+  clause: string;
+  problem: string;
+  whyItMatters: string;
+  suggestedFix: string;
 };
 
-type ReviewResult = {
+type SuggestedEdit = {
+  currentText?: string;
+  proposedText: string;
+  reason: string;
+};
+
+type LegalReviewResult = {
+  overallRisk: "low" | "medium" | "high";
   summary: string;
   issues: Issue[];
+  missingClauses: string[];
+  riskyClauses: string[];
+  suggestedEdits: SuggestedEdit[];
+  disclaimer: string;
 };
 
-export function LegalReviewModal({ requestId, onClose }: { requestId: string; onClose: () => void }) {
+export function LegalReviewModal({ requestId, contractText, onClose }: { requestId: string; contractText?: string; onClose: () => void }) {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<ReviewResult | null>(null);
+  const [result, setResult] = useState<LegalReviewResult | null>(null);
 
   async function startReview() {
     setError(null);
@@ -30,14 +40,18 @@ export function LegalReviewModal({ requestId, onClose }: { requestId: string; on
     }
     setLoading(true);
     try {
-      const res = await fetch(`/api/licenses/incoming/${requestId}/review`, { method: "POST" });
+      const res = await fetch(`/api/licenses/incoming/${requestId}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contract_text: contractText }),
+      });
       const json = await res.json().catch(() => null);
       if (!res.ok) {
         setError(json?.error?.message || `Server error ${res.status}`);
         setLoading(false);
         return;
       }
-      setResult((json?.review ?? null) as ReviewResult | null);
+      setResult((json?.review ?? null) as LegalReviewResult | null);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       setError(msg);
@@ -76,7 +90,7 @@ export function LegalReviewModal({ requestId, onClose }: { requestId: string; on
                   disabled={loading}
                   className="rounded-md bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60"
                 >
-                  {loading ? "Reviewing…" : "Run review"}
+                  {loading ? "Reviewing" : "Run review"}
                 </button>
                 <button onClick={onClose} className="rounded-md bg-white px-3 py-2 text-sm font-medium text-neutral-700 border">
                   Cancel
@@ -85,22 +99,28 @@ export function LegalReviewModal({ requestId, onClose }: { requestId: string; on
             </>
           ) : (
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold">Summary</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold">Summary</h4>
+                <span className={`rounded-full px-2 py-1 text-xs font-semibold ${result.overallRisk === 'high' ? 'bg-red-100 text-red-800' : result.overallRisk === 'medium' ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                  {result.overallRisk.toUpperCase()}
+                </span>
+              </div>
               <p className="text-sm text-neutral-800">{result.summary}</p>
 
               <h4 className="mt-2 text-sm font-semibold">Issues</h4>
               <div className="space-y-2">
-                {(result.issues || []).map((it: Issue) => (
-                  <div key={it.id} className="rounded-md border border-black/10 p-3">
+                {(result.issues || []).map((it, i) => (
+                  <div key={`${it.clause}-${i}`} className="rounded-md border border-black/10 p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div>
-                        <div className="text-sm font-semibold">{it.clause ?? "General"} · {it.severity}</div>
-                        <div className="mt-1 text-sm text-neutral-700">{it.message}</div>
+                        <div className="text-sm font-semibold">{it.clause}  {it.severity}</div>
+                        <div className="mt-1 text-sm text-neutral-700">{it.problem}</div>
+                        <div className="mt-1 text-xs text-neutral-600"><strong>Why it matters:</strong> {it.whyItMatters}</div>
                       </div>
-                      {it.suggestion ? (
+                      {it.suggestedFix ? (
                         <div className="ml-4 flex-shrink-0">
                           <button
-                            onClick={() => navigator.clipboard.writeText(it.suggestion ?? "")}
+                            onClick={() => navigator.clipboard.writeText(it.suggestedFix ?? "")}
                             className="rounded-md bg-sky-600 px-2 py-1 text-xs font-medium text-white"
                           >
                             Copy suggested clause
@@ -108,10 +128,44 @@ export function LegalReviewModal({ requestId, onClose }: { requestId: string; on
                         </div>
                       ) : null}
                     </div>
-                    {it.snippet ? <pre className="mt-2 text-xs text-neutral-600">{it.snippet}</pre> : null}
                   </div>
                 ))}
               </div>
+
+              {result.missingClauses && result.missingClauses.length ? (
+                <div className="mb-3">
+                  <h5 className="text-sm font-medium">Missing clauses</h5>
+                  <ul className="list-disc ml-5 text-sm text-neutral-700">
+                    {result.missingClauses.map((c, i) => <li key={i}>{c}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+
+              {result.riskyClauses && result.riskyClauses.length ? (
+                <div className="mb-3">
+                  <h5 className="text-sm font-medium">Risky clauses</h5>
+                  <ul className="list-disc ml-5 text-sm text-neutral-700">
+                    {result.riskyClauses.map((c, i) => <li key={i}>{c}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+
+              {result.suggestedEdits && result.suggestedEdits.length ? (
+                <div className="mb-3">
+                  <h5 className="text-sm font-medium">Suggested edits</h5>
+                  <div className="space-y-2">
+                    {result.suggestedEdits.map((e, i) => (
+                      <div key={i} className="rounded-md border p-2">
+                        <div className="text-sm font-semibold">{e.reason}</div>
+                        <pre className="text-xs mt-1 text-neutral-700">{e.proposedText}</pre>
+                        <div className="mt-1">
+                          <button onClick={() => navigator.clipboard.writeText(e.proposedText)} className="rounded-md bg-sky-600 px-2 py-1 text-xs font-medium text-white">Copy</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="mt-4 flex justify-end">
                 <button onClick={onClose} className="rounded-md bg-white px-3 py-2 text-sm font-medium text-neutral-700 border">

@@ -1,20 +1,30 @@
 import { z } from "zod";
 
-export const ReviewIssueSchema = z.object({
-  id: z.string(),
-  clause: z.string().optional(),
-  severity: z.enum(["info", "warning", "critical"]),
-  message: z.string(),
-  suggestion: z.string().optional(),
-  snippet: z.string().optional(),
+export const LegalReviewIssueSchema = z.object({
+  severity: z.enum(["low", "medium", "high"]),
+  clause: z.string(),
+  problem: z.string(),
+  whyItMatters: z.string(),
+  suggestedFix: z.string(),
 });
 
-export const ReviewResponseSchema = z.object({
+export const LegalReviewEditSchema = z.object({
+  currentText: z.string().optional(),
+  proposedText: z.string(),
+  reason: z.string(),
+});
+
+export const LegalReviewResultSchema = z.object({
+  overallRisk: z.enum(["low", "medium", "high"]),
   summary: z.string(),
-  issues: z.array(ReviewIssueSchema),
+  issues: z.array(LegalReviewIssueSchema),
+  missingClauses: z.array(z.string()),
+  riskyClauses: z.array(z.string()),
+  suggestedEdits: z.array(LegalReviewEditSchema),
+  disclaimer: z.string(),
 });
 
-export type ReviewResponse = z.infer<typeof ReviewResponseSchema>;
+export type LegalReviewResult = z.infer<typeof LegalReviewResultSchema>;
 
 async function callOpenAI(payload: unknown) {
   const key = process.env.OPENAI_API_KEY;
@@ -74,11 +84,11 @@ export function tiptapToPlainText(doc: unknown): string {
   return JSON.stringify(doc);
 }
 
-export async function runLegalReview(plainText: string) {
-  // Build a concise prompt asking for JSON output following our schema
-  const system = `You are a helpful contract reviewer assistant. Given a plain-text license contract, identify potential issues categorized by clause (Approvals, Deliverables, IP, Warranties, Indemnity, Payment, Duration, Budget, Usage, Other). Return JSON only, matching this shape: {"summary":"short TL;DR", "issues":[{"id":"uuid-or-short","clause":"Approvals","severity":"info|warning|critical","message":"explain risk in plain language","suggestion":"suggested replacement text (optional)","snippet":"contract excerpt (optional)"}]} Do not include any other text.`;
+export async function runLegalReview(contractText: string, metadata: Record<string, unknown> | null): Promise<LegalReviewResult> {
+  const system = `You are an AI legal contract review assistant for creator likeness licensing contracts.\n\nYou are not a lawyer and must not provide legal advice. Analyze the contract for business/legal risk, missing clauses, ambiguity, creator protection, licensee obligations, AI likeness rights, payment terms, usage scope, approval rights, IP ownership, indemnity, governing law, and enforcement. Return only valid JSON matching the requested schema. Do not include markdown. Do not invent facts. If information is missing, mark it as a risk.`;
 
-  const user = `Contract:\n\n${plainText}\n\nRespond with JSON only.`;
+  const metadataBlock = metadata ? `Contract metadata:\n${JSON.stringify(metadata)}\n\n` : "";
+  const user = `Review the following contract and metadata, then return JSON only matching the schema: overallRisk (low|medium|high), summary, issues[], missingClauses[], riskyClauses[], suggestedEdits[], disclaimer.\n\n${metadataBlock}Contract text:\n\n${contractText}\n\nRespond with JSON only.`;
 
   const payload = {
     model: "gpt-3.5-turbo",
@@ -87,19 +97,18 @@ export async function runLegalReview(plainText: string) {
       { role: "user", content: user },
     ],
     temperature: 0,
-    max_tokens: 800,
+    max_tokens: 1200,
   };
 
   const json = await callOpenAI(payload);
   const assistant = String(json?.choices?.[0]?.message?.content ?? "");
   if (!assistant) throw new Error("No assistant content returned");
 
-  // Attempt to parse JSON from assistant
+  // parse JSON
   let parsed: unknown;
   try {
     parsed = JSON.parse(assistant);
   } catch {
-    // Try to extract JSON substring
     const m = assistant.match(/\{[\s\S]*\}$/);
     if (m) {
       try {
@@ -112,6 +121,14 @@ export async function runLegalReview(plainText: string) {
     }
   }
 
-  const result = ReviewResponseSchema.parse(parsed);
-  return result as ReviewResponse;
+  // Validate shape
+  const validated = LegalReviewResultSchema.parse(parsed);
+
+  // enforce required disclaimer sentence
+  const required = "This is an AI-assisted contract review, not legal advice. Consult a qualified lawyer before signing.";
+  if (!validated.disclaimer.includes(required)) {
+    validated.disclaimer = `${required} ${validated.disclaimer}`.trim();
+  }
+
+  return validated;
 }

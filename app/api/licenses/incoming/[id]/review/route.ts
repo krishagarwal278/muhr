@@ -3,6 +3,7 @@ import { toApiError } from "@/lib/errors/apiError";
 import { logger } from "@/lib/logger";
 import { createRouteClient } from "@/lib/supabase/route";
 import { runLegalReview, tiptapToPlainText } from "@/lib/ai/legalReview";
+import { z } from "zod";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,10 +14,23 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     const user = await requireUser();
     const supabase = await createRouteClient();
 
-    // load the license request row
+    // parse body (optional contract_text sent from client - do not persist)
+    const BodySchema = z.object({ contract_text: z.string().max(20000).optional() }).strict();
+    let body: z.infer<typeof BodySchema> | null = null;
+    try {
+      const raw = await request.json().catch(() => null);
+      body = BodySchema.parse(raw ?? {});
+    } catch {
+      // invalid body -> reject
+      return Response.json({ ok: false, error: { code: "invalid_input", message: "Invalid request body" } }, { status: 400 });
+    }
+
+    // load the license request row (only safe fields)
     const { data: row, error: fetchErr } = await supabase
       .from("license_requests")
-      .select("id, creator_id, brand_email, contract_body")
+      .select(
+        "id, creator_id, brand_email, brand_name, brand_company, intended_use, duration_days, budget_inr, channels, territories, contract_body"
+      )
       .eq("id", id)
       .maybeSingle();
 
@@ -36,13 +50,35 @@ export async function POST(request: Request, ctx: { params: Promise<{ id: string
     }
 
     const contractBody = row.contract_body ?? null;
-    if (!contractBody) {
+
+    const contractText = body?.contract_text && body.contract_text.trim().length > 0
+      ? body.contract_text.trim()
+      : contractBody
+        ? tiptapToPlainText(contractBody)
+        : null;
+
+    if (!contractText) {
       return Response.json({ ok: false, error: { code: "no_contract", message: "No contract content to review" } }, { status: 400 });
     }
 
-    const plain = tiptapToPlainText(contractBody);
+    // Build metadata for the model (only safe fields)
+    const metadata = {
+      id: row.id,
+      brand_name: row.brand_name ?? null,
+      brand_company: row.brand_company ?? null,
+      intended_use: row.intended_use ?? null,
+      duration_days: row.duration_days ?? null,
+      budget_inr: row.budget_inr ?? null,
+      channels: row.channels ?? null,
+      territories: row.territories ?? null,
+    };
 
-    const review = await runLegalReview(plain);
+    // Do not log the contract text. Log only that a review started and the length.
+    logger.warn("license_review_started", { requestId: id, userId: user.id, contractLength: contractText.length });
+
+    const review = await runLegalReview(contractText, metadata);
+
+    logger.warn("license_review_completed", { requestId: id, userId: user.id, overallRisk: review.overallRisk });
 
     return Response.json({ ok: true, review });
   } catch (err) {

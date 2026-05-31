@@ -9,6 +9,7 @@ import { Alert } from "./alert";
 export interface SectionCardProps {
   title: string;
   description?: string;
+  required?: boolean;
   children: React.ReactNode;
   className?: string;
   headerAction?: React.ReactNode;
@@ -18,6 +19,7 @@ export interface SectionCardProps {
 export function SectionCard({
   title,
   description,
+  required,
   children,
   className,
   headerAction,
@@ -27,10 +29,11 @@ export function SectionCard({
     <div id={id} className={cx(surfaceCardVariants(), className)}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-neutral-950">{title}</h3>
-          {description && (
-            <p className="mt-1 text-sm text-neutral-600">{description}</p>
-          )}
+          <h3 className="font-semibold text-neutral-950">
+            {title}
+            {required ? <span className="ml-0.5 text-red-600">*</span> : null}
+          </h3>
+          {description ? <p className="mt-1 text-sm text-neutral-600">{description}</p> : null}
         </div>
         {headerAction}
       </div>

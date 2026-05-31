@@ -1,96 +1,103 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BrandVerificationDocuments } from "./BrandVerificationDocuments";
+import { Alert } from "@/components/ui/alert";
+import { FormField } from "@/components/ui/form-field";
 import { FormInput } from "@/components/ui/form-input";
+import { FormSelect } from "@/components/ui/form-select";
+import { SectionCard } from "@/components/ui/section-card";
 import { solidButtonVariants } from "@/components/ui/button-recipes";
+import {
+  type BrandProfileValues,
+  type BrandVerificationDocument,
+  validateBrandProfile,
+  validateBrandVerificationDocuments,
+} from "@/lib/brand/profile";
+import {
+  buildPhoneE164,
+  parsePhoneE164,
+  PHONE_COUNTRY_CODES,
+} from "@/lib/profile/basics";
 import { cx } from "@/lib/cx";
 
-type BrandProfileValues = {
-  companyName: string;
-  addressLine1: string;
-  addressLine2?: string;
-  city?: string;
-  pinCode?: string;
-  primaryEmail: string;
-  secondaryEmail: string;
-  phone: string;
-  repName?: string;
-  repEmail?: string;
+const emptyValues: BrandProfileValues = {
+  companyName: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  pinCode: "",
+  primaryEmail: "",
+  secondaryEmail: "",
+  phone: "",
+  repName: "",
+  repEmail: "",
 };
 
 export function BrandProfileForm({
   initial,
+  documents: initialDocuments = [],
   onSubmit,
+  onDocumentsChange,
   busy = false,
 }: {
   initial?: Partial<BrandProfileValues>;
-  onSubmit: (v: BrandProfileValues) => Promise<void>;
+  documents?: BrandVerificationDocument[];
+  onSubmit: (values: BrandProfileValues) => Promise<void>;
+  onDocumentsChange?: (documents: BrandVerificationDocument[]) => void;
   busy?: boolean;
 }) {
-  const [companyName, setCompanyName] = useState("");
-  const [addressLine1, setAddressLine1] = useState("");
-  const [addressLine2, setAddressLine2] = useState("");
-  const [city, setCity] = useState("");
-  const [pinCode, setPinCode] = useState("");
-  const [primaryEmail, setPrimaryEmail] = useState("");
-  const [secondaryEmail, setSecondaryEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [repName, setRepName] = useState("");
-  const [repEmail, setRepEmail] = useState("");
+  const [values, setValues] = useState<BrandProfileValues>(emptyValues);
+  const [countryCode, setCountryCode] = useState("+91");
+  const [localPhone, setLocalPhone] = useState("");
+  const [documents, setDocuments] = useState<BrandVerificationDocument[]>(initialDocuments);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!initial) return;
-    setCompanyName(initial.companyName ?? "");
-    setAddressLine1(initial.addressLine1 ?? "");
-    setAddressLine2(initial.addressLine2 ?? "");
-    setCity(initial.city ?? "");
-    setPinCode(initial.pinCode ?? "");
-    setPrimaryEmail(initial.primaryEmail ?? "");
-    setSecondaryEmail(initial.secondaryEmail ?? "");
-    setPhone(initial.phone ?? "");
-    setRepName(initial.repName ?? "");
-    setRepEmail(initial.repEmail ?? "");
+    setValues({ ...emptyValues, ...initial });
+    if (initial?.phone) {
+      const parsed = parsePhoneE164(initial.phone);
+      setCountryCode(parsed.countryCode);
+      setLocalPhone(parsed.localNumber);
+    }
   }, [initial]);
 
-  function validate(): string | null {
-    if (!companyName.trim()) return "Company name is required.";
-    if (!addressLine1.trim()) return "Address line 1 is required.";
-    if (!primaryEmail.trim() || !primaryEmail.includes("@")) return "A valid primary email is required.";
-    if (!secondaryEmail.trim() || !secondaryEmail.includes("@")) return "A valid secondary email is required.";
-    if (!phone.trim()) return "A contact phone number is required.";
-    if (repEmail && repEmail.trim() && !repEmail.includes("@")) return "Representative email is invalid.";
-    return null;
+  useEffect(() => {
+    setDocuments(initialDocuments);
+  }, [initialDocuments]);
+
+  function updateField<K extends keyof BrandProfileValues>(key: K, value: BrandProfileValues[K]) {
+    setValues((current) => ({ ...current, [key]: value }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const v: BrandProfileValues = {
-      companyName: companyName.trim(),
-      addressLine1: addressLine1.trim(),
-      addressLine2: addressLine2.trim(),
-      city: city.trim(),
-      pinCode: pinCode.trim(),
-      primaryEmail: primaryEmail.trim(),
-      secondaryEmail: secondaryEmail.trim(),
-      phone: phone.trim(),
-      repName: repName.trim(),
-      repEmail: repEmail.trim(),
+
+    const phone = buildPhoneE164(countryCode, localPhone);
+    const payload: BrandProfileValues = {
+      ...values,
+      phone: phone ?? "",
     };
 
-    const err = validate();
-    if (err) {
-      setError(err);
+    const validationError = validateBrandProfile(payload);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    const documentError = validateBrandVerificationDocuments(documents);
+    if (documentError) {
+      setError(documentError);
       return;
     }
 
     setSubmitting(true);
     try {
-      await onSubmit(v);
-    } catch (e) {
-      setError((e as Error)?.message ?? "Failed to save");
+      await onSubmit(payload);
+    } catch (err) {
+      setError((err as Error)?.message ?? "Failed to save profile");
     } finally {
       setSubmitting(false);
     }
@@ -100,70 +107,144 @@ export function BrandProfileForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {error ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">{error}</p> : null}
+      {error ? <Alert variant="error">{error}</Alert> : null}
 
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-neutral-900">Company name <span className="text-red-600">*</span></label>
-        <FormInput value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
-      </div>
+      <SectionCard title="Company" required>
+        <FormField label="Company name" required htmlFor="companyName">
+          <FormInput
+            id="companyName"
+            value={values.companyName}
+            onChange={(e) => updateField("companyName", e.target.value)}
+            required
+          />
+        </FormField>
+      </SectionCard>
 
-      <fieldset className="space-y-4">
-        <legend className="mb-1 block text-sm font-medium text-neutral-900">Registered address</legend>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-neutral-900">Line 1 <span className="text-red-600">*</span></label>
-          <FormInput value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} required />
+      <SectionCard title="Registered address" required>
+        <div className="grid gap-4">
+          <FormField label="Address line 1" required htmlFor="addressLine1">
+            <FormInput
+              id="addressLine1"
+              value={values.addressLine1}
+              onChange={(e) => updateField("addressLine1", e.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="Address line 2" htmlFor="addressLine2">
+            <FormInput
+              id="addressLine2"
+              value={values.addressLine2}
+              onChange={(e) => updateField("addressLine2", e.target.value)}
+            />
+          </FormField>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField label="City" htmlFor="city" required>
+              <FormInput id="city" value={values.city} onChange={(e) => updateField("city", e.target.value)} required />
+            </FormField>
+
+            <FormField label="Pin / ZIP" htmlFor="pinCode" required>
+              <FormInput
+                id="pinCode"
+                value={values.pinCode}
+                onChange={(e) => updateField("pinCode", e.target.value.replace(/\D/g, "").slice(0, 10))}
+                inputMode="numeric"
+                required
+              />
+            </FormField>
+          </div>
         </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-neutral-900">Line 2</label>
-          <FormInput value={addressLine2} onChange={(e) => setAddressLine2(e.target.value)} />
+      </SectionCard>
+
+      <SectionCard title="Contacts" required>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <FormField label="Primary email" required htmlFor="primaryEmail">
+            <FormInput
+              id="primaryEmail"
+              type="email"
+              autoComplete="email"
+              value={values.primaryEmail}
+              onChange={(e) => updateField("primaryEmail", e.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="Secondary email" htmlFor="secondaryEmail">
+            <FormInput
+              id="secondaryEmail"
+              type="email"
+              autoComplete="email"
+              value={values.secondaryEmail}
+              onChange={(e) => updateField("secondaryEmail", e.target.value)}
+            />
+          </FormField>
+          <FormField label="Phone" required htmlFor="localPhone" className="lg:col-span-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <FormSelect
+                aria-label="Country code"
+                value={countryCode}
+                onChange={(e) => setCountryCode(e.target.value)}
+                className="sm:max-w-[11rem]"
+              >
+                {PHONE_COUNTRY_CODES.map((entry) => (
+                  <option key={entry.code} value={entry.code}>
+                    {entry.label}
+                  </option>
+                ))}
+              </FormSelect>
+              <FormInput
+                id="localPhone"
+                value={localPhone}
+                onChange={(e) => setLocalPhone(e.target.value.replace(/\D/g, "").slice(0, 15))}
+                inputMode="numeric"
+                autoComplete="tel-national"
+                placeholder="Phone number"
+                required
+                className="flex-1"
+              />
+            </div>
+          </FormField>
         </div>
+      </SectionCard>
+
+      <SectionCard title="Authorized representative">
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-neutral-900">City</label>
-            <FormInput value={city} onChange={(e) => setCity(e.target.value)} />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-neutral-900">Pin / ZIP</label>
-            <FormInput value={pinCode} onChange={(e) => setPinCode(e.target.value)} />
-          </div>
+          <FormField label="Name" htmlFor="repName" required>
+            <FormInput
+              id="repName"
+              required
+              value={values.repName}
+              onChange={(e) => updateField("repName", e.target.value)}
+            />
+          </FormField>
+          <FormField label="Email" htmlFor="repEmail" required>
+            <FormInput
+              id="repEmail"
+              type="email"
+              autoComplete="email"
+              required
+              value={values.repEmail}
+              onChange={(e) => updateField("repEmail", e.target.value)}
+            />
+          </FormField>
         </div>
-      </fieldset>
+      </SectionCard>
 
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-neutral-900">Primary contact email <span className="text-red-600">*</span></label>
-        <FormInput value={primaryEmail} onChange={(e) => setPrimaryEmail(e.target.value)} type="email" required />
-      </div>
+      <SectionCard title="Verification documents" required>
+        <BrandVerificationDocuments
+          documents={documents}
+          disabled={disabled}
+          onChange={(next) => {
+            setDocuments(next);
+            onDocumentsChange?.(next);
+          }}
+        />
+      </SectionCard>
 
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-neutral-900">Secondary contact email <span className="text-red-600">*</span></label>
-        <FormInput value={secondaryEmail} onChange={(e) => setSecondaryEmail(e.target.value)} type="email" required />
-      </div>
-
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-neutral-900">Phone <span className="text-red-600">*</span></label>
-        <FormInput value={phone} onChange={(e) => setPhone(e.target.value)} required />
-      </div>
-
-      <fieldset className="space-y-4">
-        <legend className="mb-1 block text-sm font-medium text-neutral-900">Representative</legend>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-neutral-900">Name</label>
-          <FormInput value={repName} onChange={(e) => setRepName(e.target.value)} />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-neutral-900">Email</label>
-          <FormInput value={repEmail} onChange={(e) => setRepEmail(e.target.value)} type="email" />
-        </div>
-      </fieldset>
-
-      <div>
-        <label className="mb-1.5 block text-sm font-medium text-neutral-900">Verification documents</label>
-        <p className="mb-2 text-xs text-neutral-600">Upload government-registered filings like MCA (India) or equivalent. You’ll be prompted to select files after saving — uploads are stored in Vault.</p>
-        <p className="text-xs text-neutral-600">(This UI saves the metadata and triggers the file upload flow from the brand vault.)</p>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <button type="submit" disabled={disabled} className={cx(solidButtonVariants({ size: "lg" }), "w-full sm:w-auto")}>
+      <div className="flex flex-wrap items-center gap-3 border-t border-neutral-200/90 pt-6 pb-24">
+        <button
+          type="submit"
+          disabled={disabled}
+          className={cx(solidButtonVariants({ size: "lg" }), "min-w-[9rem]")}
+        >
           {submitting ? "Saving…" : "Save profile"}
         </button>
       </div>

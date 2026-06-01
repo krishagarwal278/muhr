@@ -183,8 +183,8 @@ export default function Terms() {
               <Link href="/privacy" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
                 Privacy Policy
               </Link>
-              , which describes how we collect, use, and protect your personal information. By using
-              the Platform, you consent to our data practices as described in the Privacy Policy.
+              , which describes how we collect, process, store, transfer, retain, and protect your personal data, and 
+              your rights under applicable law.
             </p>
             <p className="mt-3">We implement industry-standard security measures to protect your data, including:</p>
             <ul className="mt-3 space-y-2 pl-4">

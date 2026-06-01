@@ -1,0 +1,119 @@
+import { z } from "zod";
+import { redactPII } from "./redact";
+
+export const ReviewIssueSchema = z.object({
+  id: z.string(),
+  clause: z.string().optional(),
+  severity: z.enum(["info", "warning", "critical"]),
+  message: z.string(),
+  suggestion: z.string().optional(),
+  snippet: z.string().optional(),
+});
+
+export const ReviewResponseSchema = z.object({
+  summary: z.string(),
+  issues: z.array(ReviewIssueSchema),
+});
+
+export type ReviewResponse = z.infer<typeof ReviewResponseSchema>;
+
+async function callOpenAI(payload: unknown) {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY not set");
+
+  const body = typeof payload === "string" ? payload : JSON.stringify(payload as Record<string, unknown>);
+
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${key}`,
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`OpenAI error: ${res.status} ${res.statusText} \n${txt}`);
+  }
+  return res.json();
+}
+
+export function tiptapToPlainText(doc: unknown): string {
+  function walk(node: unknown): string {
+    if (!node) return "";
+    if (typeof node === "string") return node;
+    if (Array.isArray(node)) return node.map(walk).join("");
+    if (typeof node === "object" && node !== null) {
+      const n = node as Record<string, unknown>;
+      const type = typeof n.type === "string" ? n.type : undefined;
+      if (typeof n.text === "string") return n.text;
+      if (type === "paragraph" || type === "heading") {
+        const inner = Array.isArray(n.content) ? n.content.map(walk).join("") : "";
+        return inner + "\n\n";
+      }
+      if (type === "bulletList" || type === "orderedList") {
+        const arr = Array.isArray(n.content) ? n.content : [];
+        return arr.map((item) => walk(item)).join("\n") + "\n";
+      }
+      if (type === "listItem") {
+        const arr = Array.isArray(n.content) ? n.content : [];
+        return "- " + arr.map(walk).join("") + "\n";
+      }
+      const arr = Array.isArray(n.content) ? n.content : [];
+      return arr.map(walk).join("");
+    }
+    return "";
+  }
+
+  if (typeof doc !== "object" || doc === null) return "";
+  const d = doc as { content?: unknown[] };
+  if (Array.isArray(d.content)) return d.content.map(walk).join("");
+  return JSON.stringify(doc);
+}
+
+export async function runLegalReview(
+  plainText: string,
+  metadata: Record<string, unknown> | null = null
+): Promise<ReviewResponse> {
+  const model = process.env.OPENAI_MODEL ?? "gpt-3.5-turbo";
+  const redact = process.env.AI_REDACT === "true";
+  const textToSend = redact ? redactPII(plainText) : plainText;
+
+  const system = `You are a helpful contract reviewer assistant. Given a plain-text license contract, identify potential issues categorized by clause (Approvals, Deliverables, IP, Warranties, Indemnity, Payment, Duration, Budget, Usage, Other). Return JSON only, matching this shape: {"summary":"short TL;DR", "issues":[{"id":"uuid-or-short","clause":"Approvals","severity":"info|warning|critical","message":"explain risk in plain language","suggestion":"suggested replacement text (optional)","snippet":"contract excerpt (optional)"}]} Do not include any other text.`;
+
+  const metadataBlock = metadata ? `Contract metadata:\n${JSON.stringify(metadata)}\n\n` : "";
+  const user = `${metadataBlock}Contract:\n\n${textToSend}\n\nRespond with JSON only.`;
+
+  const payload = {
+    model,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    temperature: 0,
+    max_tokens: 1200,
+  };
+
+  const json = await callOpenAI(payload);
+  const assistant = String(json?.choices?.[0]?.message?.content ?? "");
+  if (!assistant) throw new Error("No assistant content returned");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(assistant);
+  } catch {
+    const m = assistant.match(/\{[\s\S]*\}$/);
+    if (m) {
+      try {
+        parsed = JSON.parse(m[0]);
+      } catch {
+        throw new Error("Failed to parse JSON from model response");
+      }
+    } else {
+      throw new Error("Failed to parse JSON from model response");
+    }
+  }
+
+  return ReviewResponseSchema.parse(parsed);
+}

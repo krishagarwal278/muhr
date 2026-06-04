@@ -21,6 +21,18 @@ export function VaultAssetActions({ asset }: { asset: AssetWithUrl }) {
     return <DeleteAssetButton assetId={asset.id} />;
   }
 
+  if (asset.asset_type === "voice_sample") {
+    return (
+      <div className="flex flex-col gap-2 pt-2 sm:flex-row">
+        <DeleteAssetButton
+          assetId={asset.id}
+          label="Delete voice sample"
+          confirmDescription="This voice sample will be permanently removed from your vault."
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-2 pt-2 sm:flex-row">
       {asset.signed_url && asset.asset_type === "face_photo" && !asset.encryption_key_id ? (

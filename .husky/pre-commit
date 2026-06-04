@@ -1,2 +1,3 @@
-npm run build
-npm run check
+#!/usr/bin/env sh
+set -e
+sh scripts/with-node.sh sh -c 'next build && sh scripts/check.sh'

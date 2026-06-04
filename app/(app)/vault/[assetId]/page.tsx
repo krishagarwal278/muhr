@@ -6,6 +6,7 @@ import { cookies } from "next/headers";
 import { VaultAssetActions } from "@/components/vault/VaultAssetActions";
 import { CharacterSheetExport } from "@/components/vault/CharacterSheetExport";
 import { DecryptedFacePhoto } from "@/components/vault/DecryptedFacePhoto";
+import { DecryptedVoiceSample } from "@/components/vault/DecryptedVoiceSample";
 
 async function getAsset(assetId: string) {
   const cookieStore = await cookies();
@@ -139,6 +140,28 @@ export default async function AssetDetailPage({
                 sizes="(max-width: 768px) 100vw, 672px"
                 className="object-contain"
               />
+            </div>
+          )}
+
+          {asset.signed_url && asset.asset_type === "voice_sample" && asset.encryption_key_id && (
+            <DecryptedVoiceSample
+              signedUrl={asset.signed_url}
+              meta={{
+                encryption_version: 1,
+                encryption_alg: "AES-256-GCM",
+                encryption_iv_b64: asset.encryption_iv,
+                wrapped_data_key_b64: asset.wrapped_data_key,
+                wrapped_key_iv_b64: asset.wrapped_key_iv,
+                wrapped_key_salt_b64: asset.wrapped_key_salt,
+                original_file_name: asset.original_file_name ?? asset.file_name,
+                original_mime_type: asset.original_mime_type ?? "audio/webm",
+              }}
+            />
+          )}
+
+          {asset.signed_url && asset.asset_type === "voice_sample" && !asset.encryption_key_id && (
+            <div className="border-b border-black/10 bg-neutral-950 px-4 py-8">
+              <audio src={asset.signed_url} controls className="w-full" />
             </div>
           )}
 

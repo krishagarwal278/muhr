@@ -1,24 +1,16 @@
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
+import { getMiddlewareUserFromCookies } from "@/lib/auth/middlewareSessionFromCookies";
+
+type CookieLike = { name: string; value: string };
 
 /**
- * `getUser()` validates the JWT with Supabase over the network. In Edge middleware that
- * request can fail intermittently (`fetch failed`, DNS blips, local Supabase not running).
- * Fall back to `getSession()`, which reads the session the SSR client stored in cookies.
+ * Middleware auth must not call Supabase over the network: `getUser()` and expired
+ * `getSession()` both trigger refresh fetches that often fail on Edge (`fetch failed`).
+ * Read the SSR session from cookies instead; API routes refresh tokens on Node.
  */
-export async function getUserForMiddleware(supabase: SupabaseClient): Promise<User | null> {
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error) throw error;
-    return user;
-  } catch (err) {
-    console.warn("[middleware] supabase.auth.getUser failed; falling back to getSession", err);
-    try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) throw sessionError;
-      return session?.user ?? null;
-    } catch (sessionErr) {
-      console.warn("[middleware] supabase.auth.getSession failed after getUser error", sessionErr);
-      return null;
-    }
-  }
+export function getUserForMiddleware(
+  cookies: CookieLike[],
+  supabaseUrl: string
+): User | null {
+  return getMiddlewareUserFromCookies(cookies, supabaseUrl);
 }

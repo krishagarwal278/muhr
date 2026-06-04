@@ -7,6 +7,7 @@ import { ProfileCompletionCard } from "@/components/profile/ProfileCompletionCar
 import type { ProfileCompletionItem } from "@/lib/profile/completion";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { VaultGridAssetCard, VaultRowAssetCard } from "@/components/vault/AssetCard";
+import { VoiceSampleAssetCard } from "@/components/vault/VoiceSampleAssetCard";
 import { CharacterSheetForge } from "@/components/vault/CharacterSheetForge";
 import type { CharacterSheetStatusResponse } from "@/lib/character-sheet/types";
 import type { KycStatus, VaultAsset } from "@/types";
@@ -14,9 +15,14 @@ import type { CreatorSecurityState } from "@/types/vault";
 import { completionFromApiJson } from "@/lib/api/profilePayload";
 import { characterSheetFromApiJson, vaultListFromApiJson } from "@/lib/api/vaultPayload";
 import { vaultArchiveItemCount } from "@/components/vault/VaultArchiveSection";
-import { ghostButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
+import {
+  ghostButtonVariants,
+  outlineButtonVariants,
+  solidButtonVariants,
+} from "@/components/ui/button-recipes";
 import { cx } from "@/lib/cx";
 import { isVaultGalleryFacePhoto } from "@/lib/vault/assetFilters";
+import { VaultCategoryTabs, type VaultCategoryTab } from "@/components/vault/VaultCategoryTabs";
 
 interface AssetWithUrl extends VaultAsset {
   signed_url: string | null;
@@ -31,6 +37,7 @@ export default function VaultPage() {
   const [profilePercent, setProfilePercent] = useState(0);
   const [profileItems, setProfileItems] = useState<ProfileCompletionItem[]>([]);
   const [characterSheet, setCharacterSheet] = useState<CharacterSheetStatusResponse | null>(null);
+  const [activeTab, setActiveTab] = useState<VaultCategoryTab>("face");
 
   useEffect(() => {
     fetchAssets();
@@ -194,15 +201,10 @@ export default function VaultPage() {
             </span>
           </div>
         </div>
-        <div className="rounded-xl border border-black/10 bg-white p-5">
+        <div className="rounded-xl border border-sky-200/60 bg-gradient-to-br from-sky-50/50 to-emerald-50/30 p-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-neutral-900/70">Voice samples</span>
-              <span className="rounded bg-black/5 px-1.5 py-0.5 text-[10px] font-medium text-neutral-900/60">
-                Coming soon
-              </span>
-            </div>
-            <span className="rounded-full bg-black/5 px-2 py-0.5 text-xs font-medium text-neutral-950">
+            <span className="text-sm font-medium text-sky-950">Voice samples</span>
+            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-900">
               {loading ? (
                 <span className="inline-block h-4 w-6 animate-pulse rounded bg-black/10" />
               ) : (
@@ -249,15 +251,17 @@ export default function VaultPage() {
           </div>
           <h3 className="text-lg font-medium">No assets yet</h3>
           <p className="mt-1 max-w-sm text-center text-sm text-neutral-900/60">
-            Upload photos to secure your identity and enable licensing.
+            Upload face photos or record a voice sample to secure your identity for licensing.
           </p>
           {kycVerified ? (
-            <Link
-              href="/vault/upload"
-              className={cx(solidButtonVariants(), "mt-6")}
-            >
-              Upload your first asset
-            </Link>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link href="/vault/upload" className={solidButtonVariants()}>
+                Upload photos
+              </Link>
+              <Link href="/vault/voice" className={outlineButtonVariants()}>
+                Record voice
+              </Link>
+            </div>
           ) : (
             <Link
               href="/profile#identity-verification"
@@ -270,7 +274,39 @@ export default function VaultPage() {
       ) : (
         <TooltipProvider>
           <div className="space-y-6">
-            {showVaultGallery && (
+            <VaultCategoryTabs
+              active={activeTab}
+              onChange={setActiveTab}
+              counts={{
+                face: facePhotoCount,
+                voice: voiceSamples.length,
+                documents: documents.length,
+                sheetLabel: characterSheets.length > 0
+                  ? "Sealed"
+                  : characterSheet?.eligible
+                    ? "Ready"
+                    : "Locked",
+              }}
+            />
+
+            {activeTab === "sheet" && (
+              <div className="space-y-4">
+                <h2 className="text-lg font-semibold text-neutral-950">Character sheet</h2>
+                {characterSheets.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                    {characterSheets.map((asset) => (
+                      <VaultGridAssetCard key={asset.id} asset={asset} creator={creatorSecurity} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-600">
+                    Build and seal your sheet from the banner above when your profile is complete.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {activeTab === "face" && (
               <div>
                 <h2 className="mb-2 text-lg font-semibold text-neutral-950">Face photos</h2>
                 <p className="mb-4 text-sm text-neutral-600">
@@ -280,25 +316,87 @@ export default function VaultPage() {
                   </Link>
                   .
                 </p>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-                  {vaultFacePhotos.map((asset) => (
-                    <VaultGridAssetCard key={asset.id} asset={asset} creator={creatorSecurity} />
-                  ))}
-                  {characterSheets.map((asset) => (
-                    <VaultGridAssetCard key={asset.id} asset={asset} creator={creatorSecurity} />
-                  ))}
-                </div>
+                {showVaultGallery && vaultFacePhotos.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                    {vaultFacePhotos.map((asset) => (
+                      <VaultGridAssetCard key={asset.id} asset={asset} creator={creatorSecurity} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-neutral-300 py-12 text-center">
+                    <p className="text-sm text-neutral-600">No face photos in Vault yet.</p>
+                    {kycVerified ? (
+                      <Link href="/vault/upload" className={cx(solidButtonVariants(), "mt-4 inline-flex")}>
+                        Upload photos
+                      </Link>
+                    ) : null}
+                  </div>
+                )}
               </div>
             )}
 
-            {voiceSamples.length > 0 && (
+            {activeTab === "voice" && (
               <div>
-                <h2 className="mb-4 text-lg font-medium">Voice samples</h2>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {voiceSamples.map((asset) => (
-                    <VaultRowAssetCard key={asset.id} asset={asset} creator={creatorSecurity} />
-                  ))}
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-neutral-950">Voice samples</h2>
+                    <p className="mt-1 text-sm text-neutral-600">
+                      Record with the scrolling script or upload a clip (45 seconds to 2 minutes). Encrypted in your
+                      Vault for voice licensing.
+                    </p>
+                  </div>
+                  {kycVerified ? (
+                    <Link href="/vault/voice" className={cx(solidButtonVariants(), "shrink-0 justify-center gap-2")}>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+                      </svg>
+                      Record sample
+                    </Link>
+                  ) : null}
                 </div>
+                {voiceSamples.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {voiceSamples.map((asset) => (
+                      <VoiceSampleAssetCard
+                        key={asset.id}
+                        asset={asset}
+                        creator={creatorSecurity}
+                        onDeleted={() => void fetchAssets()}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-sky-200 bg-sky-50/40 py-12 text-center">
+                    <p className="text-sm text-neutral-700">No voice samples yet — add one for voice licensing.</p>
+                    {kycVerified ? (
+                      <Link href="/vault/voice" className={cx(solidButtonVariants(), "mt-4 inline-flex")}>
+                        Record a sample
+                      </Link>
+                    ) : (
+                      <Link
+                        href="/profile#identity-verification"
+                        className="mt-4 inline-flex rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-2 text-sm font-medium text-neutral-900"
+                      >
+                        Verify identity to record
+                      </Link>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "documents" && (
+              <div>
+                <h2 className="mb-4 text-lg font-semibold text-neutral-950">Documents</h2>
+                {documents.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {documents.map((asset) => (
+                      <VaultRowAssetCard key={asset.id} asset={asset} creator={creatorSecurity} />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-600">No documents uploaded yet.</p>
+                )}
               </div>
             )}
           </div>

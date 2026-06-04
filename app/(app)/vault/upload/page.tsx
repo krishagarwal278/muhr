@@ -278,20 +278,18 @@ export default function VaultUploadPage() {
                 <h3 className="font-medium">Face photos</h3>
                 <p className="mt-1 text-sm text-neutral-700">Stored in plain view in your Vault (not encrypted)</p>
               </button>
-              <div
-                className="relative rounded-xl border border-black/10 bg-white/70 p-5 text-left opacity-50"
+              <Link
+                href="/vault/voice"
+                className="rounded-xl border border-black/10 bg-white/70 p-5 text-left transition hover:border-black/15 hover:bg-white"
               >
-                <div className="absolute right-3 top-3 rounded bg-black/[0.03] px-2 py-0.5 text-[10px] font-medium text-neutral-900/60">
-                  Coming soon
-                </div>
                 <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-black/[0.03]">
                   <svg className="h-5 w-5 text-neutral-900/70" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
                   </svg>
                 </div>
                 <h3 className="font-medium">Voice samples</h3>
-                <p className="mt-1 text-sm text-neutral-700">Upload audio recordings of your voice</p>
-              </div>
+                <p className="mt-1 text-sm text-neutral-700">Record with autoscroll script (encrypted)</p>
+              </Link>
             </div>
           </div>
         )}

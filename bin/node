@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+set -e
+ROOT="$(CDPATH= cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=scripts/resolve-node.sh
+. "$ROOT/scripts/resolve-node.sh"
+exec node "$@"

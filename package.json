@@ -2,13 +2,16 @@
   "name": "Muhr",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
-    "dev": "PATH=/usr/local/bin:$PATH next dev",
-    "build": "PATH=/usr/local/bin:$PATH next build",
-    "start": "PATH=/usr/local/bin:$PATH next start",
-    "lint": "PATH=/usr/local/bin:$PATH eslint .",
-    "typecheck": "PATH=/usr/local/bin:$PATH tsc --noEmit",
-    "test": "PATH=/usr/local/bin:$PATH vitest run",
+    "dev": "bash scripts/with-project-node.sh next dev",
+    "build": "bash scripts/with-project-node.sh next build",
+    "start": "bash scripts/with-project-node.sh next start",
+    "lint": "bash scripts/with-project-node.sh eslint .",
+    "typecheck": "bash scripts/with-project-node.sh tsc --noEmit",
+    "test": "bash scripts/with-project-node.sh vitest run",
     "check": "npm run lint && npm run typecheck && npm run test",
     "db:print-license-contract-sql": "node -e \"process.stdout.write(require('fs').readFileSync('supabase/migrations/005_license_contract.sql','utf8'))\"",
     "prepare": "husky"

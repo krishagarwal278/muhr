@@ -162,7 +162,6 @@ export default function ProfilePage() {
         <div className="mt-4 space-y-4">
           {[
             { label: "License requests", description: "When someone wants to license your likeness" },
-            { label: "Enforcement updates", description: "Status changes on your cases" },
             { label: "New detections", description: "When we find potential misuse" },
           ].map((item) => (
             <div key={item.label} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

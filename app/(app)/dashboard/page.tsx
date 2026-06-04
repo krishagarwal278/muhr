@@ -18,7 +18,6 @@ import { dataFromApiJson } from "@/lib/api/response";
 interface DashboardStats {
   vaultAssets: number;
   activeLicenses: number;
-  openCases: number;
   hasAssets: boolean;
   pendingLicenseRequests: number;
 }
@@ -44,7 +43,6 @@ async function parseApiJson(
 const quickActions = [
   { title: "Upload assets", href: "/vault/upload", icon: "upload" },
   { title: "Consent rules", href: "/consent", icon: "shield" },
-  { title: "Report misuse", href: "/enforcement", icon: "alert" },
 ];
 
 function ActionIcon({ name, className }: { name: string; className?: string }) {
@@ -59,11 +57,6 @@ function ActionIcon({ name, className }: { name: string; className?: string }) {
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
       </svg>
     ),
-    alert: (
-      <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-      </svg>
-    ),
   };
   return <>{icons[name]}</>;
 }
@@ -74,7 +67,6 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({
     vaultAssets: 0,
     activeLicenses: 0,
-    openCases: 0,
     hasAssets: false,
     pendingLicenseRequests: 0,
   });
@@ -95,22 +87,19 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [vaultRes, licensesRes, enforcementRes, identityRes, profileRes] = await Promise.all([
+        const [vaultRes, licensesRes, identityRes, profileRes] = await Promise.all([
           fetch("/api/vault"),
           fetch("/api/licenses"),
-          fetch("/api/enforcement"),
           fetch("/api/identity"),
           fetch("/api/profile"),
         ]);
 
-        const [vaultData, licensesData, enforcementData, identityData, profileData] =
-          await Promise.all([
-            parseApiJson(vaultRes, "vault"),
-            parseApiJson(licensesRes, "licenses"),
-            parseApiJson(enforcementRes, "enforcement"),
-            parseApiJson(identityRes, "identity"),
-            parseApiJson(profileRes, "profile"),
-          ]);
+        const [vaultData, licensesData, identityData, profileData] = await Promise.all([
+          parseApiJson(vaultRes, "vault"),
+          parseApiJson(licensesRes, "licenses"),
+          parseApiJson(identityRes, "identity"),
+          parseApiJson(profileRes, "profile"),
+        ]);
 
         const counts = licensesData.counts as { pending?: number; accepted?: number } | undefined;
         const pendingFromCounts = typeof counts?.pending === "number" ? counts.pending : undefined;
@@ -121,15 +110,10 @@ export default function DashboardPage() {
         const activeLicenseCount = Array.isArray(licensesData.active)
           ? licensesData.active.length
           : 0;
-        const openCaseCount = Array.isArray(enforcementData.open)
-          ? enforcementData.open.length
-          : 0;
-
         setStats({
           vaultAssets: vaultAssetCount,
           activeLicenses:
             typeof counts?.accepted === "number" ? counts.accepted : activeLicenseCount,
-          openCases: openCaseCount,
           hasAssets: vaultAssetCount > 0,
           pendingLicenseRequests: pendingFromCounts ?? pendingLen,
         });
@@ -159,7 +143,6 @@ export default function DashboardPage() {
     { label: "Vault assets", value: stats.vaultAssets, href: "/vault" },
     { label: "Accepted", value: stats.activeLicenses, href: "/licenses" },
     { label: "Pending", value: stats.pendingLicenseRequests, href: "/licenses" },
-    { label: "Open cases", value: stats.openCases, href: "/enforcement" },
   ];
 
   return (
@@ -232,7 +215,7 @@ export default function DashboardPage() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {statCards.map((stat) => (
           <Link
             key={stat.label}
@@ -344,7 +327,7 @@ export default function DashboardPage() {
 
       {/* Quick actions */}
       <div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {quickActions.map((action) => (
             <Link
               key={action.title}

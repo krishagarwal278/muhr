@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { defaultContractDocFromRequest } from "@/lib/license/defaultContractDoc";
+import { LegalReviewModal } from "./LegalReviewModal";
 import { primaryButtonVariants } from "@/components/ui/button-recipes";
 import type { LicenseRequestRow } from "@/types/license";
 import "./contract-editor.css";
@@ -35,6 +36,7 @@ export function LicenseContractEditor({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [restoredNotice, setRestoredNotice] = useState(false);
+  const [showReview, setShowReview] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pdfCaptureRef = useRef<HTMLDivElement>(null);
@@ -408,6 +410,13 @@ export function LicenseContractEditor({
         >
           Print
         </button>
+        <button
+          type="button"
+          onClick={() => setShowReview(true)}
+          className="rounded-md border border-black/10 bg-white px-2 py-1 text-xs text-neutral-900 hover:bg-neutral-50"
+        >
+          AI Legal Review
+        </button>
         <span className="mx-1 hidden h-4 w-px bg-black/10 sm:inline" aria-hidden />
         {!readOnly ? (
           <>
@@ -445,6 +454,14 @@ export function LicenseContractEditor({
           Autosave keeps a local draft · use the toolbar to sync to your account or export for signing outside
           Muhr
         </p>
+      ) : null}
+
+      {showReview ? (
+        <LegalReviewModal
+          requestId={request.id}
+          contractText={editor?.getJSON() ?? request.contract_body}
+          onClose={() => setShowReview(false)}
+        />
       ) : null}
     </div>
   );

@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+/node_modules._trash.*
 /.pnp
 .pnp.*
 .yarn/*

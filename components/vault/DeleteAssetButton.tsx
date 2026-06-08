@@ -10,12 +10,15 @@ export function DeleteAssetButton({
   label = "Delete asset",
   variant = "default",
   redirectHref = "/vault",
+  confirmDescription = "This asset will be permanently removed. This cannot be undone.",
   onDeleted,
 }: {
   assetId: string;
   label?: string;
   variant?: "default" | "compact" | "icon";
-  redirectHref?: string;
+  /** Set to `null` to stay on the current page after delete. */
+  redirectHref?: string | null;
+  confirmDescription?: string;
   onDeleted?: () => void;
 }) {
   const router = useRouter();
@@ -25,7 +28,7 @@ export function DeleteAssetButton({
 
   const buttonClass =
     variant === "icon"
-      ? "flex h-9 w-full items-center justify-center rounded-lg border border-red-200/80 bg-red-50 text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+      ? "flex h-8 w-8 items-center justify-center rounded-lg border border-red-200/80 bg-white/95 text-red-700 shadow-sm transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
       : variant === "compact"
         ? "w-full rounded-lg border border-red-200 bg-red-50 py-1.5 text-xs font-medium text-red-800 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
         : "w-full rounded-lg bg-red-500/10 py-2.5 text-sm font-medium text-red-400 transition hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-60";
@@ -43,14 +46,16 @@ export function DeleteAssetButton({
 
       setDialogOpen(false);
       onDeleted?.();
-      router.push(redirectHref);
+      if (redirectHref !== null) {
+        router.push(redirectHref ?? "/vault");
+      }
       router.refresh();
     });
   }
 
   return (
     <>
-      <div className={variant === "default" ? "flex-1" : variant === "icon" ? "flex-1" : undefined}>
+      <div className={variant === "default" ? "flex-1" : undefined}>
         <button
           type="button"
           disabled={pending}
@@ -83,7 +88,7 @@ export function DeleteAssetButton({
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         title="Delete permanently?"
-        description="This photo will be removed from your archive. This cannot be undone."
+        description={confirmDescription}
         confirmLabel="Delete"
         cancelLabel="Cancel"
         destructive

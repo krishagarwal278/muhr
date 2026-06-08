@@ -7,6 +7,8 @@ import { toApiError } from "@/lib/errors/apiError";
 import { logger } from "@/lib/logger";
 import { createRouteClient } from "@/lib/supabase/route";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { isAllowedVaultAudioMime } from "@/lib/vault/audioMime";
+import { vaultStorageContentType, vaultStorageFileExtension } from "@/lib/vault/uploadStorage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,7 +76,6 @@ export async function POST(request: Request) {
     }
 
     const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
-    const allowedAudioTypes = ["audio/mpeg", "audio/wav", "audio/mp4"];
     
     const effectiveMimeType = isEncrypted ? originalMimeType : file.type;
 
@@ -88,11 +89,31 @@ export async function POST(request: Request) {
       );
     }
 
-    if (assetType === "voice_sample" && !allowedAudioTypes.includes(effectiveMimeType)) {
-      return Response.json(
-        { ok: false, error: { code: "invalid_mime", message: "Invalid audio type. Use MP3, WAV, or M4A." } },
-        { status: 400 }
-      );
+    if (assetType === "voice_sample") {
+      if (!isEncrypted) {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code: "encryption_required",
+              message: "Voice samples must be encrypted before upload.",
+            },
+          },
+          { status: 400 }
+        );
+      }
+      if (!isAllowedVaultAudioMime(effectiveMimeType)) {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code: "invalid_mime",
+              message: "Invalid audio type. Use MP3 or MP4 only.",
+            },
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const maxSize =
@@ -109,7 +130,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const fileExt = file.name.split(".").pop();
+    const fileExt = vaultStorageFileExtension(
+      assetType,
+      file.name,
+      originalFileName,
+      isEncrypted,
+      effectiveMimeType
+    );
     const timestamp = Date.now();
     const randomId = crypto.randomBytes(8).toString("hex");
     const filePath = `${user.id}/${assetType}/${timestamp}-${randomId}.${fileExt}`;
@@ -118,17 +145,37 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(arrayBuffer);
     const hashSha256 = crypto.createHash("sha256").update(buffer).digest("hex");
 
-    const { error: uploadError } = await supabase.storage
+    const storageContentType = vaultStorageContentType(
+      assetType,
+      isEncrypted,
+      effectiveMimeType,
+      file.type
+    );
+
+    const storageClient = createServiceRoleClient() ?? supabase;
+    const { error: uploadError } = await storageClient.storage
       .from("assets")
       .upload(filePath, buffer, {
-        contentType: effectiveMimeType || "application/octet-stream",
+        contentType: storageContentType,
         upsert: false,
       });
 
     if (uploadError) {
-      logger.error("vault_upload_error", { userId: user.id, error: uploadError.message });
+      logger.error("vault_upload_error", {
+        userId: user.id,
+        assetType,
+        storageContentType,
+        fileExt,
+        error: uploadError.message,
+      });
       return Response.json(
-        { ok: false, error: { code: "upload_failed", message: "Failed to upload file" } },
+        {
+          ok: false,
+          error: {
+            code: "upload_failed",
+            message: uploadError.message || "Failed to upload file",
+          },
+        },
         { status: 500 }
       );
     }

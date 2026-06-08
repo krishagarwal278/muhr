@@ -63,7 +63,11 @@
     "@rollup/rollup-linux-x64-gnu": "4.61.0",
     "@swc/core-darwin-arm64": "1.15.3",
     "@swc/core-darwin-x64": "1.15.3",
-    "@swc/core-linux-x64-gnu": "1.15.3"
+    "@swc/core-linux-x64-gnu": "1.15.3",
+    "@tailwindcss/oxide-darwin-x64": "4.2.2",
+    "@tailwindcss/oxide-linux-x64-gnu": "4.2.2",
+    "lightningcss-darwin-x64": "1.32.0",
+    "lightningcss-linux-x64-gnu": "1.32.0"
   },
   "overrides": {
     "mixpart": "0.0.6",

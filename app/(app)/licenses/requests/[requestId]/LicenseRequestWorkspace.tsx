@@ -394,8 +394,8 @@ export function LicenseRequestWorkspace({
           </p>
           <p className="text-xs text-neutral-700">
             Questions?{" "}
-            <a href="mailto:support@muhr.app" className="font-medium text-emerald-800 hover:underline">
-              support@muhr.app
+            <a href="mailto:contact@muhr.app" className="font-medium text-emerald-800 hover:underline">
+              contact@muhr.app
             </a>
           </p>
         </div>

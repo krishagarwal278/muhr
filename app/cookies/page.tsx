@@ -114,8 +114,8 @@ export default function CookiePolicy() {
             <h2 className="mb-3 text-base font-semibold text-neutral-950">Contact</h2>
             <p>
               Cookie-related questions:{" "}
-              <a href="mailto:support@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
-                support@muhr.app
+              <a href="mailto:contact@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
+                contact@muhr.app
               </a>
             </p>
           </section>

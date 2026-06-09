@@ -96,8 +96,8 @@ export default function PrivacyPolicy() {
             </ul>
             <p className="mt-4">
               To exercise any of these rights, contact us at{" "}
-              <a href="mailto:support@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
-                support@muhr.app
+              <a href="mailto:contact@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
+                contact@muhr.app
               </a>
               .
             </p>
@@ -128,8 +128,8 @@ export default function PrivacyPolicy() {
             <h2 className="mb-3 text-base font-semibold text-neutral-950">8. Contact</h2>
             <p>
               For any privacy-related questions, contact{" "}
-              <a href="mailto:support@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
-                support@muhr.app
+              <a href="mailto:contact@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
+                contact@muhr.app
               </a>
               .
             </p>
@@ -243,8 +243,8 @@ export default function PrivacyPolicy() {
               <li className="flex gap-3">
                 <span className="shrink-0 text-neutral-900/40">—</span>
                 Email:{" "}
-                <a href="mailto:krishagarwal278@gmail.com" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
-                  krishagarwal278@gmail.com
+                <a href="mailto:contact@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
+                  contact@muhr.app
                 </a>
               </li>
               <li className="flex gap-3"><span className="shrink-0 text-neutral-900/40">—</span>Address: Mumbai, MH</li>

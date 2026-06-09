@@ -313,8 +313,8 @@ export function IncomingLicenseRequests() {
                 ) : null}
                 <p className="mt-2 text-[11px] text-neutral-700">
                   Questions?{" "}
-                  <a href="mailto:support@muhr.app" className="font-medium text-emerald-800 hover:underline">
-                    support@muhr.app
+                  <a href="mailto:contact@muhr.app" className="font-medium text-emerald-800 hover:underline">
+                    contact@muhr.app
                   </a>
                 </p>
                 <Link

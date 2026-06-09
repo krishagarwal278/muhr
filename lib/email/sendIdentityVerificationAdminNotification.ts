@@ -60,6 +60,10 @@ function fileKindLabel(kind: string): string {
     social_age: "Audience age screenshot",
     social_location: "Top locations screenshot",
   };
+  if (kind.startsWith("character_photo_")) {
+    const slot = kind.replace("character_photo_", "");
+    return `Character photo ${slot}`;
+  }
   return labels[kind] ?? kind;
 }
 

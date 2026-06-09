@@ -105,6 +105,7 @@ export function ProfileBasicsOnboarding({ userId }: { userId: string }) {
         </h1>
         <p className="mt-2 text-sm text-neutral-700">
           We need a few details before your guided tour. You can update these anytime in Profile.
+          Your Muhr pass and share link are created automatically from your account username.
         </p>
       </div>
 

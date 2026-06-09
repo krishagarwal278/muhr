@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { LicenseRequestPanel } from "@/components/marketing/LicenseRequestPanel";
 import { ProfileLinksDisplay } from "@/components/profile/ProfileLinksDisplay";
+import { MuhrPassQrCode } from "@/components/profile/MuhrPassQrCode";
 import {
   parsePublicProfileNavFrom,
   publicProfileBackNav,
@@ -58,7 +59,6 @@ export function PublicCreatorClient({
   }, [publicProfileUrl]);
 
   const muid = muidFromUserId(profile.id);
-  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(publicProfileUrl)}`;
 
   const setPreview = useCallback(
     (on: boolean) => {
@@ -112,13 +112,10 @@ export function PublicCreatorClient({
                 <p className="mt-0.5 font-mono text-[11px] tracking-wide text-zinc-200">{muid}</p>
               </div>
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element -- external QR API */}
-            <img
-              src={qrSrc}
-              alt=""
-              width={72}
-              height={72}
-              className="shrink-0 rounded-lg border border-white/10 bg-white p-1"
+            <MuhrPassQrCode
+              value={publicProfileUrl}
+              size={72}
+              className="shrink-0 rounded-lg border border-white/10"
             />
           </div>
           <p className="mt-4 break-all font-mono text-[11px] leading-relaxed text-zinc-300">

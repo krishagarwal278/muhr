@@ -5,6 +5,7 @@ import Link from "next/link";
 import { KycStatusBadge } from "@/components/KycStatusBadge";
 import type { KycStatus } from "@/types";
 import { profileFromApiJson } from "@/lib/api/profilePayload";
+import { MIN_CHARACTER_PHOTOS } from "@/lib/profile/completion";
 import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
 
 interface ManualIdentityVerificationProps {
@@ -19,17 +20,28 @@ export function ManualIdentityVerification({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [profileBasicsComplete, setProfileBasicsComplete] = useState<boolean | null>(null);
+  const [characterPhotoCount, setCharacterPhotoCount] = useState<number | null>(null);
   const [handle, setHandle] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await fetch("/api/profile");
-      const data = profileFromApiJson(await res.json().catch(() => null));
-      if (!cancelled && res.ok && data) {
-        setProfileBasicsComplete(data.profileBasicsComplete === true);
-        setHandle(typeof data.handle === "string" && data.handle.trim() ? data.handle.trim() : null);
+      const [profileRes, photosRes] = await Promise.all([
+        fetch("/api/profile"),
+        fetch("/api/profile/character-photos"),
+      ]);
+      const profileData = profileFromApiJson(await profileRes.json().catch(() => null));
+      const photosData = photosRes.ok ? await photosRes.json().catch(() => null) : null;
+
+      if (!cancelled) {
+        if (profileRes.ok && profileData) {
+          setHandle(typeof profileData.handle === "string" && profileData.handle.trim() ? profileData.handle.trim() : null);
+        }
+        if (photosRes.ok && photosData?.data) {
+          setCharacterPhotoCount(typeof photosData.data.count === "number" ? photosData.data.count : 0);
+        } else if (photosRes.ok && photosData) {
+          setCharacterPhotoCount(typeof photosData.count === "number" ? photosData.count : 0);
+        }
       }
     })();
     return () => {
@@ -56,7 +68,9 @@ export function ManualIdentityVerification({
       setSuccessMsg(
         typeof data.message === "string"
           ? data.message
-          : "Thanks — our team will review your profile and reach out if needed."
+          : typeof data.data?.message === "string"
+            ? data.data.message
+            : "Thanks — our team will review your photos and reach out if needed."
       );
     } catch {
       setError("Network error. Please try again.");
@@ -84,26 +98,29 @@ export function ManualIdentityVerification({
         <h3 className="text-lg font-medium text-amber-950">Review in progress</h3>
         <p className="mt-2 max-w-md text-sm text-amber-900/80">
           {successMsg ??
-            "Our team is reviewing your public profile and account details. We may contact you to confirm anything."}
+            "Our team is reviewing your character photos, public profile, and account details. We may contact you to confirm anything."}
         </p>
         <KycStatusBadge status="pending" className="mt-4" />
       </div>
     );
   }
 
-  const canSubmit = profileBasicsComplete === true && handle != null;
+  const characterPhotosComplete =
+    characterPhotoCount != null && characterPhotoCount >= MIN_CHARACTER_PHOTOS;
+  const canSubmit = characterPhotosComplete && handle != null;
+  const requirementsLoaded = characterPhotoCount != null;
 
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-sky-200/80 bg-sky-50/80 px-4 py-3 text-sm text-sky-950">
-        <p className="font-medium">Identity verification — no document uploads</p>
+        <p className="font-medium">Identity verification</p>
         <p className="mt-1 text-sky-900/90">
-          We verify creators by checking your public profile, Muhr handle, and the details in{" "}
-          <Link href="/profile#profile-overview" className="font-medium underline-offset-2 hover:underline">
-            Profile overview
+          Upload {MIN_CHARACTER_PHOTOS} high-quality character photos in{" "}
+          <Link href="/profile#complete-profile" className="font-medium underline-offset-2 hover:underline">
+            Complete your profile
           </Link>
-          . We may reach out by phone or email if we need anything else — no selfies or screenshot uploads
-          required.
+          , then submit here. Our team reviews your photos, Muhr handle, and profile details before approving
+          verification.
         </p>
       </div>
 
@@ -113,20 +130,23 @@ export function ManualIdentityVerification({
 
       <ul className="space-y-2 text-sm text-neutral-800">
         <ChecklistItem
-          done={profileBasicsComplete === true}
-          label="Profile overview complete (name, phone, address, followers)"
+          done={characterPhotosComplete}
+          label={`${MIN_CHARACTER_PHOTOS} character photos uploaded for review`}
+          hint={
+            characterPhotoCount != null
+              ? `${characterPhotoCount} of ${MIN_CHARACTER_PHOTOS} uploaded`
+              : "Upload in Complete your profile"
+          }
         />
         <ChecklistItem
           done={handle != null}
           label="Muhr handle set"
-          hint={handle ? `@${handle}` : "Add in Profile → Profile"}
+          hint={handle ? `@${handle}` : "Created automatically when your profile loads"}
         />
       </ul>
 
-      {!canSubmit && profileBasicsComplete !== null ? (
-        <p className="text-sm text-neutral-600">
-          Complete the items above to submit for review.
-        </p>
+      {!canSubmit && requirementsLoaded ? (
+        <p className="text-sm text-neutral-600">Complete the items above to submit for review.</p>
       ) : null}
 
       {canSubmit ? (
@@ -140,10 +160,10 @@ export function ManualIdentityVerification({
         </button>
       ) : (
         <Link
-          href="/profile#profile-overview"
+          href={characterPhotosComplete ? "/profile#profile-overview" : "/profile#complete-profile"}
           className={outlineButtonVariants({ size: "lg" })}
         >
-          Complete profile overview
+          {characterPhotosComplete ? "Complete remaining steps" : "Upload character photos"}
         </Link>
       )}
     </div>

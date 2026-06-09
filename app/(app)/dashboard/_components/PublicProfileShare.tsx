@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { primaryButtonVariants } from "@/components/ui/button-recipes";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
 import { ProfileLinksDisplay } from "@/components/profile/ProfileLinksDisplay";
+import { MuhrPassQrCode } from "@/components/profile/MuhrPassQrCode";
 import { cx } from "@/lib/cx";
 import { getPublicShareableSiteBase } from "@/lib/app/publicSiteUrl";
 import { profileFromApiJson } from "@/lib/api/profilePayload";
@@ -87,16 +88,15 @@ export function PublicProfileShare() {
       <div className={surfaceCardVariants()}>
         <h2 className="text-lg font-semibold tracking-tight text-neutral-950">Public profile link</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-neutral-700">
-          Choose a handle in Profile to get a shareable URL for bios and outreach.
+          Your Muhr pass link is created automatically when your profile loads. Refresh this page if it
+          does not appear yet, or edit your handle in Profile overview.
         </p>
         <Link href="/profile#profile-overview" className={cx(primaryButtonVariants(), "mt-5")}>
-          Set your handle
+          Open profile
         </Link>
       </div>
     );
   }
-
-  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(publicUrl)}`;
 
   return (
     <div
@@ -143,13 +143,10 @@ export function PublicProfileShare() {
                 </div>
               ) : null}
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={qrSrc}
-              alt=""
-              width={76}
-              height={76}
-              className="shrink-0 rounded-xl border border-white/15 bg-white p-1.5 shadow-lg shadow-black/30"
+            <MuhrPassQrCode
+              value={publicUrl}
+              size={76}
+              className="shrink-0 rounded-xl border border-white/15 shadow-lg shadow-black/30"
             />
           </div>
           <div className="mt-5 flex flex-wrap gap-2">

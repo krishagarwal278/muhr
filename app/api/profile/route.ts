@@ -13,6 +13,7 @@ import {
   validateAddressInput,
   validateProfileBasicsInput,
 } from "@/lib/profile/basics";
+import { ensureProfileHandle } from "@/lib/profile/ensureHandle";
 import { normalizeHandle, validateHandle } from "@/lib/profile/handle";
 import {
   coerceProfileLinksFromStorage,
@@ -188,13 +189,32 @@ export async function GET() {
     const user = await requireUser();
     const supabase = await createRouteClient();
 
-    const result = await profileApiData(supabase, user.id, user.email);
+    let result = await profileApiData(supabase, user.id, user.email);
     if (result.error) {
       logger.error("profile_get_error", { userId: user.id, code: result.error.code });
       return Response.json(
         { ok: false, error: { code: "db_error", message: "Failed to load profile" } },
         { status: 500 }
       );
+    }
+
+    if (!result.data?.handle) {
+      try {
+        await ensureProfileHandle(supabase, user, result.data?.handle);
+        result = await profileApiData(supabase, user.id, user.email);
+        if (result.error) {
+          logger.error("profile_get_reload_error", { userId: user.id, code: result.error.code });
+          return Response.json(
+            { ok: false, error: { code: "db_error", message: "Failed to load profile" } },
+            { status: 500 }
+          );
+        }
+      } catch (ensureErr) {
+        logger.error("profile_ensure_handle_error", {
+          userId: user.id,
+          message: ensureErr instanceof Error ? ensureErr.message : "unknown",
+        });
+      }
     }
 
     return Response.json({
@@ -492,6 +512,20 @@ export async function PATCH(request: Request) {
         { ok: false, error: { code: "no_changes", message: "No valid fields" } },
         { status: 400 }
       );
+    }
+
+    if (!("handle" in updates)) {
+      const { data: existingProfile } = await loadProfileRow(supabase, user.id);
+      if (!existingProfile?.handle) {
+        try {
+          await ensureProfileHandle(supabase, user, existingProfile?.handle);
+        } catch (ensureErr) {
+          logger.error("profile_patch_ensure_handle_error", {
+            userId: user.id,
+            message: ensureErr instanceof Error ? ensureErr.message : "unknown",
+          });
+        }
+      }
     }
 
     const { error } = await supabase

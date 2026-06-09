@@ -328,7 +328,7 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
           <ul className="mt-2 list-inside list-disc space-y-1 text-sky-900/90">
             <li>High quality only — sharp focus, good lighting, plain background</li>
             <li>Solo shots from different angles: front, both profiles, and back</li>
-            <li>Minimum 1080p resolution; avoid filters or heavy editing</li>
+            <li>Avoid filters or heavy editing</li>
           </ul>
         </div>
 

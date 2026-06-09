@@ -4,7 +4,13 @@ import { requireUser } from "@/lib/auth/requireUser";
 import { sendIdentityVerificationAdminNotification } from "@/lib/email/sendIdentityVerificationAdminNotification";
 import { RateLimitError, toApiError } from "@/lib/errors/apiError";
 import { logger } from "@/lib/logger";
-import { formatProfileAddress, isProfileBasicsComplete } from "@/lib/profile/basics";
+import { signIdentityVerificationFiles } from "@/lib/identity/signedVerificationFileUrls";
+import { formatProfileAddress } from "@/lib/profile/basics";
+import { MIN_CHARACTER_PHOTOS } from "@/lib/profile/completion";
+import {
+  countCharacterPhotos,
+  hasRequiredCharacterPhotosForVerification,
+} from "@/lib/profile/identityVerification";
 import { rateLimit } from "@/lib/ratelimit";
 import { createRouteClient } from "@/lib/supabase/route";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -53,13 +59,14 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!isProfileBasicsComplete(profile)) {
+    const characterPhotoCount = await countCharacterPhotos(supabase, user.id);
+    if (!hasRequiredCharacterPhotosForVerification(characterPhotoCount)) {
       return Response.json(
         {
           ok: false,
           error: {
-            code: "incomplete_profile",
-            message: "Complete your profile overview (name, phone, address, followers) first.",
+            code: "missing_character_photos",
+            message: `Upload ${MIN_CHARACTER_PHOTOS} character photos in Profile before submitting for review.`,
           },
         },
         { status: 400 }
@@ -131,6 +138,22 @@ export async function POST(request: Request) {
       kyc_status: "pending" as const,
     };
 
+    const { data: photoRows } = await admin
+      .from("character_photos")
+      .select("file_path, file_name, slot_index")
+      .eq("user_id", user.id)
+      .order("slot_index", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    const signedPhotoFiles = await signIdentityVerificationFiles(
+      admin,
+      (photoRows ?? []).map((photo, index) => ({
+        file_kind: `character_photo_${(photo.slot_index ?? index) + 1}`,
+        file_path: photo.file_path,
+        file_name: photo.file_name,
+      }))
+    );
+
     const { error: profileError } = await admin
       .from("profiles")
       .update(profileUpdate)
@@ -148,14 +171,17 @@ export async function POST(request: Request) {
       await sendIdentityVerificationAdminNotification({
         userId: user.id,
         userEmail: user.email ?? null,
-        fullName: profile!.full_name!.trim(),
-        phone: profile!.phone!.trim(),
+        fullName:
+          (typeof profile?.full_name === "string" && profile.full_name.trim()) ||
+          user.email?.split("@")[0] ||
+          "Creator",
+        phone: (typeof profile?.phone === "string" && profile.phone.trim()) || "—",
         address: formatProfileAddress(profile),
         socialPlatform,
         socialUsername,
         submittedAtIso,
-        files: [],
-        manualReview: true,
+        files: signedPhotoFiles,
+        manualReview: signedPhotoFiles.length === 0,
         followerCount: typeof profile?.follower_count === "number" ? profile.follower_count : null,
         publicProfileUrl: `/k/${handle}`,
       });
@@ -171,7 +197,7 @@ export async function POST(request: Request) {
       data: {
         kycStatus: "pending",
         message:
-          "Thanks — our team will review your profile and public handle. We may contact you if we need anything else.",
+          "Thanks — our team will review your character photos and public profile. We may contact you if we need anything else.",
       },
     });
   } catch (err) {

@@ -1,3 +1,4 @@
+import { MUHR_CONTACT_EMAIL, MUHR_CONTACT_FROM } from "@/lib/app/contactEmail";
 import { escapeHtml } from "@/lib/email/escapeHtml";
 import { getEmailSiteBaseUrl } from "@/lib/app/publicSiteUrl";
 import { resendSendEmail } from "@/lib/email/resendSend";
@@ -39,7 +40,7 @@ export async function sendLicenseRequestAdminNotification(
 ): Promise<void> {
   const appBaseUrl = getEmailSiteBaseUrl();
   const to =
-    process.env.LICENSE_REQUEST_NOTIFY_EMAIL?.trim() || "krishagarwal278@gmail.com";
+    process.env.LICENSE_REQUEST_NOTIFY_EMAIL?.trim() || MUHR_CONTACT_EMAIL;
 
   const budgetLabel =
     payload.budgetInr === null ? "— (not specified)" : `₹${payload.budgetInr.toLocaleString("en-IN")}`;
@@ -101,7 +102,7 @@ ${intendedBlock}
 <p style="font-size:12px;color:#777;">Reply in your mail client will go to the brand if you set reply-to to their email (configured in code).</p>
 </body></html>`;
 
-  const from = process.env.RESEND_FROM_EMAIL?.trim() || "Muhr <communication@muhr.app>";
+  const from = process.env.RESEND_FROM_EMAIL?.trim() || MUHR_CONTACT_FROM;
 
   await resendSendEmail(to, `[Muhr] License request: @${payload.creatorHandle} ← ${payload.brandName}`, text, {
     from,

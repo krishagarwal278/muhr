@@ -75,7 +75,7 @@ export async function POST(
 
     const text = `Hi ${row.brand_name},
 
-You received this via Muhr (communication@muhr.app). The creator said:
+You received this via Muhr (contact@muhr.app). The creator said:
 
 ---
 ${message}

@@ -1,3 +1,4 @@
+import { MUHR_CONTACT_EMAIL } from "@/lib/app/contactEmail";
 import { requireUser } from "@/lib/auth/requireUser";
 import { getEmailSiteBaseUrl } from "@/lib/app/publicSiteUrl";
 import { resendSendEmail } from "@/lib/email/resendSend";
@@ -13,7 +14,7 @@ import { createRouteClient } from "@/lib/supabase/route";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SUPPORT = process.env.SUPPORT_EMAIL ?? "support@muhr.app";
+const SUPPORT = process.env.SUPPORT_EMAIL ?? MUHR_CONTACT_EMAIL;
 
 export async function POST(request: Request, ctx: { params: Promise<{ id: string }> }) {
   try {

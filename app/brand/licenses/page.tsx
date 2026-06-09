@@ -64,10 +64,10 @@ export default async function BrandLicensesPage() {
           <p className="mt-1 text-red-800/90">
             Refresh the page in a moment. If this keeps happening, reach us at{" "}
             <a
-              href="mailto:support@muhr.app"
+              href="mailto:contact@muhr.app"
               className="font-medium underline-offset-2 hover:underline"
             >
-              support@muhr.app
+              contact@muhr.app
             </a>
             .
           </p>

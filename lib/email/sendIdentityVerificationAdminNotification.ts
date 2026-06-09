@@ -1,3 +1,4 @@
+import { MUHR_CONTACT_EMAIL, MUHR_CONTACT_FROM } from "@/lib/app/contactEmail";
 import { escapeHtml } from "@/lib/email/escapeHtml";
 import { resendSendEmail } from "@/lib/email/resendSend";
 
@@ -76,7 +77,7 @@ export async function sendIdentityVerificationAdminNotification(
   payload: IdentityVerificationAdminEmailPayload
 ): Promise<void> {
   const to =
-    process.env.IDENTITY_VERIFICATION_NOTIFY_EMAIL?.trim() || "krishagarwal278@gmail.com";
+    process.env.IDENTITY_VERIFICATION_NOTIFY_EMAIL?.trim() || MUHR_CONTACT_EMAIL;
 
   const handle = payload.socialUsername.replace(/^@/, "");
   const storageUrl = supabaseDashboardStorageUrl();
@@ -172,7 +173,7 @@ ${storageLink}`}
 <p style="font-size:12px;color:#666;margin-top:24px;">After review, update <code>profiles.kyc_status</code> to <code>verified</code> or <code>failed</code>. Pending requests also appear in <code>admin_notifications</code>.</p>
 </body></html>`;
 
-  const from = process.env.RESEND_FROM_EMAIL?.trim() || "Muhr <communication@muhr.app>";
+  const from = process.env.RESEND_FROM_EMAIL?.trim() || MUHR_CONTACT_FROM;
 
   await resendSendEmail(
     to,

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { BrandDashboardCreator } from "@/lib/brand/loadBrandDashboard";
 import { loadBrandDashboard } from "@/lib/brand/loadBrandDashboard";
-import { publicProfileHref } from "@/lib/marketing/publicProfileNav";
+import { publicProfileHref } from "@/lib/landing/publicProfileNav";
 import { appPageTitleVariants } from "@/components/ui/page-header";
 import { surfaceCardVariants } from "@/components/ui/surface-card";
 import { cx } from "@/lib/cx";
@@ -132,10 +132,10 @@ export default async function BrandDashboardPage() {
             Refresh the page in a moment. If this keeps happening, the Muhr team has been notified
             and is looking into it — you can reach us at{" "}
             <a
-              href="mailto:support@muhr.app"
+              href="mailto:contact@muhr.app"
               className="font-medium underline-offset-2 hover:underline"
             >
-              support@muhr.app
+              contact@muhr.app
             </a>
             .
           </p>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { MUHR_CONTACT_EMAIL } from "@/lib/app/contactEmail";
 import { CANCELLATION_REASON_OPTIONS, type CancellationReasonKey } from "@/lib/license/cancellationReasons";
 import {
   dangerButtonVariants,
@@ -13,7 +14,7 @@ import type { LicenseRequestRow } from "@/types/license";
 
 type Step = "confirm" | "reason" | "done";
 
-const SUPPORT = "support@muhr.app";
+const SUPPORT = MUHR_CONTACT_EMAIL;
 
 export function LicenseCancelDialog({
   requestId,

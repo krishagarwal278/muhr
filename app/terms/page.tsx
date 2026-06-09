@@ -264,8 +264,8 @@ export default function Terms() {
             <h3 className="mb-2 mt-4 text-sm font-semibold text-neutral-950">13.1 Termination by you</h3>
             <p>
               You may deactivate your account at any time by contacting us at{" "}
-              <a href="mailto:support@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
-                support@muhr.app
+              <a href="mailto:contact@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
+                contact@muhr.app
               </a>
               . Upon deactivation:
             </p>
@@ -302,8 +302,8 @@ export default function Terms() {
             <h3 className="mb-2 mt-4 text-sm font-semibold text-neutral-950">14.2 Informal resolution</h3>
             <p>
               Before filing any legal claim, you agree to contact us at{" "}
-              <a href="mailto:support@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
-                support@muhr.app
+              <a href="mailto:contact@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
+                contact@muhr.app
               </a>{" "}
               to attempt to resolve the dispute informally. We will attempt to resolve the dispute
               within 30 days.
@@ -345,8 +345,8 @@ export default function Terms() {
             <h2 className="mb-3 text-base font-semibold text-neutral-950">16. Contact</h2>
             <p>
               Questions about these terms?{" "}
-              <a href="mailto:support@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
-                support@muhr.app
+              <a href="mailto:contact@muhr.app" className="text-neutral-950 underline underline-offset-2 hover:text-neutral-700">
+                contact@muhr.app
               </a>
             </p>
           </section>

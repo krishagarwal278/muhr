@@ -1,13 +1,13 @@
 import Link from "next/link";
-import Image from "next/image";
+import { MuhrLogo } from "@/components/ui/MuhrLogo";
 
 /** Shared chrome for /login, /signup, /verify, and /update-password. */
 export function AuthShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-neutral-950 text-zinc-100">
       <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <Image src="/logo.png" alt="Muhr" width={28} height={28} className="rounded-xl" />
+        <Link href="/" className="flex items-center gap-2.5">
+          <MuhrLogo size={32} priority />
           <span className="text-sm font-semibold tracking-tight">Muhr</span>
         </Link>
       </header>

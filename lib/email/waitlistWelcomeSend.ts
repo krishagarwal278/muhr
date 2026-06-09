@@ -1,4 +1,5 @@
 import type { UserType } from "@/types";
+import { MUHR_CONTACT_FROM } from "@/lib/app/contactEmail";
 import { getEmailSiteBaseUrl } from "@/lib/app/publicSiteUrl";
 import { resendSendEmail } from "@/lib/email/resendSend";
 
@@ -32,7 +33,7 @@ ${appUrl}
 `.trim();
 
   const welcomeFrom =
-    process.env.RESEND_WELCOME_FROM?.trim() || "Muhr <contact@muhr.app>";
+    process.env.RESEND_WELCOME_FROM?.trim() || MUHR_CONTACT_FROM;
   const replyTo = process.env.RESEND_WELCOME_REPLY_TO?.trim();
 
   await resendSendEmail(email, subject, text, {

@@ -1,3 +1,5 @@
+import { MUHR_CONTACT_FROM } from "@/lib/app/contactEmail";
+
 export type ResendSendOptions = {
   /** Overrides default transactional sender (must be a verified address/domain in Resend). */
   from?: string;
@@ -20,7 +22,7 @@ export async function resendSendEmail(
   }
   /** Verified sending domain in Resend should be muhr.app; override for local/dev if needed. */
   const from =
-    options?.from ?? process.env.RESEND_FROM_EMAIL ?? "Muhr <communication@muhr.app>";
+    options?.from ?? process.env.RESEND_FROM_EMAIL ?? MUHR_CONTACT_FROM;
 
   const body: Record<string, unknown> = { from, to, subject, text };
   if (options?.replyTo) {

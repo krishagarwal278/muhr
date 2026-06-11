@@ -40,17 +40,17 @@ export const hybridPillars = [
   {
     idx: "01",
     title: "Verified vault",
-    body: "Creators verify their identity once — ID, face match, and documented consent, sealed in encrypted storage. Brands only ever see talent that is real and cleared.",
+    body: "Creators verify once. Brands only see cleared talent.",
   },
   {
     idx: "02",
     title: "License inbox",
-    body: "Brands send a brief, scope, and rate. The creator reviews and approves on their own time. Nothing moves forward until both sides sign — and either can decline.",
+    body: "Brands send briefs. Creators approve before anything moves.",
   },
   {
     idx: "03",
     title: "Signed & paid",
-    body: "An attorney-drafted license defines exactly what is permitted. The creator is paid under those terms, and the brand gets a clean, enforceable chain of rights.",
+    body: "Signed license, creator payout, enforceable chain of rights.",
   },
 ] as const;
 
@@ -109,17 +109,17 @@ export type BrandValuePropIcon = "shield" | "people" | "list";
 export const brandValueProps = [
   {
     title: "Rights-cleared by default",
-    body: "Every profile carries verified consent and an attorney-drafted license. No grey areas, no takedown risk.",
+    body: "Verified consent and attorney-drafted licenses on every profile.",
     icon: "shield" as BrandValuePropIcon,
   },
   {
     title: "Real, relatable talent",
-    body: "Browse verified creators across looks, voices, and audiences — authentic people your viewers trust, not synthetic stock.",
+    body: "Verified creators across looks, voices, and audiences.",
     icon: "people" as BrandValuePropIcon,
   },
   {
     title: "Built to scale",
-    body: "Standardized licenses with defined scope and duration, plus a clear paper trail for every use — from one film to a full campaign.",
+    body: "Standardized licenses with defined scope and a clear paper trail.",
     icon: "list" as BrandValuePropIcon,
   },
 ] as const;

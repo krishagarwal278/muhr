@@ -13,8 +13,7 @@ export function LandingBrandHero() {
             Real faces and voices, <em>cleared</em> for AI video.
           </h1>
           <p className="lead">
-            License consenting, verified talent for AI-generated campaigns. Every likeness carries a signed
-            agreement and a clean chain of rights — so you can create with confidence.
+            Verified talent for AI campaigns — every likeness signed and rights-cleared.
           </p>
           <div className="hero-cta">
             <Link href="#waitlist" className="btn btn-primary">
@@ -24,7 +23,6 @@ export function LandingBrandHero() {
               Browse the library
             </Link>
           </div>
-          <div className="hero-note">Every license is rights-cleared and enforceable.</div>
         </div>
         <div className="hero-visual">
           <div className="portrait">

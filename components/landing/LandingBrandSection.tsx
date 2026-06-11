@@ -52,10 +52,7 @@ export function LandingBrandSection() {
         <div className="sec-head">
           <span className="eyebrow">For brands · The talent library</span>
           <h2>A library of cleared, consenting talent.</h2>
-          <p className="lead">
-            Browse verified creators across looks, voices, and audiences. Every profile is rights-cleared
-            by default — send a brief and license with confidence.
-          </p>
+          <p className="lead">Rights-cleared creators across looks, voices, and audiences.</p>
         </div>
 
         <div className="talent">
@@ -101,7 +98,7 @@ export function LandingBrandSection() {
           </div>
 
           <div className="talent-foot">
-            <span className="lbl">Every profile carries verified consent and a signed license.</span>
+            <span className="lbl">Verified consent on every profile.</span>
             <Link href="#waitlist" className="btn btn-primary btn-sm">
               Request brand access
             </Link>

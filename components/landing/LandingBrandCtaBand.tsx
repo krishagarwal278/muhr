@@ -7,7 +7,7 @@ export function LandingBrandCtaBand() {
         <h2>
           License cleared talent for <em>AI video</em>.
         </h2>
-        <p className="lead">Request brand access for early access to the talent library.</p>
+        <p className="lead">Early access to the talent library.</p>
         <div className="waitlist-wrap">
           <LandingWaitlistForm userType="business" />
         </div>

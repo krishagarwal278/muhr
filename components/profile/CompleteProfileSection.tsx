@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { SignedStorageImage } from "@/components/ui/SignedStorageImage";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { apiErrorMessage, dataFromApiJson } from "@/lib/api/response";
 import { MAX_CHARACTER_PHOTOS, MIN_CHARACTER_PHOTOS } from "@/lib/profile/completion";
 import { recommendFee } from "@/lib/pricing/recommend";
 import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
@@ -12,6 +13,7 @@ interface CharacterPhoto {
   file_name: string;
   signed_url: string | null;
   slot_index: number | null;
+  storage_missing?: boolean;
 }
 
 interface CompleteProfileSectionProps {
@@ -67,6 +69,7 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
   const fileInputRef = useRef<HTMLInputElement>(null);
   const slotInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const atPhotoLimit = photoCount >= MAX_CHARACTER_PHOTOS;
+  const missingStorageCount = photos.filter((photo) => photo.storage_missing).length;
 
   const slots = Array.from({ length: MAX_CHARACTER_PHOTOS }, (_, slotIndex) =>
     photos.find((p) => p.slot_index === slotIndex) ?? null
@@ -78,14 +81,17 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
       fetch("/api/profile/measurements"),
     ]);
     if (photosRes.ok) {
-      const p = await photosRes.json();
-      const count = p.count ?? 0;
+      const payload = dataFromApiJson<{ photos?: CharacterPhoto[]; count?: number }>(
+        await photosRes.json()
+      );
+      const count = payload?.count ?? 0;
       setPhotos(
-        (p.photos ?? []).map((row: CharacterPhoto, index: number) => ({
+        (payload?.photos ?? []).map((row: CharacterPhoto, index: number) => ({
           id: row.id,
           file_name: row.file_name,
           signed_url: row.signed_url,
           slot_index: row.slot_index ?? index,
+          storage_missing: row.storage_missing === true,
         }))
       );
       setPhotoCount(count);
@@ -137,11 +143,12 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
       const res = await fetch("/api/profile/character-photos", { method: "POST", body: fd });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Upload failed");
+        setError(apiErrorMessage(data, "Upload failed"));
         return;
       }
-      const count = data.count ?? photoCount;
-      const n = data.uploaded?.length ?? 0;
+      const payload = dataFromApiJson<{ count?: number; uploaded?: unknown[]; failed?: unknown[] }>(data);
+      const count = payload?.count ?? photoCount;
+      const n = payload?.uploaded?.length ?? 0;
       setPhotoCount(count);
       if (count >= MIN_CHARACTER_PHOTOS) {
         setVerificationNotice(true);
@@ -153,8 +160,8 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
       } else {
         setOk(`${n} photo${n !== 1 ? "s" : ""} uploaded — add ${MIN_CHARACTER_PHOTOS - count} more.`);
       }
-      if (data.failed?.length) {
-        setError(`${data.failed.length} file(s) could not be uploaded. Try smaller JPEG/PNG files.`);
+      if (payload?.failed?.length) {
+        setError(`${payload.failed.length} file(s) could not be uploaded. Try smaller JPEG/PNG files.`);
       }
       await load();
       onUpdated?.();
@@ -173,10 +180,11 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
       const res = await fetch(`/api/profile/character-photos/${photoId}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Could not delete photo");
+        setError(apiErrorMessage(data, "Could not delete photo"));
         return;
       }
-      const count = data.count ?? 0;
+      const payload = dataFromApiJson<{ count?: number }>(data);
+      const count = payload?.count ?? 0;
       setPhotoCount(count);
       setVerificationNotice(count >= MIN_CHARACTER_PHOTOS);
       setOk("Photo removed");
@@ -198,10 +206,11 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
       const res = await fetch("/api/profile/character-photos", { method: "POST", body: fd });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof data.error === "string" ? data.error : "Upload failed");
+        setError(apiErrorMessage(data, "Upload failed"));
         return;
       }
-      const count = data.count ?? photoCount;
+      const payload = dataFromApiJson<{ count?: number }>(data);
+      const count = payload?.count ?? photoCount;
       setPhotoCount(count);
       setVerificationNotice(count >= MIN_CHARACTER_PHOTOS);
       setOk("Photo added");
@@ -332,6 +341,16 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
           </ul>
         </div>
 
+        {missingStorageCount > 0 && (
+          <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+            <p className="font-medium">Some photos are missing their files</p>
+            <p className="mt-1 text-amber-900/90">
+              {missingStorageCount} slot{missingStorageCount !== 1 ? "s" : ""} still have a record but
+              no image in storage. Delete the broken slot and upload again.
+            </p>
+          </div>
+        )}
+
         <div className="mt-4">
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-500">
             Your uploaded photos
@@ -379,7 +398,11 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
                 <div
                   key={photo.id}
                   className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-black/10 bg-neutral-100"
-                  title={photo.file_name}
+                  title={
+                    photo.storage_missing
+                      ? `${photo.file_name} — file missing in storage`
+                      : photo.file_name
+                  }
                 >
                   <button
                     type="button"
@@ -397,8 +420,19 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
                         className="object-cover"
                       />
                     ) : (
-                      <div className="flex h-full items-center justify-center text-[10px] text-neutral-400">
-                        No preview
+                      <div
+                        className={`flex h-full flex-col items-center justify-center px-1 text-center text-[9px] leading-tight ${
+                          photo.storage_missing ? "text-amber-700" : "text-neutral-400"
+                        }`}
+                      >
+                        {photo.storage_missing ? (
+                          <>
+                            <span className="font-medium">Missing file</span>
+                            <span className="mt-0.5">Delete &amp; re-upload</span>
+                          </>
+                        ) : (
+                          "No preview"
+                        )}
                       </div>
                     )}
                   </button>

@@ -31,15 +31,28 @@ export async function GET() {
 
     const photos = await Promise.all(
       (data ?? []).map(async (row) => {
-        const { data: signed } = await supabase.storage
+        const { data: signed, error: signError } = await supabase.storage
           .from("assets")
           .createSignedUrl(row.file_path, 3600);
+        const signedUrl = signed?.signedUrl ?? null;
+        const storageMissing = !signedUrl;
+
+        if (storageMissing) {
+          logger.warn("character_photo_missing_in_storage", {
+            userId: user.id,
+            photoId: row.id,
+            filePath: row.file_path,
+            signError: signError?.message ?? null,
+          });
+        }
+
         return {
           id: row.id,
           file_name: row.file_name,
           created_at: row.created_at,
           slot_index: row.slot_index,
-          signed_url: signed?.signedUrl ?? null,
+          signed_url: signedUrl,
+          storage_missing: storageMissing,
         };
       })
     );

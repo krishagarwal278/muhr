@@ -37,7 +37,7 @@
     "react-dom": "19.2.4",
     "react-qr-code": "^2.0.21",
     "server-only": "^0.0.1",
-    "workflow": "^4.2.4",
+    "workflow": "^4.5.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {

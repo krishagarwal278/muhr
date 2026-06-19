@@ -15,6 +15,7 @@
     "test": "vitest run",
     "check": "npm run lint && npm run typecheck && npm run test:typecheck && npm run test",
     "db:print-license-contract-sql": "node -e \"process.stdout.write(require('fs').readFileSync('supabase/migrations/005_license_contract.sql','utf8'))\"",
+    "db:audit-character-photos": "node scripts/audit-character-photos.mjs",
     "prepare": "husky"
   },
   "dependencies": {

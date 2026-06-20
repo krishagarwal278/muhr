@@ -57,7 +57,7 @@ const NAV_META: { key: string; title: string; description: string }[] = [
     key: "vault",
     title: "Vault",
     description:
-      "Store face photos and other identity assets securely. Used for licensing and enforcement.",
+      "Store face photos and other identity assets securely. Used for licensing.",
   },
   {
     key: "consent",
@@ -70,12 +70,6 @@ const NAV_META: { key: string; title: string; description: string }[] = [
     title: "Licenses",
     description:
       "Review incoming brand requests, accept or decline, and follow up by email when you’re ready.",
-  },
-  {
-    key: "enforcement",
-    title: "Enforcement",
-    description:
-      "Open and track cases when you need to report misuse or protect your identity.",
   },
   {
     key: "profile",

@@ -9,6 +9,7 @@ import { LicenseContractEditor } from "@/components/license/LicenseContractEdito
 import { CounterOfferForm } from "@/components/license/CounterOfferForm";
 import { CounterOffersList } from "@/components/license/CounterOffersList";
 import { AssetDeliveryZone } from "@/components/license/AssetDeliveryZone";
+import { OtherUsageNotesDisplay } from "@/components/license/OtherUsageNotesDisplay";
 import { cancellationReasonLabel } from "@/lib/license/cancellationReasons";
 import {
   dangerButtonVariants,
@@ -83,11 +84,13 @@ function StatusBadge({ status }: { status: LicenseRequestRow["status"] }) {
 
 export function LicenseRequestWorkspace({
   initialRequest,
+  creatorOtherUsageNotes = null,
   backHref = "/licenses",
   backLabel = "Back to Licenses",
   viewerRole = "creator",
 }: {
   initialRequest: LicenseRequestRow;
+  creatorOtherUsageNotes?: string | null;
   backHref?: string;
   backLabel?: string;
   viewerRole?: "creator" | "brand";
@@ -415,6 +418,10 @@ export function LicenseRequestWorkspace({
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">Intended use</p>
             <p className="mt-1 whitespace-pre-wrap text-sm text-neutral-900/85">{request.intended_use}</p>
           </div>
+          <OtherUsageNotesDisplay
+            notes={creatorOtherUsageNotes}
+            label={isBrand ? "Creator other usage notes" : "Your other usage notes"}
+          />
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">Channels</p>

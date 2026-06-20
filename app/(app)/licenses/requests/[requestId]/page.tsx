@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect, notFound } from "next/navigation";
 import type { LicenseRequestRow } from "@/types/license";
+import { fetchCreatorOtherUsageNotes } from "@/lib/license/creatorOtherUsageNotes";
 import { LicenseRequestWorkspace } from "./LicenseRequestWorkspace";
 
 export default async function LicenseRequestPage({
@@ -55,6 +56,12 @@ export default async function LicenseRequestPage({
   }
 
   const request = row as LicenseRequestRow;
+  const creatorOtherUsageNotes = await fetchCreatorOtherUsageNotes(user.id);
 
-  return <LicenseRequestWorkspace initialRequest={request} />;
+  return (
+    <LicenseRequestWorkspace
+      initialRequest={request}
+      creatorOtherUsageNotes={creatorOtherUsageNotes}
+    />
+  );
 }

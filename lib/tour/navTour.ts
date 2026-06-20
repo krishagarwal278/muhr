@@ -60,16 +60,10 @@ const NAV_META: { key: string; title: string; description: string }[] = [
       "Store face photos and other identity assets securely. Used for licensing.",
   },
   {
-    key: "consent",
-    title: "Consent",
-    description:
-      "Define how your likeness may be used (channels, territories, duration) so requests stay on-policy.",
-  },
-  {
     key: "licenses",
     title: "Licenses",
     description:
-      "Review incoming brand requests, accept or decline, and follow up by email when you’re ready.",
+      "Review briefs, manage active deals, set rules and rates, and keep signed contracts.",
   },
   {
     key: "profile",

@@ -25,7 +25,6 @@ interface UserProfile {
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: "home", tour: "dashboard" as const },
   { label: "Vault", href: "/vault", icon: "shield", tour: "vault" as const },
-  { label: "Consent", href: "/consent", icon: "file-text", tour: "consent" as const },
   { label: "Licenses", href: "/licenses", icon: "key", tour: "licenses" as const },
   { label: "Profile", href: "/profile", icon: "user", tour: "profile" as const },
 ];

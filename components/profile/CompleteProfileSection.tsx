@@ -7,6 +7,8 @@ import { apiErrorMessage, dataFromApiJson } from "@/lib/api/response";
 import { MAX_CHARACTER_PHOTOS, MIN_CHARACTER_PHOTOS } from "@/lib/profile/completion";
 import { recommendFee } from "@/lib/pricing/recommend";
 import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
+import { formatIntegerWithCommas, parseFormattedInteger } from "@/lib/format/numberInput";
+import { formatNumberFieldChange } from "@/components/ui/form-number-input";
 
 interface CharacterPhoto {
   id: string;
@@ -111,7 +113,7 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
       setSavedMeasurements(measurements);
       setEditMeasurements(measurements);
       const setup = {
-        minFee: m.minLicenseFeeInr != null ? String(m.minLicenseFeeInr) : "",
+        minFee: m.minLicenseFeeInr != null ? formatIntegerWithCommas(m.minLicenseFeeInr) : "",
         consentVideo: m.consentVideoCompleted === true,
         licenseSigned: m.platformLicenseSigned === true,
       };
@@ -275,7 +277,7 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
     setSetupSaveError(null);
     setSetupSaveOk(false);
     try {
-      const fee = editSetup.minFee.trim() ? parseInt(editSetup.minFee, 10) : undefined;
+      const fee = parseFormattedInteger(editSetup.minFee) ?? undefined;
       const res = await fetch("/api/profile/onboarding", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -688,12 +690,14 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
                 <div>
                   <label className="mb-1.5 block text-sm font-medium">Minimum license fee (INR)</label>
                   <input
-                    type="number"
-                    min={1}
+                    type="text"
+                    inputMode="numeric"
                     value={editSetup.minFee}
-                    onChange={(e) => setEditSetup({ ...editSetup, minFee: e.target.value })}
-                    placeholder="e.g. 50000"
-                    className="w-full max-w-xs rounded-lg border border-black/10 px-4 py-2 text-sm outline-none"
+                    onChange={(e) =>
+                      setEditSetup({ ...editSetup, minFee: formatNumberFieldChange(e.target.value) })
+                    }
+                    placeholder="e.g. 50,000"
+                    className="w-full max-w-xs rounded-lg border border-black/10 px-4 py-2 text-sm outline-none tabular-nums"
                   />
                   <MinFeeTierHint minFee={editSetup.minFee} />
                 </div>
@@ -742,7 +746,11 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
             <dl className="space-y-3">
               <SetupItem
                 label="Minimum license fee"
-                value={savedSetup.minFee ? `₹${parseInt(savedSetup.minFee, 10).toLocaleString("en-IN")}` : "—"}
+                value={
+                  savedSetup.minFee
+                    ? `₹${(parseFormattedInteger(savedSetup.minFee) ?? 0).toLocaleString("en-IN")}`
+                    : "—"
+                }
               />
               <SetupItem
                 label="Consent video recorded"
@@ -780,8 +788,8 @@ function SetupItem({ label, value }: { label: string; value: string }) {
 
 function MinFeeTierHint({ minFee }: { minFee: string }) {
   const parsed = useMemo(() => {
-    const n = Number.parseInt(minFee, 10);
-    return Number.isFinite(n) && n > 0 ? n : null;
+    const n = parseFormattedInteger(minFee);
+    return n != null && Number.isFinite(n) && n > 0 ? n : null;
   }, [minFee]);
 
   const recommendation = useMemo(() => {

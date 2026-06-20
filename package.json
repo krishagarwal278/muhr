@@ -74,7 +74,10 @@
   "overrides": {
     "mixpart": "0.0.6",
     "postcss": "8.5.14",
-    "undici": "7.25.0",
-    "devalue": "5.8.1"
+    "undici": "7.28.0",
+    "devalue": "5.8.1",
+    "piscina": "4.9.3",
+    "dompurify": "3.4.11",
+    "js-yaml": "4.2.0"
   }
 }

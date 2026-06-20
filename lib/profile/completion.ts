@@ -9,7 +9,6 @@ export type ProfileCompletionItemId =
   | "measurements"
   | "handle"
   | "pricing"
-  | "consent_video"
   | "license_agreement";
 
 export interface ProfileCompletionInput {
@@ -19,7 +18,6 @@ export interface ProfileCompletionInput {
   hasMeasurements: boolean;
   handle: string | null;
   hasPricing: boolean;
-  consentVideoCompleted: boolean;
   platformLicenseSigned: boolean;
 }
 
@@ -68,12 +66,6 @@ export function buildProfileCompletionItems(
       label: "Set pricing",
       complete: data.hasPricing,
       href: "/profile",
-    },
-    {
-      id: "consent_video",
-      label: "Record consent video",
-      complete: data.consentVideoCompleted,
-      href: "/profile#complete-profile",
     },
     {
       id: "license_agreement",

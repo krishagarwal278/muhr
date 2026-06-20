@@ -17,7 +17,7 @@ export async function fetchProfileCompletionForUser(
     supabase
       .from("profiles")
       .select(
-        "kyc_status, identity_submitted_at, handle, height, weight, chest, waist, hips, shoe_size, min_license_fee_inr, licensing_notes, consent_video_completed, platform_license_signed"
+        "kyc_status, identity_submitted_at, handle, height, weight, chest, waist, hips, shoe_size, min_license_fee_inr, licensing_notes, platform_license_signed"
       )
       .eq("id", userId)
       .maybeSingle(),
@@ -39,7 +39,6 @@ export async function fetchProfileCompletionForUser(
     hasPricing:
       (typeof profile?.min_license_fee_inr === "number" && profile.min_license_fee_inr > 0) ||
       licensingNotes.length > 0,
-    consentVideoCompleted: profile?.consent_video_completed === true,
     platformLicenseSigned: profile?.platform_license_signed === true,
   };
 

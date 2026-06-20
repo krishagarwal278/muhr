@@ -2,13 +2,10 @@
 
 import Image from "next/image";
 import { SignedStorageImage } from "@/components/ui/SignedStorageImage";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiErrorMessage, dataFromApiJson } from "@/lib/api/response";
 import { MAX_CHARACTER_PHOTOS, MIN_CHARACTER_PHOTOS } from "@/lib/profile/completion";
-import { recommendFee } from "@/lib/pricing/recommend";
-import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
-import { formatIntegerWithCommas, parseFormattedInteger } from "@/lib/format/numberInput";
-import { formatNumberFieldChange } from "@/components/ui/form-number-input";
+import { outlineButtonVariants } from "@/components/ui/button-recipes";
 
 interface CharacterPhoto {
   id: string;
@@ -28,44 +25,10 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
   const [uploading, setUploading] = useState(false);
   const [photoActionId, setPhotoActionId] = useState<string | null>(null);
   const [viewPhoto, setViewPhoto] = useState<CharacterPhoto | null>(null);
-  const [savingMeasures, setSavingMeasures] = useState(false);
-  const [measurementsEditing, setMeasurementsEditing] = useState(false);
-  const [measurementsSaveOk, setMeasurementsSaveOk] = useState(false);
-  const [measurementsSaveError, setMeasurementsSaveError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [verificationNotice, setVerificationNotice] = useState(false);
 
-  const [savedMeasurements, setSavedMeasurements] = useState({
-    height: "",
-    weight: "",
-    chest: "",
-    waist: "",
-    hips: "",
-    shoeSize: "",
-  });
-  const [editMeasurements, setEditMeasurements] = useState({
-    height: "",
-    weight: "",
-    chest: "",
-    waist: "",
-    hips: "",
-    shoeSize: "",
-  });
-  const [savedSetup, setSavedSetup] = useState({
-    minFee: "",
-    consentVideo: false,
-    licenseSigned: false,
-  });
-  const [editSetup, setEditSetup] = useState({
-    minFee: "",
-    consentVideo: false,
-    licenseSigned: false,
-  });
-  const [setupEditing, setSetupEditing] = useState(false);
-  const [setupSaveOk, setSetupSaveOk] = useState(false);
-  const [setupSaveError, setSetupSaveError] = useState<string | null>(null);
-  const [savingSetup, setSavingSetup] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,10 +41,7 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
   );
 
   const load = useCallback(async () => {
-    const [photosRes, measuresRes] = await Promise.all([
-      fetch("/api/profile/character-photos"),
-      fetch("/api/profile/measurements"),
-    ]);
+    const photosRes = await fetch("/api/profile/character-photos");
     if (photosRes.ok) {
       const payload = dataFromApiJson<{ photos?: CharacterPhoto[]; count?: number }>(
         await photosRes.json()
@@ -98,27 +58,6 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
       );
       setPhotoCount(count);
       setVerificationNotice(count >= MIN_CHARACTER_PHOTOS);
-    }
-    if (measuresRes.ok) {
-      const mRes = await measuresRes.json();
-      const m = mRes.data ?? mRes;
-      const measurements = {
-        height: m.height ?? "",
-        weight: m.weight ?? "",
-        chest: m.chest ?? "",
-        waist: m.waist ?? "",
-        hips: m.hips ?? "",
-        shoeSize: m.shoeSize ?? "",
-      };
-      setSavedMeasurements(measurements);
-      setEditMeasurements(measurements);
-      const setup = {
-        minFee: m.minLicenseFeeInr != null ? formatIntegerWithCommas(m.minLicenseFeeInr) : "",
-        consentVideo: m.consentVideoCompleted === true,
-        licenseSigned: m.platformLicenseSigned === true,
-      };
-      setSavedSetup(setup);
-      setEditSetup(setup);
     }
   }, []);
 
@@ -225,97 +164,20 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
     }
   }
 
-  function startMeasurementsEdit() {
-    setEditMeasurements({ ...savedMeasurements });
-    setMeasurementsSaveError(null);
-    setMeasurementsSaveOk(false);
-    setMeasurementsEditing(true);
-  }
-
-  async function saveMeasurements() {
-    setSavingMeasures(true);
-    setMeasurementsSaveError(null);
-    setMeasurementsSaveOk(false);
-    try {
-      const res = await fetch("/api/profile/measurements", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          height: editMeasurements.height,
-          weight: editMeasurements.weight,
-          chest: editMeasurements.chest,
-          waist: editMeasurements.waist,
-          hips: editMeasurements.hips,
-          shoe_size: editMeasurements.shoeSize,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const errorMsg = data.error?.message ?? data.error;
-        setMeasurementsSaveError(typeof errorMsg === "string" ? errorMsg : "Could not save");
-        return;
-      }
-      setSavedMeasurements({ ...editMeasurements });
-      setMeasurementsEditing(false);
-      setMeasurementsSaveOk(true);
-      setTimeout(() => setMeasurementsSaveOk(false), 2500);
-      onUpdated?.();
-    } finally {
-      setSavingMeasures(false);
-    }
-  }
-
-  function startSetupEdit() {
-    setEditSetup({ ...savedSetup });
-    setSetupSaveError(null);
-    setSetupSaveOk(false);
-    setSetupEditing(true);
-  }
-
-  async function saveSetup() {
-    setSavingSetup(true);
-    setSetupSaveError(null);
-    setSetupSaveOk(false);
-    try {
-      const fee = parseFormattedInteger(editSetup.minFee) ?? undefined;
-      const res = await fetch("/api/profile/onboarding", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...(fee && fee > 0 ? { minLicenseFeeInr: fee } : {}),
-          consentVideoCompleted: editSetup.consentVideo,
-          platformLicenseSigned: editSetup.licenseSigned,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setSetupSaveError(typeof data.error === "string" ? data.error : "Could not save");
-        return;
-      }
-      setSavedSetup({ ...editSetup });
-      setSetupEditing(false);
-      setSetupSaveOk(true);
-      setTimeout(() => setSetupSaveOk(false), 2500);
-      onUpdated?.();
-    } finally {
-      setSavingSetup(false);
-    }
-  }
-
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="space-y-4">
       {error && (
-        <p className="lg:col-span-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
           {error}
         </p>
       )}
       {ok && (
-        <p className="lg:col-span-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
           {ok}
         </p>
       )}
 
-      <div className="rounded-xl border border-black/10 bg-neutral-50/50 p-5 lg:col-span-2">
+      <div className="rounded-xl border border-black/10 bg-neutral-50/50 p-5">
         <h3 className="font-semibold text-neutral-950">Upload character photos</h3>
         <p className="mt-1 text-sm text-neutral-600">
           Upload {MIN_CHARACTER_PHOTOS} high-quality solo photos from different angles, similar to the example below.
@@ -568,259 +430,6 @@ export function CompleteProfileSection({ onUpdated }: CompleteProfileSectionProp
           </div>
         )}
       </div>
-
-      <div className="rounded-xl border border-black/10 bg-white p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 className="font-semibold text-neutral-950">Physical measurements</h3>
-            <p className="mt-1 text-sm text-neutral-600">Help brands find the right fit</p>
-          </div>
-          {!measurementsEditing && (
-            <button
-              type="button"
-              onClick={startMeasurementsEdit}
-              className={outlineButtonVariants()}
-            >
-              Edit
-            </button>
-          )}
-        </div>
-
-        {measurementsSaveError && (
-          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
-            {measurementsSaveError}
-          </p>
-        )}
-        {measurementsSaveOk && (
-          <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
-            Measurements saved.
-          </p>
-        )}
-
-        <div className="mt-4">
-          {measurementsEditing ? (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "Height", key: "height" as const, ph: "5'10\"" },
-                  { label: "Weight", key: "weight" as const, ph: "75 kgs" },
-                  { label: "Chest", key: "chest" as const, ph: '38"' },
-                  { label: "Waist", key: "waist" as const, ph: '32"' },
-                  { label: "Hips", key: "hips" as const, ph: '36"' },
-                  { label: "Shoe size", key: "shoeSize" as const, ph: "10 US" },
-                ].map((field) => (
-                  <div key={field.label}>
-                    <label className="mb-1 block text-xs font-medium text-neutral-700">{field.label}</label>
-                    <input
-                      value={editMeasurements[field.key]}
-                      onChange={(e) => setEditMeasurements({ ...editMeasurements, [field.key]: e.target.value })}
-                      placeholder={field.ph}
-                      className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm outline-none focus:border-black/20"
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => void saveMeasurements()}
-                  disabled={savingMeasures}
-                  className={solidButtonVariants()}
-                >
-                  {savingMeasures ? "Saving…" : "Save"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMeasurementsEditing(false);
-                    setMeasurementsSaveError(null);
-                    setEditMeasurements({ ...savedMeasurements });
-                  }}
-                  className="text-sm font-medium text-neutral-600 underline-offset-2 hover:text-neutral-900 hover:underline"
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          ) : (
-            <dl className="grid grid-cols-2 gap-4">
-              <MeasurementItem label="Height" value={savedMeasurements.height || "—"} />
-              <MeasurementItem label="Weight" value={savedMeasurements.weight || "—"} />
-              <MeasurementItem label="Chest" value={savedMeasurements.chest || "—"} />
-              <MeasurementItem label="Waist" value={savedMeasurements.waist || "—"} />
-              <MeasurementItem label="Hips" value={savedMeasurements.hips || "—"} />
-              <MeasurementItem label="Shoe size" value={savedMeasurements.shoeSize || "—"} />
-            </dl>
-          )}
-        </div>
-      </div>
-
-      <div className="lg:col-span-2 rounded-xl border border-black/10 bg-white p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 className="font-medium text-neutral-950">Additional setup</h3>
-            <p className="mt-1 text-sm text-neutral-600">Licensing preferences and agreements</p>
-          </div>
-          {!setupEditing && (
-            <button
-              type="button"
-              onClick={startSetupEdit}
-              className={outlineButtonVariants()}
-            >
-              Edit
-            </button>
-          )}
-        </div>
-
-        {setupSaveError && (
-          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
-            {setupSaveError}
-          </p>
-        )}
-        {setupSaveOk && (
-          <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
-            Setup saved.
-          </p>
-        )}
-
-        <div className="mt-4">
-          {setupEditing ? (
-            <>
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium">Minimum license fee (INR)</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={editSetup.minFee}
-                    onChange={(e) =>
-                      setEditSetup({ ...editSetup, minFee: formatNumberFieldChange(e.target.value) })
-                    }
-                    placeholder="e.g. 50,000"
-                    className="w-full max-w-xs rounded-lg border border-black/10 px-4 py-2 text-sm outline-none tabular-nums"
-                  />
-                  <MinFeeTierHint minFee={editSetup.minFee} />
-                </div>
-                <label className="flex items-center gap-3 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={editSetup.consentVideo}
-                    onChange={(e) => setEditSetup({ ...editSetup, consentVideo: e.target.checked })}
-                    className="accent-neutral-950"
-                  />
-                  I have recorded my consent video (or will upload soon)
-                </label>
-                <label className="flex items-center gap-3 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={editSetup.licenseSigned}
-                    onChange={(e) => setEditSetup({ ...editSetup, licenseSigned: e.target.checked })}
-                    className="accent-neutral-950"
-                  />
-                  I agree to the Muhr platform license terms
-                </label>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => void saveSetup()}
-                  disabled={savingSetup}
-                  className={solidButtonVariants()}
-                >
-                  {savingSetup ? "Saving…" : "Save"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSetupEditing(false);
-                    setSetupSaveError(null);
-                    setEditSetup({ ...savedSetup });
-                  }}
-                  className="text-sm font-medium text-neutral-600 underline-offset-2 hover:text-neutral-900 hover:underline"
-                >
-                  Cancel
-                </button>
-              </div>
-            </>
-          ) : (
-            <dl className="space-y-3">
-              <SetupItem
-                label="Minimum license fee"
-                value={
-                  savedSetup.minFee
-                    ? `₹${(parseFormattedInteger(savedSetup.minFee) ?? 0).toLocaleString("en-IN")}`
-                    : "—"
-                }
-              />
-              <SetupItem
-                label="Consent video recorded"
-                value={savedSetup.consentVideo ? "Yes" : "No"}
-              />
-              <SetupItem
-                label="Platform license terms"
-                value={savedSetup.licenseSigned ? "Agreed" : "Not agreed"}
-              />
-            </dl>
-          )}
-        </div>
-      </div>
     </div>
-  );
-}
-
-function MeasurementItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{label}</dt>
-      <dd className="mt-1 text-sm text-neutral-950">{value}</dd>
-    </div>
-  );
-}
-
-function SetupItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between">
-      <dt className="text-sm text-neutral-700">{label}</dt>
-      <dd className="text-sm font-medium text-neutral-950">{value}</dd>
-    </div>
-  );
-}
-
-function MinFeeTierHint({ minFee }: { minFee: string }) {
-  const parsed = useMemo(() => {
-    const n = parseFormattedInteger(minFee);
-    return n != null && Number.isFinite(n) && n > 0 ? n : null;
-  }, [minFee]);
-
-  const recommendation = useMemo(() => {
-    if (parsed == null) return null;
-    return recommendFee(
-      { minLicenseFeeInr: parsed },
-      { durationDays: 30, channels: ["Instagram", "Facebook"], territories: ["India"] }
-    );
-  }, [parsed]);
-
-  if (!parsed) {
-    return (
-      <p className="mt-1.5 text-xs text-neutral-500">
-        Set the lowest amount you’d accept for a 30-day Instagram + Facebook campaign in India.
-        We’ll use it to anchor the suggested range brands see.
-      </p>
-    );
-  }
-
-  if (!recommendation) return null;
-
-  return (
-    <p className="mt-1.5 text-xs text-neutral-600">
-      <span className="font-medium text-neutral-900">{recommendation.tier.label}</span> ·{" "}
-      {recommendation.tier.followerBand}. 30-day Insta + FB campaign in
-      India will roughly see{" "}
-      <span className="font-medium tabular-nums text-neutral-900">
-        ₹{recommendation.lowInr.toLocaleString("en-IN")} – ₹
-        {recommendation.highInr.toLocaleString("en-IN")}
-      </span>{" "}
-      between (mid ₹{recommendation.midInr.toLocaleString("en-IN")}). Estimate only.
-    </p>
   );
 }

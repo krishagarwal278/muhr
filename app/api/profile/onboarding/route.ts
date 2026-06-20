@@ -11,7 +11,6 @@ export const dynamic = "force-dynamic";
 
 const schema = z.object({
   minLicenseFeeInr: z.number().int().positive().max(100_000_000).optional(),
-  consentVideoCompleted: z.boolean().optional(),
   platformLicenseSigned: z.boolean().optional(),
 });
 
@@ -32,9 +31,6 @@ export async function PATCH(request: Request) {
     const updates: Record<string, unknown> = {};
     if (parsed.data.minLicenseFeeInr !== undefined) {
       updates.min_license_fee_inr = parsed.data.minLicenseFeeInr;
-    }
-    if (parsed.data.consentVideoCompleted !== undefined) {
-      updates.consent_video_completed = parsed.data.consentVideoCompleted;
     }
     if (parsed.data.platformLicenseSigned !== undefined) {
       updates.platform_license_signed = parsed.data.platformLicenseSigned;

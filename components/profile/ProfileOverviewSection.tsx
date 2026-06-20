@@ -38,6 +38,7 @@ interface OverviewState {
   licensingNotes: string;
   acceptingRequests: boolean;
   profileLinks: ProfileLinkInput[];
+  platformLicenseSigned: boolean;
 }
 
 interface EditState {
@@ -69,6 +70,7 @@ const INITIAL_OVERVIEW: OverviewState = {
   licensingNotes: "",
   acceptingRequests: true,
   profileLinks: [],
+  platformLicenseSigned: false,
 };
 
 export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProps) {
@@ -120,6 +122,7 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
                 }))
                 .filter((item): item is ProfileLinkInput => !!item.platform && !!item.value)
             : [],
+          platformLicenseSigned: data.platformLicenseSigned === true,
         });
       }
     } finally {
@@ -250,6 +253,7 @@ export function ProfileOverviewSection({ onUpdated }: ProfileOverviewSectionProp
               }))
               .filter((item): item is ProfileLinkInput => !!item.platform && !!item.value)
           : editValues.profileLinks,
+        platformLicenseSigned: saved?.platformLicenseSigned ?? overview.platformLicenseSigned,
       });
       setEditing(false);
       setSaveOk(true);
@@ -547,6 +551,10 @@ function DisplayView({ overview, phoneDisplay }: DisplayViewProps) {
       <DataItem
         label="Accept license requests"
         value={overview.acceptingRequests ? "Yes" : "No"}
+      />
+      <DataItem
+        label="Platform license terms"
+        value={overview.platformLicenseSigned ? "Agreed" : "Not agreed"}
       />
       {overview.profileLinks.length > 0 ? (
         <div className="sm:col-span-2">

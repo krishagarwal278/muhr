@@ -24,7 +24,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from("profiles")
-      .select("height, weight, chest, waist, hips, shoe_size, min_license_fee_inr, consent_video_completed, platform_license_signed")
+      .select("height, weight, chest, waist, hips, shoe_size, min_license_fee_inr, platform_license_signed")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -46,7 +46,6 @@ export async function GET() {
         hips: data?.hips ?? "",
         shoeSize: data?.shoe_size ?? "",
         minLicenseFeeInr: data?.min_license_fee_inr ?? null,
-        consentVideoCompleted: data?.consent_video_completed ?? false,
         platformLicenseSigned: data?.platform_license_signed ?? false,
       },
     });

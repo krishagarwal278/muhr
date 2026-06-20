@@ -1,0 +1,20 @@
+@font-face {
+  font-family: "Clash Display";
+  src: url("https://cdn.fontshare.com/wf/FPDAZ2S6SW4QMSRIIKNNGTPM6VIXYMKO/5HNPQ453FRLIQWV2FNOBUU3FKTDZQVSG/Z3MGHFHX6DCTLQ55LJYRJ5MDCZPMFZU6.woff2")
+    format("woff2");
+  font-weight: 600;
+  font-display: swap;
+  font-style: normal;
+}
+
+.muhr-wordmark {
+  font-family: "Clash Display", var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.muhr-display {
+  font-family: "Clash Display", var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}

@@ -20,7 +20,7 @@ export function ProfileLinksDisplay({ links, variant = "card" }: ProfileLinksDis
           rel="noopener noreferrer"
           className={
             variant === "compact"
-              ? "rounded-full border border-black/10 px-2.5 py-1 text-[11px] font-medium text-neutral-700 hover:bg-black/5"
+              ? "rounded-full border border-neutral-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-neutral-800 hover:bg-neutral-50"
               : "rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/15"
           }
         >

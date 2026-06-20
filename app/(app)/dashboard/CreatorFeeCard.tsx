@@ -32,9 +32,6 @@ function formatInr(n: number): string {
   return `₹${n.toLocaleString("en-IN")}`;
 }
 
-/**
- * Interactive earnings data slide: follower count drives tier and estimated license fees.
- */
 export function CreatorFeeCard({
   minLicenseFeeInr,
   initialFollowerCount,
@@ -140,18 +137,18 @@ export function CreatorFeeCard({
 
   return (
     <section
-      className="w-full min-w-0 overflow-hidden rounded-2xl border border-purple-200/90 bg-gradient-to-br from-purple-50 via-white to-indigo-50/50 shadow-[0_4px_24px_-6px_rgba(88,28,135,0.15)]"
+      className="w-full min-w-0 overflow-hidden rounded-2xl border border-neutral-300/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06),0_12px_32px_-12px_rgba(15,23,42,0.1)]"
       aria-labelledby="earnings-slide-heading"
     >
-      <div className="border-b border-purple-100/80 bg-white/50 px-5 py-4 sm:px-6">
+      <div className="border-b border-neutral-200 px-5 py-4 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-purple-600">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-[#2D5BFF]">
               Earnings estimate
             </p>
             <h2
               id="earnings-slide-heading"
-              className="mt-1 text-lg font-semibold tracking-tight text-purple-950 sm:text-xl"
+              className="muhr-display mt-1 text-xl text-neutral-950 sm:text-2xl"
             >
               License fee estimate
             </h2>
@@ -163,11 +160,10 @@ export function CreatorFeeCard({
       </div>
 
       <div className="space-y-6 px-5 py-5 sm:px-6 sm:py-6">
-        {/* Follower count — primary control */}
-        <div className="rounded-xl border border-purple-200/70 bg-white/90 p-4 shadow-sm">
+        <div className="rounded-xl border border-neutral-300/90 bg-neutral-100/70 p-4">
           <label
             htmlFor="follower-count-input"
-            className="text-xs font-semibold uppercase tracking-wide text-purple-800"
+            className="text-xs font-semibold uppercase tracking-wide text-neutral-600"
           >
             Your followers
           </label>
@@ -186,10 +182,10 @@ export function CreatorFeeCard({
                     handleInputBlur();
                   }
                 }}
-                className="w-28 border-b-2 border-purple-300 bg-transparent text-3xl font-semibold tabular-nums tracking-tight text-purple-950 outline-none focus:border-purple-500 sm:w-32 sm:text-4xl"
+                className="w-28 border-b-2 border-[#2D5BFF]/40 bg-transparent text-3xl font-semibold tabular-nums tracking-tight text-neutral-950 outline-none focus:border-[#2D5BFF] sm:w-32 sm:text-4xl"
                 aria-describedby="follower-slider"
               />
-              <span className="pb-1 text-sm font-medium text-purple-800/80">followers</span>
+              <span className="pb-1 text-sm font-medium text-neutral-600">followers</span>
             </div>
           </div>
 
@@ -203,65 +199,72 @@ export function CreatorFeeCard({
               const pos = Number(e.target.value) / 1000;
               updateFollowers(followersFromSliderPosition(pos));
             }}
-            className="mt-4 h-2 w-full cursor-pointer appearance-none rounded-full bg-purple-100 accent-purple-700"
+            className="mt-4 h-2 w-full cursor-pointer appearance-none rounded-full bg-neutral-300 accent-[#2D5BFF]"
             aria-valuemin={FOLLOWER_SLIDER_MIN}
             aria-valuemax={FOLLOWER_SLIDER_MAX}
             aria-valuenow={followerCount}
             aria-label="Adjust follower count"
           />
-          <div className="mt-1.5 flex justify-between text-[10px] font-medium tabular-nums text-purple-700/70">
+          <div className="mt-1.5 flex justify-between text-[10px] font-medium tabular-nums text-neutral-500">
             <span>{formatFollowerCount(FOLLOWER_SLIDER_MIN)}</span>
             <span>{formatFollowerCount(FOLLOWER_SLIDER_MAX)}+</span>
           </div>
         </div>
 
-        {/* Hero fee range */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
-          <div className="min-w-0 rounded-xl border border-purple-200/60 bg-gradient-to-br from-purple-100/50 to-white p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-purple-700">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">
+          <div className="rounded-xl border border-neutral-300/90 bg-neutral-100/50 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-600">
               Approx. license fee · 30 days
             </p>
-            <p className="mt-0.5 text-xs text-purple-900/65">Instagram + Facebook · India</p>
-            <p className="mt-3 break-words text-2xl font-semibold tabular-nums tracking-tight text-purple-950 sm:text-3xl lg:text-4xl">
+            <p className="mt-0.5 text-xs text-neutral-600">Instagram + Facebook · India</p>
+            <p className="muhr-display mt-3 break-words text-2xl tabular-nums text-neutral-950 sm:text-3xl lg:text-4xl">
               {formatInr(recommendation.lowInr)}
-              <span className="mx-2 text-xl font-normal text-purple-400">–</span>
+              <span className="mx-2 text-xl font-normal text-neutral-400">–</span>
               {formatInr(recommendation.highInr)}
             </p>
-            <p className="mt-1 text-sm tabular-nums text-purple-800/80">
+            <p className="mt-1 text-sm tabular-nums text-neutral-600">
               Mid {formatInr(recommendation.midInr)}
             </p>
           </div>
 
-          {/* Tier spectrum */}
-          <div className="w-full min-w-0 rounded-xl border border-purple-200/50 bg-white/80 p-3 sm:w-auto sm:min-w-[200px]">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-purple-700">
-              Tier bands
-            </p>
-            <div className="mt-2 flex h-2 overflow-hidden rounded-full">
-              {FOLLOWER_TIER_BANDS.map((band) => {
-                const active = band.tierId === activeTierId;
-                return (
-                  <div
-                    key={band.tierId}
-                    title={PRICING_TIERS[band.tierId].label}
-                    className={
-                      active
-                        ? "flex-1 bg-purple-600 ring-2 ring-purple-300 ring-offset-1"
-                        : "flex-1 bg-purple-200/80"
-                    }
-                  />
-                );
-              })}
+          <div className="flex flex-col justify-between rounded-xl bg-[#2D5BFF] p-5 text-white shadow-[0_8px_24px_-8px_rgba(45,91,255,0.55)]">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-white/85">
+                Estimated this month
+              </p>
+              <p className="muhr-display mt-2 text-3xl tabular-nums sm:text-4xl">
+                {formatInr(recommendation.midInr)}
+              </p>
             </div>
-            <p className="mt-2 text-center text-[10px] font-medium text-purple-800">
-              You&apos;re here: {activeTier.label}
-            </p>
+            <div className="mt-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-white/85">
+                Tier bands
+              </p>
+              <div className="mt-2 flex h-2 overflow-hidden rounded-full bg-white/20">
+                {FOLLOWER_TIER_BANDS.map((band) => {
+                  const active = band.tierId === activeTierId;
+                  return (
+                    <div
+                      key={band.tierId}
+                      title={PRICING_TIERS[band.tierId].label}
+                      className={
+                        active
+                          ? "flex-1 bg-white ring-2 ring-white/50 ring-offset-1 ring-offset-[#2D5BFF]"
+                          : "flex-1 bg-white/35"
+                      }
+                    />
+                  );
+                })}
+              </div>
+              <p className="mt-2 text-xs font-medium text-white">
+                You&apos;re here: {activeTier.label}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Data bars by tier */}
-        <div className="rounded-xl border border-purple-200/50 bg-white/70 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-purple-800">
+        <div className="rounded-xl border border-neutral-300/90 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">
             Compare tiers
           </p>
           <ul className="mt-4 space-y-2.5" role="list">
@@ -277,21 +280,21 @@ export function CreatorFeeCard({
                   <span
                     className={
                       isActive
-                        ? "text-xs font-semibold text-purple-950"
-                        : "text-xs text-purple-800/70"
+                        ? "text-xs font-semibold text-neutral-950"
+                        : "text-xs text-neutral-600"
                     }
                   >
                     <span className="block">{tier.label}</span>
-                    <span className="block text-[10px] font-normal opacity-80">
+                    <span className="block text-[10px] font-normal text-neutral-500">
                       {tier.followerBand}
                     </span>
                   </span>
-                  <div className="h-6 overflow-hidden rounded-md bg-purple-50">
+                  <div className="h-6 overflow-hidden rounded-md bg-neutral-200">
                     <div
                       className={
                         isActive
-                          ? "flex h-full items-center rounded-md bg-gradient-to-r from-purple-600 to-indigo-500 px-2 text-[10px] font-semibold text-white transition-all duration-300"
-                          : "flex h-full items-center rounded-md bg-purple-200/90 px-2 text-[10px] font-medium text-purple-900/80 transition-all duration-300"
+                          ? "flex h-full items-center rounded-md bg-[#2D5BFF] px-2 text-[10px] font-semibold text-white transition-all duration-300"
+                          : "flex h-full items-center rounded-md bg-[#2D5BFF]/25 px-2 text-[10px] font-semibold text-[#2D5BFF] transition-all duration-300"
                       }
                       style={{ width: `${widthPct}%` }}
                     >
@@ -301,8 +304,8 @@ export function CreatorFeeCard({
                   <span
                     className={
                       isActive
-                        ? "shrink-0 text-xs font-semibold tabular-nums text-purple-950"
-                        : "shrink-0 text-xs tabular-nums text-purple-800/70"
+                        ? "shrink-0 text-xs font-semibold tabular-nums text-neutral-950"
+                        : "shrink-0 text-xs tabular-nums text-neutral-600"
                     }
                   >
                     {widthPct <= 22 ? formatInr(rec.midInr) : null}
@@ -313,11 +316,11 @@ export function CreatorFeeCard({
           </ul>
         </div>
 
-        <p className="text-xs text-purple-900/65">
+        <p className="text-xs text-neutral-600">
           Estimates only ·{" "}
           <Link
             href="/profile"
-            className="font-medium text-purple-950 underline-offset-2 hover:underline"
+            className="font-medium text-[#2D5BFF] underline-offset-2 hover:underline"
           >
             Set minimum fee
           </Link>

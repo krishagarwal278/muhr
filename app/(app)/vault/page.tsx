@@ -308,14 +308,26 @@ export default function VaultPage() {
 
             {activeTab === "face" && (
               <div>
-                <h2 className="mb-2 text-lg font-semibold text-neutral-950">Face photos</h2>
-                <p className="mb-4 text-sm text-neutral-600">
-                  Reference photos for building the sheet are in{" "}
-                  <Link href="/profile#complete-profile" className="font-medium text-violet-700 underline-offset-2 hover:underline">
-                    Profile
-                  </Link>
-                  .
-                </p>
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-neutral-950">Face photos</h2>
+                    <p className="mt-1 text-sm text-neutral-600">
+                      Reference photos for building the sheet are in{" "}
+                      <Link href="/profile#complete-profile" className="font-medium text-violet-700 underline-offset-2 hover:underline">
+                        Profile
+                      </Link>
+                      .
+                    </p>
+                  </div>
+                  {kycVerified && (
+                    <Link href="/vault/upload" className={cx(solidButtonVariants(), "shrink-0 justify-center gap-2")}>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                      </svg>
+                      Upload photo
+                    </Link>
+                  )}
+                </div>
                 {showVaultGallery && vaultFacePhotos.length > 0 ? (
                   <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
                     {vaultFacePhotos.map((asset) => (
@@ -387,7 +399,22 @@ export default function VaultPage() {
 
             {activeTab === "documents" && (
               <div>
-                <h2 className="mb-4 text-lg font-semibold text-neutral-950">Documents</h2>
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-neutral-950">Documents</h2>
+                    <p className="mt-1 text-sm text-neutral-600">
+                      Likeness-related documents such as contracts, releases, and agreements. Encrypted and shareable with your vault assets.
+                    </p>
+                  </div>
+                  {kycVerified && (
+                    <Link href="/vault/upload" className={cx(solidButtonVariants(), "shrink-0 justify-center gap-2")}>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                      </svg>
+                      Upload document
+                    </Link>
+                  )}
+                </div>
                 {documents.length > 0 ? (
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {documents.map((asset) => (
@@ -395,7 +422,20 @@ export default function VaultPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-neutral-600">No documents uploaded yet.</p>
+                  <div className="rounded-xl border border-dashed border-neutral-300 py-12 text-center">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100">
+                      <svg className="h-6 w-6 text-neutral-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                      </svg>
+                    </div>
+                    <p className="text-sm text-neutral-600">No documents uploaded yet.</p>
+                    <p className="mt-1 text-xs text-neutral-500">Upload contracts, releases, or licensing agreements.</p>
+                    {kycVerified && (
+                      <Link href="/vault/upload" className={cx(solidButtonVariants(), "mt-4 inline-flex")}>
+                        Upload document
+                      </Link>
+                    )}
+                  </div>
                 )}
               </div>
             )}

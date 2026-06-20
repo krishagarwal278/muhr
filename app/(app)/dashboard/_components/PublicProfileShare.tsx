@@ -3,8 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { primaryButtonVariants } from "@/components/ui/button-recipes";
-import { surfaceCardVariants } from "@/components/ui/surface-card";
 import { ProfileLinksDisplay } from "@/components/profile/ProfileLinksDisplay";
 import { MuhrPassQrCode } from "@/components/profile/MuhrPassQrCode";
 import { cx } from "@/lib/cx";
@@ -15,7 +13,6 @@ import type { ProfileLinkInput } from "@/lib/profile/links";
 type Profile = {
   handle: string | null;
   displayName: string | null;
-  acceptingRequests: boolean;
   muid: string;
   profileLinks: ProfileLinkInput[];
 };
@@ -36,7 +33,6 @@ export function PublicProfileShare() {
           setProfile({
             handle: data.handle ?? null,
             displayName: data.displayName ?? null,
-            acceptingRequests: data.acceptingRequests !== false,
             muid: typeof data.muid === "string" ? data.muid : "",
             profileLinks: Array.isArray(data.profileLinks)
               ? data.profileLinks
@@ -74,10 +70,7 @@ export function PublicProfileShare() {
   if (loading) {
     return (
       <div
-        className={cx(
-          surfaceCardVariants({ padding: "none", interactive: "none" }),
-          "h-40 animate-pulse",
-        )}
+        className="h-40 animate-pulse rounded-2xl border border-neutral-300/90 bg-white"
         aria-hidden
       />
     );
@@ -85,13 +78,16 @@ export function PublicProfileShare() {
 
   if (!profile?.handle) {
     return (
-      <div className={surfaceCardVariants()}>
-        <h2 className="text-lg font-semibold tracking-tight text-neutral-950">Public profile link</h2>
-        <p className="mt-1.5 text-sm leading-relaxed text-neutral-700">
+      <div className="rounded-2xl border border-neutral-300/90 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_8px_24px_-8px_rgba(15,23,42,0.08)] sm:p-6">
+        <h2 className="muhr-display text-lg text-neutral-950">Public profile link</h2>
+        <p className="mt-1.5 text-sm leading-relaxed text-neutral-600">
           Your Muhr pass link is created automatically when your profile loads. Refresh this page if it
           does not appear yet, or edit your handle in Profile overview.
         </p>
-        <Link href="/profile#profile-overview" className={cx(primaryButtonVariants(), "mt-5")}>
+        <Link
+          href="/profile#profile-overview"
+          className="mt-5 inline-flex items-center justify-center rounded-full bg-[#2D5BFF] px-5 py-2 text-sm font-semibold text-white transition hover:bg-[#2548d9]"
+        >
           Open profile
         </Link>
       </div>
@@ -99,58 +95,47 @@ export function PublicProfileShare() {
   }
 
   return (
-    <div
-      className={cx(
-        "relative overflow-hidden rounded-2xl text-white",
-        "border border-zinc-700/80 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950",
-        "shadow-[0_24px_48px_-12px_rgba(0,0,0,0.45)] ring-1 ring-inset ring-white/10",
-      )}
-    >
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"
-        aria-hidden
-      />
-      <div className="relative border-b border-white/[0.08] bg-black/10 px-5 py-4 backdrop-blur-sm">
-        <h2 className="text-[15px] font-semibold tracking-tight text-white">Share link</h2>
+    <div className="overflow-hidden rounded-2xl border border-neutral-300/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.06),0_12px_32px_-12px_rgba(15,23,42,0.1)]">
+      <div className="border-b border-neutral-200 px-5 py-4 sm:px-6">
+        <h2 className="muhr-display text-lg text-neutral-950">Share link</h2>
+        <p className="mt-1 text-sm text-neutral-600">Your public Muhr pass for brands and collaborators</p>
       </div>
 
-      <div className="relative flex flex-col gap-5 p-5 sm:flex-row sm:items-stretch">
-        <div
-          className={cx(
-            "relative flex-1 overflow-hidden rounded-xl p-5",
-            "border border-white/[0.1] bg-gradient-to-br from-white/[0.09] to-white/[0.02]",
-            "shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
-          )}
-        >
+      <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-stretch sm:p-6">
+        <div className="relative flex-1 rounded-xl border border-neutral-300/90 bg-neutral-100/80 p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-500">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-neutral-600">
                 Muhr pass
               </p>
-              <p className="mt-2 text-xl font-semibold tracking-tight text-white sm:text-2xl">
+              <p className="muhr-display mt-2 text-xl text-neutral-950 sm:text-2xl">
                 {profile.displayName?.trim() || `@${profile.handle}`}
               </p>
-              <p className="mt-2 font-mono text-xs font-medium text-zinc-300 sm:text-sm">
+              <p className="mt-2 font-mono text-xs font-medium text-neutral-800 sm:text-sm">
                 {publicUrl}
               </p>
               <div className="mt-3">
-                <ProfileLinksDisplay links={profile.profileLinks} />
+                <ProfileLinksDisplay links={profile.profileLinks} variant="compact" />
               </div>
               {profile.muid ? (
-                <div className="mt-4 border-t border-white/[0.08] pt-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">MUID</p>
-                  <p className="mt-1 font-mono text-sm font-medium tracking-wide text-zinc-100">{profile.muid}</p>
+                <div className="mt-4 border-t border-neutral-300/90 pt-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-neutral-600">MUID</p>
+                  <p className="mt-1 font-mono text-sm font-semibold tracking-wide text-neutral-900">{profile.muid}</p>
                 </div>
               ) : null}
             </div>
             <MuhrPassQrCode
               value={publicUrl}
               size={76}
-              className="shrink-0 rounded-xl border border-white/15 shadow-lg shadow-black/30"
+              className="shrink-0 rounded-xl border border-neutral-300/90 bg-white shadow-sm"
             />
           </div>
           <div className="mt-5 flex flex-wrap gap-2">
-            <button type="button" onClick={() => void copy()} className={primaryButtonVariants({ size: "sm" })}>
+            <button
+              type="button"
+              onClick={() => void copy()}
+              className="inline-flex items-center justify-center rounded-full bg-[#2D5BFF] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#2548d9]"
+            >
               {copied ? "Copied" : "Copy link"}
             </button>
             <Link
@@ -158,9 +143,8 @@ export function PublicProfileShare() {
               target="_blank"
               rel="noopener noreferrer"
               className={cx(
-                "inline-flex items-center justify-center rounded-lg px-4 py-2 text-xs font-semibold",
-                "border border-white/20 bg-white/[0.08] text-white backdrop-blur-sm",
-                "transition hover:border-white/30 hover:bg-white/[0.14]",
+                "inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-semibold",
+                "border border-neutral-300 bg-white text-neutral-950 transition hover:border-neutral-400 hover:bg-neutral-50",
               )}
             >
               Open
@@ -169,12 +153,7 @@ export function PublicProfileShare() {
         </div>
 
         <div className="flex w-full shrink-0 flex-col justify-center gap-3 sm:w-44">
-          <div
-            className={cx(
-              "flex min-h-[7.5rem] justify-center rounded-xl p-5 sm:flex-1 sm:items-center",
-              "border border-white/[0.08] bg-zinc-900/60 shadow-inner",
-            )}
-          >
+          <div className="flex min-h-[7.5rem] justify-center rounded-xl border border-neutral-300/90 bg-neutral-100/80 p-5 sm:flex-1 sm:items-center">
             <Image
               src="/logo.png"
               alt=""
@@ -183,7 +162,7 @@ export function PublicProfileShare() {
               className="h-[52px] w-[52px] rounded-xl opacity-95"
             />
           </div>
-          <p className="text-center text-[11px] text-zinc-500">Screenshot for stories</p>
+          <p className="text-center text-[11px] font-medium text-neutral-500">Screenshot for stories</p>
         </div>
       </div>
     </div>

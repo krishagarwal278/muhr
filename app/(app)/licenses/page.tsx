@@ -8,7 +8,7 @@ export default function LicensesPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   return (
-    <Suspense fallback={<div className="h-24 animate-pulse rounded-xl border border-black/10 bg-neutral-100" />}>
+      <Suspense fallback={<div className="h-32 animate-pulse rounded-2xl border border-neutral-300/90 bg-neutral-100" />}>
       <LicensesPageInner searchParams={searchParams} />
     </Suspense>
   );

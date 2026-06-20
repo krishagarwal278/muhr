@@ -5,14 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { KycStatusBadge } from "@/components/KycStatusBadge";
 import { ghostButtonVariants } from "@/components/ui/button-recipes";
-import { appPageHeaderVariants, appPageTitleVariants } from "@/components/ui/page-header";
-import { surfaceCardVariants } from "@/components/ui/surface-card";
-import { cx } from "@/lib/cx";
 import { PublicProfileShare } from "./_components/PublicProfileShare";
+import { IncomingBriefsPanel } from "./_components/IncomingBriefsPanel";
 import { CreatorFeeCard } from "./CreatorFeeCard";
 import { startNavTour } from "@/lib/tour/navTour";
 import type { KycStatus } from "@/types";
+import type { LicenseRequestRow } from "@/types/license";
 import { profileFromApiJson } from "@/lib/api/profilePayload";
+import { licensesListFromApiJson } from "@/lib/api/licensesPayload";
 import { dataFromApiJson } from "@/lib/api/response";
 
 interface DashboardStats {
@@ -22,7 +22,6 @@ interface DashboardStats {
   pendingLicenseRequests: number;
 }
 
-/** Parse JSON only for successful responses; avoid throwing on error HTML/text. */
 async function parseApiJson(
   res: Response,
   label: string
@@ -61,6 +60,49 @@ function ActionIcon({ name, className }: { name: string; className?: string }) {
   return <>{icons[name]}</>;
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function formatHeaderDate(): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  }).format(new Date());
+}
+
+function StatCard({
+  label,
+  value,
+  href,
+  loading,
+}: {
+  label: string;
+  value: number;
+  href: string;
+  loading: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className="rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-8px_rgba(15,23,42,0.06)] transition hover:border-neutral-300/90 hover:shadow-[0_4px_16px_-4px_rgba(15,23,42,0.08)]"
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">{label}</p>
+      <p className="muhr-display mt-2 text-3xl tabular-nums text-neutral-950">
+        {loading ? (
+          <span className="inline-block h-9 w-12 animate-pulse rounded bg-neutral-100" />
+        ) : (
+          value
+        )}
+      </p>
+    </Link>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [brandAccessDenied, setBrandAccessDenied] = useState(false);
@@ -70,9 +112,11 @@ export default function DashboardPage() {
     hasAssets: false,
     pendingLicenseRequests: 0,
   });
+  const [incomingRequests, setIncomingRequests] = useState<LicenseRequestRow[]>([]);
   const [kycStatus, setKycStatus] = useState<KycStatus | null>(null);
   const [minLicenseFeeInr, setMinLicenseFeeInr] = useState<number | null>(null);
   const [followerCount, setFollowerCount] = useState<number | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -94,22 +138,28 @@ export default function DashboardPage() {
           fetch("/api/profile"),
         ]);
 
-        const [vaultData, licensesData, identityData, profileData] = await Promise.all([
+        const [vaultData, licensesJson, identityData, profileData] = await Promise.all([
           parseApiJson(vaultRes, "vault"),
-          parseApiJson(licensesRes, "licenses"),
+          licensesRes.json().catch(() => null),
           parseApiJson(identityRes, "identity"),
           parseApiJson(profileRes, "profile"),
         ]);
 
-        const counts = licensesData.counts as { pending?: number; accepted?: number } | undefined;
+        const licensesData = licensesListFromApiJson(licensesJson) ?? {};
+        const licensesRaw = dataFromApiJson<Record<string, unknown>>(licensesJson) ?? {};
+        const counts = licensesData.counts;
         const pendingFromCounts = typeof counts?.pending === "number" ? counts.pending : undefined;
         const pendingLen = Array.isArray(licensesData.incomingRequests)
           ? licensesData.incomingRequests.length
           : 0;
         const vaultAssetCount = Array.isArray(vaultData.assets) ? vaultData.assets.length : 0;
-        const activeLicenseCount = Array.isArray(licensesData.active)
-          ? licensesData.active.length
+        const activeLicenseCount = Array.isArray(licensesRaw.active)
+          ? licensesRaw.active.length
           : 0;
+
+        setIncomingRequests(
+          Array.isArray(licensesData.incomingRequests) ? licensesData.incomingRequests : []
+        );
         setStats({
           vaultAssets: vaultAssetCount,
           activeLicenses:
@@ -117,12 +167,14 @@ export default function DashboardPage() {
           hasAssets: vaultAssetCount > 0,
           pendingLicenseRequests: pendingFromCounts ?? pendingLen,
         });
+
         const identity = (identityData.data ?? identityData) as Record<string, unknown>;
         setKycStatus(
           typeof identity.kycStatus === "string"
             ? (identity.kycStatus as KycStatus)
             : "unverified"
         );
+
         const profile = profileFromApiJson(profileData);
         setMinLicenseFeeInr(
           typeof profile?.minLicenseFeeInr === "number" ? profile.minLicenseFeeInr : null
@@ -130,6 +182,7 @@ export default function DashboardPage() {
         setFollowerCount(
           typeof profile?.followerCount === "number" ? profile.followerCount : null
         );
+        setDisplayName(profile?.displayName?.trim() || null);
       } catch (error) {
         console.error("Failed to fetch dashboard stats:", error);
       } finally {
@@ -139,14 +192,10 @@ export default function DashboardPage() {
     fetchStats();
   }, []);
 
-  const statCards = [
-    { label: "Vault assets", value: stats.vaultAssets, href: "/vault" },
-    { label: "Accepted", value: stats.activeLicenses, href: "/licenses" },
-    { label: "Pending", value: stats.pendingLicenseRequests, href: "/licenses" },
-  ];
+  const greetingName = displayName || "there";
 
   return (
-    <div className="w-full min-w-0 space-y-8">
+    <div className="w-full min-w-0 space-y-6">
       {brandAccessDenied ? (
         <p
           className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
@@ -156,18 +205,22 @@ export default function DashboardPage() {
           to the creator app.
         </p>
       ) : null}
-      <header className={appPageHeaderVariants()}>
-        <div className="min-w-0 flex-1 space-y-3">
-          <h1 className={appPageTitleVariants()}>Dashboard</h1>
-          {!loading && kycStatus !== null ? (
-            <KycStatusBadge status={kycStatus} className="w-fit shrink-0" />
+
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-[#4B6BFB]">{formatHeaderDate()}</p>
+          <h1 className="muhr-display mt-1 text-3xl text-neutral-950 sm:text-4xl">
+            {getGreeting()}, {greetingName}.
+          </h1>
+          {!loading && kycStatus !== null && kycStatus !== "verified" ? (
+            <div className="mt-3">
+              <KycStatusBadge status={kycStatus} className="w-fit shrink-0" />
+            </div>
           ) : null}
         </div>
+
         <div className="flex shrink-0 flex-wrap items-center gap-2 lg:pt-1">
-          <Link
-            href="/welcome"
-            className={ghostButtonVariants()}
-          >
+          <Link href="/welcome" className={ghostButtonVariants()}>
             <svg
               className="h-4 w-4 text-neutral-600 transition group-hover:text-neutral-900"
               fill="none"
@@ -180,11 +233,7 @@ export default function DashboardPage() {
             </svg>
             View overview
           </Link>
-          <button
-            type="button"
-            onClick={() => startNavTour()}
-            className={ghostButtonVariants()}
-          >
+          <button type="button" onClick={() => startNavTour()} className={ghostButtonVariants()}>
             <svg
               className="h-4 w-4 text-neutral-600 transition group-hover:text-neutral-900"
               fill="none"
@@ -204,9 +253,8 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      {!loading && <PublicProfileShare />}
+      <PublicProfileShare />
 
-      {/* Fee recommendation card */}
       {!loading && (
         <CreatorFeeCard
           minLicenseFeeInr={minLicenseFeeInr}
@@ -214,136 +262,133 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {statCards.map((stat) => (
-          <Link
-            key={stat.label}
-            href={stat.href}
-            className={surfaceCardVariants({ interactive: "subtle" })}
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">{stat.label}</p>
-            <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-neutral-950">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <IncomingBriefsPanel requests={incomingRequests} loading={loading} />
+
+        <div className="space-y-4">
+          {!loading && kycStatus !== null && kycStatus !== "verified" && (
+            <div className="rounded-2xl border border-amber-200/80 bg-amber-50/80 p-5">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-amber-200/60 bg-white shadow-sm">
+                  <svg
+                    className="h-5 w-5 text-amber-700"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
+                    />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-amber-950">Complete verification</h3>
+                  <p className="mt-1 text-sm text-amber-900/80">
+                    Add your handle and submit for review to unlock uploads.
+                  </p>
+                  <Link
+                    href="/profile#identity-verification"
+                    className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-[#2D5BFF] underline-offset-2 hover:underline"
+                  >
+                    Go to profile
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!loading && kycStatus === "verified" && !stats.hasAssets && (
+            <div className="rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-8px_rgba(15,23,42,0.06)]">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100">
+                  <svg className="h-5 w-5 text-neutral-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-neutral-950">Vault is empty</h3>
+                  <p className="mt-1 text-sm text-neutral-500">Add photos or voice samples to get started.</p>
+                  <Link
+                    href="/vault/upload"
+                    className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-[#2D5BFF] underline-offset-2 hover:underline"
+                  >
+                    Upload assets
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!loading && kycStatus === "verified" && stats.hasAssets && (
+            <div className="rounded-2xl border border-emerald-200/80 bg-emerald-50/70 p-5">
+              <div className="flex items-start gap-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-emerald-200/60 bg-white shadow-sm">
+                  <svg
+                    className="h-5 w-5 text-emerald-700"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"
+                    />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-emerald-950">Vault ready</h3>
+                  <p className="mt-1 text-sm text-emerald-900/80">
+                    Verified · {stats.vaultAssets} asset{stats.vaultAssets !== 1 ? "s" : ""} stored
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <section className="rounded-2xl border border-neutral-200/80 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-8px_rgba(15,23,42,0.06)]">
+            <h2 className="muhr-display text-lg text-neutral-950">Active licenses</h2>
+            <p className="mt-1 text-sm text-neutral-500">Currently accepted and in progress</p>
+            <p className="muhr-display mt-4 text-3xl tabular-nums text-neutral-950">
               {loading ? (
-                <span className="inline-block h-9 w-12 animate-pulse rounded bg-black/10" />
+                <span className="inline-block h-9 w-10 animate-pulse rounded bg-neutral-100" />
               ) : (
-                stat.value
+                stats.activeLicenses
               )}
             </p>
-          </Link>
-        ))}
+            <Link
+              href="/licenses"
+              className="mt-4 inline-flex text-sm font-medium text-[#2D5BFF] underline-offset-2 hover:underline"
+            >
+              Open licenses
+            </Link>
+          </section>
+        </div>
       </div>
 
-      {/* KYC + vault status */}
-      {!loading && kycStatus !== null && kycStatus !== "verified" && (
-        <div className="rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50/50 p-5 shadow-sm">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-amber-200/60 bg-white/80 shadow-sm">
-              <svg
-                className="h-5 w-5 text-amber-700"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
-                />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h3 className="font-medium text-amber-950">Complete verification</h3>
-              <p className="mt-1 text-sm text-amber-900/80">
-                Add your handle and submit for review to unlock uploads.
-              </p>
-              <Link
-                href="/profile#identity-verification"
-                className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-amber-900 underline-offset-2 hover:text-amber-800"
-              >
-                Go to profile
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Vault assets" value={stats.vaultAssets} href="/vault" loading={loading} />
+        <StatCard label="Accepted" value={stats.activeLicenses} href="/licenses" loading={loading} />
+        <StatCard label="Pending" value={stats.pendingLicenseRequests} href="/licenses" loading={loading} />
+      </div>
 
-      {!loading && kycStatus === "verified" && !stats.hasAssets && (
-        <div className={surfaceCardVariants()}>
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5">
-              <svg className="h-5 w-5 text-neutral-900/70" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-              </svg>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {quickActions.map((action) => (
+          <Link
+            key={action.title}
+            href={action.href}
+            className="group flex items-center gap-3 rounded-2xl border border-neutral-200/80 bg-white px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-8px_rgba(15,23,42,0.06)] transition hover:border-neutral-300/90 hover:shadow-[0_4px_16px_-4px_rgba(15,23,42,0.08)]"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-700 transition group-hover:bg-[#2D5BFF]/10 group-hover:text-[#2D5BFF]">
+              <ActionIcon name={action.icon} className="h-5 w-5" />
             </div>
-            <div className="flex-1">
-              <h3 className="font-medium text-neutral-950">Vault is empty</h3>
-              <p className="mt-1 text-sm text-neutral-700">Add photos or voice samples to get started.</p>
-              <Link
-                href="/vault/upload"
-                className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-neutral-950 hover:text-neutral-900/80"
-              >
-                Upload assets
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!loading && kycStatus === "verified" && stats.hasAssets && (
-        <div className="rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-teal-50/40 p-5 shadow-sm">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-emerald-200/60 bg-white/80 shadow-sm">
-              <svg
-                className="h-5 w-5 text-emerald-700"
-                fill="none"
-                viewBox="0 0 24 24"
-                strokeWidth={1.5}
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"
-                />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h3 className="font-medium text-emerald-950">Vault ready</h3>
-              <p className="mt-1 text-sm text-emerald-900/80">
-                Verified · {stats.vaultAssets} asset{stats.vaultAssets !== 1 ? "s" : ""} stored
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Quick actions */}
-      <div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {quickActions.map((action) => (
-            <Link
-              key={action.title}
-              href={action.href}
-              className={cx(
-                surfaceCardVariants({ interactive: "emphasized" }),
-                "flex items-center gap-3",
-              )}
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-neutral-200/80 bg-neutral-100 text-neutral-700 transition group-hover:border-neutral-300 group-hover:bg-neutral-200/80 group-hover:text-neutral-950">
-                <ActionIcon name={action.icon} className="h-5 w-5" />
-              </div>
-              <span className="font-semibold text-neutral-950">{action.title}</span>
-            </Link>
-          ))}
-        </div>
+            <span className="font-semibold text-neutral-950">{action.title}</span>
+          </Link>
+        ))}
       </div>
     </div>
   );

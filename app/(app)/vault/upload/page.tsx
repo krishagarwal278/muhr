@@ -10,7 +10,7 @@ import { vaultUploadFromApiJson } from "@/lib/api/vaultPayload";
 import { outlineButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
 import { cx } from "@/lib/cx";
 
-type AssetType = "face_photo" | "voice_sample" | null;
+type AssetType = "face_photo" | "voice_sample" | "document" | null;
 type UploadStep = "select" | "upload" | "complete";
 
 export default function VaultUploadPage() {
@@ -290,20 +290,45 @@ export default function VaultUploadPage() {
                 <h3 className="font-medium">Voice samples</h3>
                 <p className="mt-1 text-sm text-neutral-700">Record with autoscroll script (encrypted)</p>
               </Link>
+              <button
+                onClick={() => setAssetType("document")}
+                className={`rounded-xl border p-5 text-left transition ${
+                  assetType === "document"
+                    ? "border-black/15 bg-black/5"
+                    : "border-black/10 bg-white/70 hover:border-black/15 hover:bg-white"
+                }`}
+              >
+                <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg bg-black/[0.03]">
+                  <svg className="h-5 w-5 text-neutral-900/70" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                  </svg>
+                </div>
+                <h3 className="font-medium">Documents</h3>
+                <p className="mt-1 text-sm text-neutral-700">Contracts, agreements, releases (encrypted)</p>
+              </button>
             </div>
           </div>
         )}
 
         {step === "upload" && (
           <div className="space-y-4">
-            <h2 className="text-lg font-medium">Upload photos</h2>
+            <h2 className="text-lg font-medium">
+              {assetType === "document" ? "Upload documents" : "Upload photos"}
+            </h2>
             {assetType === "face_photo" ? (
               <p className="rounded-lg border border-violet-200/80 bg-violet-50/80 px-3 py-2 text-xs text-violet-950">
                 Face photos are saved unencrypted so you can preview them in Vault. Only your{" "}
                 <strong>character sheet</strong> is encrypted when you seal it from the Vault page.
               </p>
             ) : (
-              <div className="rounded-xl border border-black/10 bg-white/70 p-4">
+              <>
+                {assetType === "document" && (
+                  <p className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-700">
+                    Upload likeness-related documents such as contracts, talent releases, or licensing agreements.
+                    Documents are encrypted and can be shared alongside your other vault assets.
+                  </p>
+                )}
+                <div className="rounded-xl border border-black/10 bg-white/70 p-4">
                 <label className="block text-sm font-semibold text-neutral-800">Vault password</label>
                 <p className="mt-1 text-xs leading-relaxed text-neutral-700">
                   Used to encrypt files before upload. If you lose it, Muhr can’t recover your assets.
@@ -317,13 +342,14 @@ export default function VaultUploadPage() {
                   className="mt-3 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 placeholder:text-neutral-500/70 focus:border-black/15 focus:outline-none"
                   disabled={uploading}
                 />
-              </div>
+                </div>
+              </>
             )}
             <div className="rounded-xl border-2 border-dashed border-black/15 bg-white/60 p-8 text-center">
               <input
                 type="file"
                 multiple
-                accept="image/jpeg,image/png,image/webp"
+                accept={assetType === "document" ? ".pdf,.doc,.docx,application/pdf" : "image/jpeg,image/png,image/webp"}
                 onChange={handleFileChange}
                 className="hidden"
                 id="file-upload"
@@ -339,7 +365,7 @@ export default function VaultUploadPage() {
                   Drag and drop or <span className="font-medium text-neutral-950 underline">browse files</span>
                 </p>
                 <p className="mt-1 text-xs text-neutral-600">
-                  JPG, PNG, WebP up to 10MB each
+                  {assetType === "document" ? "PDF, DOC, DOCX up to 10MB each" : "JPG, PNG, WebP up to 10MB each"}
                 </p>
               </label>
             </div>
@@ -347,37 +373,65 @@ export default function VaultUploadPage() {
             {files.length > 0 && (
               <div className="space-y-3">
                 <p className="text-sm font-medium">{files.length} file{files.length > 1 ? "s" : ""} selected</p>
-                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-                  {files.map((file, i) => (
-                    <div key={i} className="group relative aspect-square overflow-hidden rounded-lg border border-black/10 bg-neutral-50">
-                      {previews[i] ? (
-                        <Image
-                          src={previews[i]}
-                          alt={file.name}
-                          fill
-                          className="object-cover"
-                          unoptimized
-                        />
-                      ) : (
-                        <div className="flex h-full items-center justify-center">
-                          <svg className="h-6 w-6 text-neutral-900/38" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                {assetType === "document" ? (
+                  <div className="space-y-2">
+                    {files.map((file, i) => (
+                      <div key={i} className="group flex items-center gap-3 rounded-lg border border-black/10 bg-neutral-50 p-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neutral-100">
+                          <svg className="h-5 w-5 text-neutral-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                           </svg>
                         </div>
-                      )}
-                      {!uploading && (
-                        <button
-                          onClick={() => removeFile(i)}
-                          className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100"
-                        >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-neutral-900">{file.name}</p>
+                          <p className="text-xs text-neutral-500">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                        </div>
+                        {!uploading && (
+                          <button
+                            onClick={() => removeFile(i)}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-neutral-400 transition hover:bg-neutral-200 hover:text-neutral-600"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+                    {files.map((file, i) => (
+                      <div key={i} className="group relative aspect-square overflow-hidden rounded-lg border border-black/10 bg-neutral-50">
+                        {previews[i] ? (
+                          <Image
+                            src={previews[i]}
+                            alt={file.name}
+                            fill
+                            className="object-cover"
+                            unoptimized
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center">
+                            <svg className="h-6 w-6 text-neutral-900/38" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                            </svg>
+                          </div>
+                        )}
+                        {!uploading && (
+                          <button
+                            onClick={() => removeFile(i)}
+                            className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition group-hover:opacity-100"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -410,7 +464,11 @@ export default function VaultUploadPage() {
               </svg>
             </div>
             <h2 className="text-lg font-medium">Assets uploaded successfully</h2>
-            <p className="text-sm text-neutral-700">Your photos are now securely stored in your vault.</p>
+            <p className="text-sm text-neutral-700">
+              {assetType === "document" 
+                ? "Your documents are now encrypted and stored in your vault." 
+                : "Your photos are now securely stored in your vault."}
+            </p>
             <div className="flex justify-center gap-3 pt-2">
               <Link href="/vault" className={solidButtonVariants()}>
                 View vault

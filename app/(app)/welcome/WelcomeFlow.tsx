@@ -230,7 +230,7 @@ function FactCard({ step, title, body }: { step: number; title: string; body: st
 const HOW_IT_WORKS_STEPS = [
   { title: "Upload character photos", hint: "5 solo shots · encrypted vault", duration: "~5 min" },
   { title: "Build character sheet", hint: "Auto-generated · you approve", duration: "Auto" },
-  { title: "Set consent rules", hint: "Channels, territories, AI", duration: "~3 min" },
+  { title: "Set rules and rates", hint: "Rates, channels, usage rules", duration: "~3 min" },
   { title: "Receive requests", hint: "Brands send terms to review", duration: "Ongoing" },
   { title: "Sign & get paid", hint: "In-app sign-off · then delivery", duration: "Per deal" },
 ] as const;
@@ -404,7 +404,7 @@ function ScreenGetStarted() {
   const items = [
     { title: "Verify your identity", href: "/profile#identity-verification", duration: "~2 min" },
     { title: "Upload 5 character photos", href: "/profile#complete-profile", duration: "~5 min" },
-    { title: "Set your consent rules", href: "/consent", duration: "~3 min" },
+    { title: "Set rules and rates", href: "/licenses?tab=rules-and-rates", duration: "~3 min" },
     { title: "Set your minimum license fee", href: "/profile#complete-profile", duration: "~1 min" },
   ];
 

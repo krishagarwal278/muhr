@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
 import { getLicenseWorkspaceAccess } from "@/lib/license/workspaceAccess";
+import { fetchCreatorOtherUsageNotes } from "@/lib/license/creatorOtherUsageNotes";
 import { LicenseRequestWorkspace } from "@/app/(app)/licenses/requests/[requestId]/LicenseRequestWorkspace";
 
 export const dynamic = "force-dynamic";
@@ -34,9 +35,12 @@ export default async function BrandLicenseRequestPage({
     redirect(`/licenses/requests/${requestId}`);
   }
 
+  const creatorOtherUsageNotes = await fetchCreatorOtherUsageNotes(access.row.creator_id);
+
   return (
     <LicenseRequestWorkspace
       initialRequest={access.row}
+      creatorOtherUsageNotes={creatorOtherUsageNotes}
       viewerRole="brand"
       backHref="/brand/licenses"
       backLabel="Back to Licenses"

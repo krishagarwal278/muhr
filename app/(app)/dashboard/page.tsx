@@ -42,7 +42,7 @@ async function parseApiJson(
 
 const quickActions = [
   { title: "Upload assets", href: "/vault/upload", icon: "upload" },
-  { title: "Consent rules", href: "/consent", icon: "shield" },
+  { title: "Rules and rates", href: "/licenses?tab=rules-and-rates", icon: "shield" },
 ];
 
 function ActionIcon({ name, className }: { name: string; className?: string }) {

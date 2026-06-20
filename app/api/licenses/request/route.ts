@@ -11,23 +11,18 @@ import { logger } from "@/lib/logger";
 import { getRateLimitIp, rateLimit } from "@/lib/ratelimit";
 import { createRouteClient } from "@/lib/supabase/route";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import {
+  creatorRequestConstraintsFromRules,
+  LICENSE_REQUEST_CHANNELS,
+  validateRequestAgainstConstraints,
+} from "@/lib/license/requestOptions";
+import { LICENSE_TERRITORIES } from "@/lib/license/territories";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CHANNEL_OPTIONS = [
-  "Instagram",
-  "YouTube",
-  "TikTok",
-  "Facebook",
-  "X / Twitter",
-  "LinkedIn",
-  "Digital Ads",
-  "TV / OTT",
-  "Print",
-] as const;
-
-const TERRITORY_OPTIONS = ["India", "United States", "United Kingdom", "UAE", "Global"] as const;
+const CHANNEL_OPTIONS = LICENSE_REQUEST_CHANNELS;
+const TERRITORY_OPTIONS = LICENSE_TERRITORIES;
 
 function isEmail(s: string): boolean {
   if (s.length === 0 || s.length > 255) return false;
@@ -261,6 +256,37 @@ export async function POST(request: Request) {
       return Response.json(
         { ok: false, error: { code: "forbidden", message: "This creator is not accepting requests." } },
         { status: 403 }
+      );
+    }
+
+    const { data: consentRules, error: rulesErr } = await admin
+      .from("consent_rules")
+      .select("allow_paid_social, allow_broadcast, allow_other, territories, default_duration_days")
+      .eq("user_id", profile.id)
+      .maybeSingle();
+
+    if (rulesErr) {
+      logger.error("license_request_consent_rules_fetch", {
+        creatorId: profile.id,
+        code: rulesErr.code,
+        message: rulesErr.message,
+      });
+      return Response.json(
+        { ok: false, error: { code: "db_error", message: "Could not verify creator rules. Try again later." } },
+        { status: 500 }
+      );
+    }
+
+    const constraints = creatorRequestConstraintsFromRules(consentRules);
+    const ruleCheck = validateRequestAgainstConstraints(constraints, {
+      channels,
+      territories,
+      durationDays: duration_days,
+    });
+    if (!ruleCheck.ok) {
+      return Response.json(
+        { ok: false, error: { code: "invalid_input", message: ruleCheck.message } },
+        { status: 400 }
       );
     }
 

@@ -2,32 +2,28 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FeeRecommendation } from "@/components/license/FeeRecommendation";
 import { solidButtonVariants } from "@/components/ui/button-recipes";
 import { cx } from "@/lib/cx";
-
-const CHANNELS = [
-  "Instagram",
-  "YouTube",
-  "TikTok",
-  "Facebook",
-  "X / Twitter",
-  "LinkedIn",
-  "Digital Ads",
-  "TV / OTT",
-  "Print",
-] as const;
-
-const TERRITORIES = ["India", "United States", "United Kingdom", "UAE", "Global"] as const;
-
-const DURATIONS = [30, 90, 180, 365] as const;
+import { formatIntegerWithCommas } from "@/lib/format/numberInput";
+import { formatNumberFieldChange } from "@/components/ui/form-number-input";
+import {
+  type CreatorRequestConstraints,
+  permittedRequestChannels,
+  permittedRequestDurations,
+  permittedRequestTerritories,
+  validateRequestAgainstConstraints,
+} from "@/lib/license/requestOptions";
 
 type Props = {
   creatorHandle: string;
   creatorDisplayName: string;
   acceptingRequests: boolean;
   licensingNotes: string | null;
+  otherUsageNotes?: string | null;
+  licenseRegions?: string[];
+  requestConstraints: CreatorRequestConstraints;
   publicProfileUrl: string;
   /** When signed into the brand workspace, we bind the request to this email (read-only in the form). */
   signedInBrandEmail?: string | null;
@@ -43,6 +39,9 @@ export function LicenseRequestPanel({
   creatorDisplayName,
   acceptingRequests,
   licensingNotes,
+  otherUsageNotes = null,
+  licenseRegions = [],
+  requestConstraints: initialConstraints,
   publicProfileUrl,
   signedInBrandEmail = null,
   creatorMinLicenseFeeInr = null,
@@ -50,6 +49,7 @@ export function LicenseRequestPanel({
   const router = useRouter();
   const lockedBrandEmail = signedInBrandEmail?.trim() ?? "";
   const brandWorkspaceSignedIn = Boolean(lockedBrandEmail);
+  const [constraints, setConstraints] = useState(initialConstraints);
   const [brandName, setBrandName] = useState("");
   const [brandEmail, setBrandEmail] = useState("");
   const [brandCompany, setBrandCompany] = useState("");
@@ -57,7 +57,7 @@ export function LicenseRequestPanel({
   const [intendedUse, setIntendedUse] = useState("");
   const [channels, setChannels] = useState<string[]>([]);
   const [territories, setTerritories] = useState<string[]>([]);
-  const [durationDays, setDurationDays] = useState<number>(30);
+  const [durationDays, setDurationDays] = useState<number>(initialConstraints.defaultDurationDays);
   const [budgetInr, setBudgetInr] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -66,9 +66,60 @@ export function LicenseRequestPanel({
 
   const effectiveBrandEmail = brandWorkspaceSignedIn ? lockedBrandEmail : brandEmail;
 
-  function toggle(list: string[], v: string, set: (n: string[]) => void) {
-    if (list.includes(v)) set(list.filter((x) => x !== v));
-    else set([...list, v]);
+  const refreshConstraints = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/public-profile/${encodeURIComponent(creatorHandle)}/request-options`);
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json || json.ok !== true || !json.data) return;
+      setConstraints(json.data as CreatorRequestConstraints);
+    } catch {
+      // keep current constraints
+    }
+  }, [creatorHandle]);
+
+  useEffect(() => {
+    setConstraints(initialConstraints);
+  }, [initialConstraints]);
+
+  useEffect(() => {
+    void refreshConstraints();
+    const onFocus = () => void refreshConstraints();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshConstraints]);
+
+  const availableChannels = useMemo(() => permittedRequestChannels(constraints), [constraints]);
+  const availableTerritories = useMemo(
+    () => permittedRequestTerritories(constraints),
+    [constraints]
+  );
+  const availableDurations = useMemo(
+    () => [...permittedRequestDurations(constraints)],
+    [constraints]
+  );
+  const requestsOpen = availableChannels.length > 0 && availableTerritories.length > 0;
+
+  useEffect(() => {
+    const allowedChannels = new Set(availableChannels);
+    setChannels((prev) => prev.filter((c) => allowedChannels.has(c as (typeof availableChannels)[number])));
+
+    const allowedTerritories = new Set(availableTerritories);
+    setTerritories((prev) => prev.filter((t) => allowedTerritories.has(t)));
+
+    setDurationDays((prev) =>
+      availableDurations.includes(prev) ? prev : constraints.defaultDurationDays
+    );
+  }, [constraints, availableChannels, availableTerritories, availableDurations, constraints.defaultDurationDays]);
+
+  function toggleAllowed(
+    allowed: readonly string[],
+    list: string[],
+    value: string,
+    set: (next: string[]) => void
+  ) {
+    if (!allowed.includes(value)) return;
+    if (list.includes(value)) set(list.filter((x) => x !== value));
+    else set([...list, value]);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -76,6 +127,15 @@ export function LicenseRequestPanel({
     setError(null);
     if (!acceptTerms) {
       setError("Confirm the legal checkboxes below before submitting.");
+      return;
+    }
+    const ruleCheck = validateRequestAgainstConstraints(constraints, {
+      channels,
+      territories,
+      durationDays,
+    });
+    if (!ruleCheck.ok) {
+      setError(ruleCheck.message);
       return;
     }
     setSubmitting(true);
@@ -163,6 +223,8 @@ export function LicenseRequestPanel({
     );
   }
 
+  const creatorNotes = otherUsageNotes?.trim() || licensingNotes?.trim() || null;
+
   return (
     <form
       onSubmit={onSubmit}
@@ -197,19 +259,28 @@ export function LicenseRequestPanel({
             .
           </li>
         </ul>
-        {licensingNotes ? (
+        {creatorNotes ? (
           <div className="mt-3 border-t border-black/10 pt-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900/55">
               Notes from @{creatorHandle}
             </p>
-            <p className="mt-2 whitespace-pre-wrap text-neutral-900">{licensingNotes}</p>
+            <p className="mt-2 whitespace-pre-wrap text-neutral-900">{creatorNotes}</p>
           </div>
-        ) : (
+        ) : null}
+        {licenseRegions.length > 0 ? (
+          <div className="mt-3 border-t border-black/10 pt-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-900/55">
+              User permitted regions
+            </p>
+            <p className="mt-2 text-neutral-900">{licenseRegions.join(", ")}</p>
+          </div>
+        ) : null}
+        {!creatorNotes && licenseRegions.length === 0 ? (
           <p className="mt-3 border-t border-black/10 pt-3 text-xs text-neutral-700">
             This creator has not added custom licensing notes. Standard Muhr marketplace terms apply; you can still
             negotiate details with them after they respond.
           </p>
-        )}
+        ) : null}
       </div>
 
       {error && (
@@ -285,48 +356,60 @@ export function LicenseRequestPanel({
 
       <div>
         <p className="mb-2 text-xs font-medium text-neutral-900/70">Channels (pick at least one)</p>
-        <div className="flex flex-wrap gap-1.5">
-          {CHANNELS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => toggle(channels, c, setChannels)}
-              className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                channels.includes(c)
-                  ? "border-neutral-950 bg-neutral-950 text-white"
-                  : "border-black/10 bg-neutral-50 text-neutral-900/70 hover:border-black/20"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
+        {!requestsOpen ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+            This creator has not opened any channels for license requests right now.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {availableChannels.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => toggleAllowed(availableChannels, channels, c, setChannels)}
+                className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                  channels.includes(c)
+                    ? "border-neutral-950 bg-neutral-950 text-white"
+                    : "border-black/10 bg-neutral-50 text-neutral-900/70 hover:border-black/20"
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>
-        <p className="mb-2 text-xs font-medium text-neutral-900/70">Territories (pick at least one)</p>
-        <div className="flex flex-wrap gap-1.5">
-          {TERRITORIES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => toggle(territories, t, setTerritories)}
-              className={`rounded-full border px-2.5 py-1 text-xs transition ${
-                territories.includes(t)
-                  ? "border-neutral-950 bg-neutral-950 text-white"
-                  : "border-black/10 bg-neutral-50 text-neutral-900/70 hover:border-black/20"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
+        <p className="mb-2 text-xs font-medium text-neutral-900/70">User permitted regions (pick at least one)</p>
+        {!requestsOpen ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+            This creator has not opened any regions for license requests right now.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {availableTerritories.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => toggleAllowed(availableTerritories, territories, t, setTerritories)}
+                className={`rounded-full border px-2.5 py-1 text-xs transition ${
+                  territories.includes(t)
+                    ? "border-neutral-950 bg-neutral-950 text-white"
+                    : "border-black/10 bg-neutral-50 text-neutral-900/70 hover:border-black/20"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>
         <p className="mb-2 text-xs font-medium text-neutral-900/70">Duration</p>
         <div className="flex flex-wrap gap-2">
-          {DURATIONS.map((d) => (
+          {availableDurations.map((d) => (
             <label key={d} className="flex cursor-pointer items-center gap-2 text-sm text-neutral-900">
               <input
                 type="radio"
@@ -346,7 +429,7 @@ export function LicenseRequestPanel({
         <input
           inputMode="numeric"
           value={budgetInr}
-          onChange={(e) => setBudgetInr(e.target.value)}
+          onChange={(e) => setBudgetInr(formatNumberFieldChange(e.target.value))}
           className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-neutral-950 outline-none placeholder:text-neutral-900/40"
           placeholder="Leave blank to negotiate"
         />
@@ -359,9 +442,9 @@ export function LicenseRequestPanel({
           channels: channels,
           territories: territories,
         }}
-        onUseMid={(inr) => setBudgetInr(String(inr))}
-        onUseLow={(inr) => setBudgetInr(String(inr))}
-        onUseHigh={(inr) => setBudgetInr(String(inr))}
+        onUseMid={(inr) => setBudgetInr(formatIntegerWithCommas(inr))}
+        onUseLow={(inr) => setBudgetInr(formatIntegerWithCommas(inr))}
+        onUseHigh={(inr) => setBudgetInr(formatIntegerWithCommas(inr))}
       />
 
       <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-black/10 bg-neutral-50 p-3 text-sm text-neutral-900">
@@ -387,7 +470,7 @@ export function LicenseRequestPanel({
 
       <button
         type="submit"
-        disabled={submitting || !acceptTerms}
+        disabled={submitting || !acceptTerms || !requestsOpen}
         className={cx(solidButtonVariants({ size: "lg" }), "w-full")}
       >
         {submitting ? "Sending…" : "Send request"}

@@ -7,6 +7,7 @@ import {
   LICENSE_TERRITORY_OPTIONS,
 } from "@/lib/license/counterOffer";
 import { ghostButtonVariants, solidButtonVariants } from "@/components/ui/button-recipes";
+import { FormNumberInput } from "@/components/ui/form-number-input";
 
 const CHANNELS = [...LICENSE_CHANNEL_OPTIONS];
 const TERRITORIES = [...LICENSE_TERRITORY_OPTIONS];
@@ -188,18 +189,15 @@ export function CounterOfferForm({
         >
           Duration (days)
         </label>
-        <input
+        <FormNumberInput
           id="counter-duration"
-          type="number"
-          min={1}
-          max={3650}
+          size="sm"
           value={durationDays}
-          onChange={(e) => {
-            const val = Number.parseInt(e.target.value, 10);
-            if (Number.isFinite(val) && val > 0) setDurationDays(val);
+          onChange={(value) => {
+            if (value != null && value >= 1 && value <= 3650) setDurationDays(value);
           }}
           disabled={busy}
-          className="mt-2 w-full max-w-xs rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 disabled:opacity-50"
+          className="mt-2 w-full max-w-xs"
         />
       </div>
 
@@ -227,18 +225,14 @@ export function CounterOfferForm({
         >
           Your proposed budget (INR)
         </label>
-        <input
+        <FormNumberInput
           id="counter-budget"
-          type="number"
-          min={0}
-          value={proposedBudgetInr ?? ""}
-          onChange={(e) => {
-            const val = Number.parseInt(e.target.value, 10);
-            setProposedBudgetInr(Number.isFinite(val) && val > 0 ? val : null);
-          }}
+          size="sm"
+          value={proposedBudgetInr}
+          onChange={setProposedBudgetInr}
           disabled={busy}
-          placeholder="e.g. 50000"
-          className="mt-2 w-full max-w-xs rounded-lg border border-purple-200 bg-white px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100 disabled:opacity-50"
+          placeholder="e.g. 50,000"
+          className="mt-2 w-full max-w-xs"
         />
         <p className="mt-1 text-xs text-purple-900/60">
           Use the recommended range above or set your own rate.

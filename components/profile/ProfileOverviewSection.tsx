@@ -482,7 +482,7 @@ function EditForm({
 
       <FormField
         label="Licensing notes (shown to brands)"
-        description="Optional. Shown on your public page before brands submit a license request."
+        description="Edit these in Licenses → Rules and rates. Legacy field kept in sync when you save there."
       >
         <FormTextarea
           value={values.licensingNotes}

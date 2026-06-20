@@ -4,8 +4,14 @@ import { notFound } from "next/navigation";
 import { getPublicSiteBaseUrl } from "@/lib/app/publicSiteUrl";
 import { isBrandWorkspaceUser } from "@/lib/brand/brandPreviewSignIn";
 import { sanitizeProfileLinks, type ProfileLinkInput } from "@/lib/profile/links";
+import { normalizeLicenseTerritories } from "@/lib/license/territories";
+import {
+  creatorRequestConstraintsFromRules,
+} from "@/lib/license/requestOptions";
 import { createServerClient, getUser } from "@/lib/supabase/server";
 import { PublicCreatorClient } from "./PublicCreatorClient";
+
+export const dynamic = "force-dynamic";
 
 type RpcRow = {
   profile_id: string;
@@ -16,6 +22,14 @@ type RpcRow = {
   profile_licensing_notes?: string | null;
   /** Present after migration `020_public_profile_min_fee.sql`; older RPC rows omit this. */
   profile_min_license_fee_inr?: number | null;
+  /** Present after migration `038_license_rules_other_notes.sql`; older RPC rows omit this. */
+  profile_other_usage_notes?: string | null;
+  /** Present after migration `039_public_profile_license_regions.sql`; older RPC rows omit this. */
+  profile_license_regions?: string[] | null;
+  profile_allow_paid_social?: boolean | null;
+  profile_allow_broadcast?: boolean | null;
+  profile_allow_other?: boolean | null;
+  profile_default_duration_days?: number | null;
   /** Present after migration `026_profile_links.sql`; older RPC rows omit this. */
   profile_links?: unknown;
 };
@@ -66,6 +80,15 @@ export default async function PublicCreatorPage({
       row.profile_min_license_fee_inr > 0
         ? row.profile_min_license_fee_inr
         : null,
+    otherUsageNotes: row.profile_other_usage_notes?.trim() || null,
+    licenseRegions: normalizeLicenseTerritories(row.profile_license_regions ?? []),
+    requestConstraints: creatorRequestConstraintsFromRules({
+      allow_paid_social: row.profile_allow_paid_social,
+      allow_broadcast: row.profile_allow_broadcast,
+      allow_other: row.profile_allow_other,
+      territories: row.profile_license_regions,
+      default_duration_days: row.profile_default_duration_days,
+    }),
     profileLinks:
       (() => {
         const parsed = sanitizeProfileLinks(row.profile_links ?? []);

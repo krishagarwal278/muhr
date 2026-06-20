@@ -12,6 +12,7 @@ import {
 } from "@/lib/landing/publicProfileNav";
 import { muidFromUserId } from "@/lib/profile/muid";
 import { primaryButtonVariants } from "@/components/ui/button-recipes";
+import type { CreatorRequestConstraints } from "@/lib/license/requestOptions";
 import type { ProfileLinkInput } from "@/lib/profile/links";
 
 type PublicRow = {
@@ -20,6 +21,9 @@ type PublicRow = {
   displayName: string;
   acceptingRequests: boolean;
   licensingNotes: string | null;
+  otherUsageNotes: string | null;
+  licenseRegions: string[];
+  requestConstraints: CreatorRequestConstraints;
   minLicenseFeeInr: number | null;
   profileLinks: ProfileLinkInput[];
 };
@@ -150,6 +154,9 @@ export function PublicCreatorClient({
               creatorDisplayName={profile.displayName}
               acceptingRequests={profile.acceptingRequests}
               licensingNotes={profile.licensingNotes}
+              otherUsageNotes={profile.otherUsageNotes}
+              licenseRegions={profile.licenseRegions}
+              requestConstraints={profile.requestConstraints}
               publicProfileUrl={publicProfileUrl}
               signedInBrandEmail={signedInBrandEmail}
               creatorMinLicenseFeeInr={profile.minLicenseFeeInr}

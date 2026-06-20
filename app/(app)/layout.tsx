@@ -169,7 +169,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen w-full min-w-0 bg-[#f5f5f7] text-neutral-950">
+    <div className="flex min-h-screen w-full min-w-0 bg-[#F8F9FB] text-neutral-950">
       {user && !isOnboardingFlow ? <NavTourBootstrap userId={user.id} /> : null}
 
       {/* Mobile section strip (guided tour + quick nav) - hidden during onboarding */}
@@ -177,7 +177,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <nav
           data-tour-mobile="nav-strip"
           aria-label="Main sections"
-          className="fixed left-0 right-0 top-14 z-nav-strip flex gap-1 overflow-x-auto border-b border-black/10 bg-[#f5f5f7]/95 px-2 py-2 backdrop-blur-sm lg:hidden"
+          className="fixed left-0 right-0 top-14 z-nav-strip flex gap-1 overflow-x-auto border-b border-black/10 bg-[#F8F9FB]/95 px-2 py-2 backdrop-blur-sm lg:hidden"
         >
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -203,11 +203,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {!isOnboardingFlow && (
         <aside
           data-tour-desktop="sidebar-shell"
-          className="fixed inset-y-0 left-0 z-sidebar hidden w-64 flex-col border-r border-neutral-200/90 bg-white/95 shadow-[4px_0_32px_-12px_rgba(15,23,42,0.08)] backdrop-blur-md lg:flex"
+          className="fixed inset-y-0 left-0 z-sidebar hidden w-64 flex-col border-r border-white/10 bg-[#0c0c0d] lg:flex"
         >
-          <div className="flex h-16 items-center gap-2.5 border-b border-neutral-200/80 px-6">
+          <div className="flex h-16 items-center gap-2.5 border-b border-white/10 px-6">
             <Image src="/logo.png" alt="Muhr" width={28} height={28} className="h-auto w-auto rounded-xl" />
-            <span className="text-sm font-semibold tracking-tight text-neutral-950">Muhr</span>
+            <span className="muhr-wordmark text-[1.125rem] text-white">Muhr</span>
           </div>
           <nav className="flex-1 space-y-1 px-3 py-4" aria-label="Main navigation">
             {navItems.map((item) => {
@@ -217,10 +217,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   key={item.href}
                   href={item.href}
                   data-tour-desktop={`nav-${item.tour}`}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition ${
                     isActive
-                      ? "bg-black/5 text-neutral-950"
-                      : "text-neutral-800 hover:bg-black/5 hover:text-neutral-950"
+                      ? "bg-[#3b5bdb] text-white"
+                      : "text-neutral-400 hover:bg-white/5 hover:text-white"
                   }`}
                 >
                   <NavIcon name={item.icon} className="h-5 w-5" />
@@ -229,11 +229,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-          <div className="border-t border-neutral-200/80 bg-neutral-50/50 p-4">
+          <div className="border-t border-white/10 p-4">
             <div className="flex items-center gap-1">
               <Link
                 href="/profile"
-                className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 -m-2 transition hover:bg-black/5"
+                className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 -m-2 transition hover:bg-white/5"
               >
                 <ProfileAvatar
                   name={user?.name || "User"}
@@ -242,8 +242,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   className="shrink-0"
                 />
                 <div className="min-w-0 flex-1 truncate">
-                  <p className="truncate text-sm font-medium text-neutral-950">{user?.name || "Loading..."}</p>
-                  <p className="truncate text-[11px] font-mono font-medium text-neutral-700">{user?.shortId || "..."}</p>
+                  <p className="truncate text-[15px] font-medium text-white">{user?.name || "Loading..."}</p>
+                  <p className="truncate text-xs text-neutral-500">{user?.shortId || "..."}</p>
                 </div>
               </Link>
               <button
@@ -255,7 +255,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 disabled={loggingOut}
                 aria-label="Log out"
                 title="Log out"
-                className="shrink-0 rounded-lg p-2 text-neutral-600 transition hover:bg-black/5 hover:text-neutral-950 disabled:opacity-50"
+                className="shrink-0 rounded-lg p-2 text-neutral-500 transition hover:bg-white/5 hover:text-white disabled:opacity-50"
               >
                 <LogoutIcon className="h-5 w-5" />
               </button>
@@ -266,7 +266,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile header - hidden during onboarding */}
       {!isOnboardingFlow && (
-        <header className="fixed inset-x-0 top-0 z-header flex h-14 items-center justify-between border-b border-black/10 bg-[#f5f5f7]/95 px-4 backdrop-blur-sm lg:hidden">
+        <header className="fixed inset-x-0 top-0 z-header flex h-14 items-center justify-between border-b border-black/10 bg-[#F8F9FB]/95 px-4 backdrop-blur-sm lg:hidden">
           <Link href="/dashboard" className="flex items-center gap-2">
             <Image src="/logo.png" alt="Muhr" width={24} height={24} className="h-auto w-auto rounded-lg" />
             <span className="text-sm font-semibold">Muhr</span>

@@ -4,6 +4,7 @@ import type { VaultAsset } from "@/types";
 import { ArchiveVaultAssetButton } from "@/components/vault/ArchiveVaultAssetButton";
 import { RestoreVaultAssetButton } from "@/components/vault/RestoreVaultAssetButton";
 import { DeleteAssetButton } from "@/components/vault/DeleteAssetButton";
+import { DecryptedDocumentDownload } from "./DecryptedDocumentDownload";
 
 type AssetWithUrl = VaultAsset & { signed_url?: string | null };
 
@@ -29,6 +30,36 @@ export function VaultAssetActions({ asset }: { asset: AssetWithUrl }) {
           label="Delete voice sample"
           confirmDescription="This voice sample will be permanently removed from your vault."
         />
+      </div>
+    );
+  }
+
+  if (asset.asset_type === "document") {
+    return (
+      <div className="space-y-3 pt-2">
+        {asset.signed_url && asset.encryption_key_id && (
+          <DecryptedDocumentDownload
+            signedUrl={asset.signed_url}
+            meta={{
+              encryption_version: 1,
+              encryption_alg: "AES-256-GCM",
+              encryption_iv_b64: asset.encryption_iv ?? "",
+              wrapped_data_key_b64: asset.wrapped_data_key ?? "",
+              wrapped_key_iv_b64: asset.wrapped_key_iv ?? "",
+              wrapped_key_salt_b64: asset.wrapped_key_salt ?? "",
+              original_file_name: asset.original_file_name ?? asset.file_name,
+              original_mime_type: asset.original_mime_type ?? "application/pdf",
+            }}
+          />
+        )}
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <ArchiveVaultAssetButton asset={asset} className="flex-1" />
+          <DeleteAssetButton
+            assetId={asset.id}
+            label="Delete document"
+            confirmDescription="This document will be permanently removed from your vault."
+          />
+        </div>
       </div>
     );
   }

@@ -183,6 +183,29 @@ export default async function AssetDetailPage({
             </div>
           )}
 
+          {/* Document preview */}
+          {asset.asset_type === "document" && (
+            <div className="flex flex-col items-center justify-center border-b border-black/10 bg-neutral-100 py-12">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-sm">
+                <svg className="h-8 w-8 text-neutral-600" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-neutral-900">{asset.original_file_name ?? asset.file_name}</p>
+              <p className="mt-1 text-xs text-neutral-500">{formatFileSize(asset.file_size)}</p>
+              {asset.encryption_key_id 
+              && (
+                <div className="mt-3 flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-800">
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                  </svg>
+                  Encrypted
+                </div>
+              )
+              }
+            </div>
+          )}
+
           {/* Details */}
           <div className="space-y-4 p-6">
             <div>

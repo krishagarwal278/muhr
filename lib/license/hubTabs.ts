@@ -11,7 +11,7 @@ export const LICENSE_HUB_TAB_LABELS: Record<LicenseHubTab, string> = {
   inbox: "Inbox",
   active: "Active",
   history: "History",
-  "rules-and-rates": "Rules and rates",
+  "rules-and-rates": "Rates & rules",
 };
 
 export function parseLicenseHubTab(value: string | null): LicenseHubTab {

@@ -5,7 +5,6 @@ import { SignedStorageImage } from "@/components/ui/SignedStorageImage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiErrorMessage, dataFromApiJson } from "@/lib/api/response";
 import { MAX_CHARACTER_PHOTOS, MIN_CHARACTER_PHOTOS } from "@/lib/profile/completion";
-import { outlineButtonVariants } from "@/components/ui/button-recipes";
 
 interface CharacterPhoto {
   id: string;

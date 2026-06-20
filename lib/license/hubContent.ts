@@ -1,15 +1,16 @@
 import type { LicenseHubTab } from "@/lib/license/hubTabs";
 
 export const LICENSE_HUB_COPY = {
-  title: "Licenses",
-  subtitle: "Review incoming briefs, track active deals, and set your rules and rates.",
+  title: "Your license inbox",
+  subtitle: "Review briefs, manage active deals, set your rates, and keep every signed contract.",
   tabs: {
     inbox: {
       empty: {
         title: "No pending requests",
         description: "New brand briefs will show up here for you to review.",
       },
-      footnote: "You approve the deal and final cut before anything ships.",
+      footnote:
+        "Two checkpoints before you can accept: review the brief, then approve the final cut before anything ships.",
     },
     active: {
       hint: "Accepted deals — open a workspace to review cuts and contracts.",
@@ -45,7 +46,7 @@ export const LICENSE_HUB_COPY = {
       label: "User permitted regions",
       hint: "",
     },
-    saveLabel: "Save rules and rates",
+    saveLabel: "Save rates",
     otherUsage: {
       toggleLabel: "Other",
       toggleHint: "Non-standard or uncategorized briefs.",

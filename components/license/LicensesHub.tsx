@@ -5,16 +5,36 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { LicenseRequestRow } from "@/types/license";
 import { apiErrorMessage } from "@/lib/api/response";
 import { licensesListFromApiJson, type LicenseListCounts } from "@/lib/api/licensesPayload";
+import { formatLicenseBudget } from "@/lib/license/brandAvatar";
 import { LICENSE_HUB_COPY } from "@/lib/license/hubContent";
 import { parseLicenseHubTab, type LicenseHubTab } from "@/lib/license/hubTabs";
 import { LicenseHubTabs } from "@/components/license/LicenseHubTabs";
 import { LicenseRequestCard } from "@/components/license/LicenseRequestCard";
 import { LicenseRequestList } from "@/components/license/LicenseRequestList";
 import { RulesAndRatesPanel } from "@/components/license/RulesAndRatesPanel";
-import { appPageTitleVariants } from "@/components/ui/page-header";
 
-function TabHint({ children }: { children: string }) {
-  return <p className="text-sm text-neutral-600">{children}</p>;
+function PanelHeader({
+  left,
+  right,
+}: {
+  left: React.ReactNode;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-neutral-200 px-5 py-4">
+      <div>{left}</div>
+      {right ? <div className="text-sm text-neutral-500">{right}</div> : null}
+    </div>
+  );
+}
+
+function InfoBanner({ children }: { children: string }) {
+  return (
+    <div className="rounded-2xl border border-[#2D5BFF]/20 bg-[#2D5BFF]/5 px-4 py-3 text-sm text-neutral-700">
+      <span className="mr-2 font-semibold text-[#2D5BFF]">ⓘ</span>
+      {children}
+    </div>
+  );
 }
 
 export function LicensesHub({ initialTab }: { initialTab?: LicenseHubTab }) {
@@ -45,6 +65,20 @@ export function LicensesHub({ initialTab }: { initialTab?: LicenseHubTab }) {
   const historyOnly = useMemo(
     () => [...history.filter((r) => r.status !== "accepted"), ...withdrawn],
     [history, withdrawn]
+  );
+
+  const openBriefValue = useMemo(
+    () => pending.reduce((sum, r) => sum + (r.budget_inr ?? 0), 0),
+    [pending]
+  );
+
+  const lifetimeEarnings = useMemo(
+    () =>
+      historyOnly.reduce((sum, r) => {
+        if (r.status === "declined" || r.status === "withdrawn") return sum;
+        return sum + (r.agreed_budget_inr ?? r.budget_inr ?? 0);
+      }, 0),
+    [historyOnly]
   );
 
   const load = useCallback(async () => {
@@ -120,10 +154,16 @@ export function LicensesHub({ initialTab }: { initialTab?: LicenseHubTab }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className={appPageTitleVariants()}>{LICENSE_HUB_COPY.title}</h1>
-        <p className="mt-1 text-sm text-neutral-600">{LICENSE_HUB_COPY.subtitle}</p>
-      </div>
+      <header>
+        <p className="text-xs font-semibold uppercase tracking-widest text-[#2D5BFF]">
+          <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#2D5BFF]" aria-hidden />
+          Licensing
+        </p>
+        <h1 className="muhr-display mt-2 text-3xl text-neutral-950 sm:text-4xl">
+          {LICENSE_HUB_COPY.title}
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm text-neutral-600">{LICENSE_HUB_COPY.subtitle}</p>
+      </header>
 
       <LicenseHubTabs
         active={activeTab}
@@ -136,18 +176,42 @@ export function LicensesHub({ initialTab }: { initialTab?: LicenseHubTab }) {
       />
 
       {message ? (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
           {message}
         </p>
       ) : null}
 
       {loading ? (
-        <div className="h-24 animate-pulse rounded-xl border border-black/10 bg-neutral-100" />
+        <div className="h-32 animate-pulse rounded-2xl border border-neutral-300/90 bg-neutral-100" />
       ) : null}
 
       {!loading && activeTab === "inbox" ? (
         <div className="space-y-4">
-          <LicenseRequestList empty={LICENSE_HUB_COPY.tabs.inbox.empty}>
+          <LicenseRequestList
+            empty={LICENSE_HUB_COPY.tabs.inbox.empty}
+            header={
+              pending.length > 0 ? (
+                <PanelHeader
+                  left={
+                    <span className="inline-flex rounded-full bg-[#2D5BFF]/10 px-3 py-1 text-xs font-semibold text-[#2D5BFF]">
+                      {pending.length} awaiting review
+                    </span>
+                  }
+                  right="Sorted by expiry"
+                />
+              ) : undefined
+            }
+            footer={
+              pending.length > 0 && openBriefValue > 0 ? (
+                <div className="flex items-center justify-between border-t border-neutral-200 px-5 py-4">
+                  <span className="text-sm text-neutral-600">Potential value of open briefs</span>
+                  <span className="text-sm font-semibold tabular-nums text-neutral-950">
+                    {formatLicenseBudget(openBriefValue)}
+                  </span>
+                </div>
+              ) : undefined
+            }
+          >
             {pending.map((r) => (
               <LicenseRequestCard
                 key={r.id}
@@ -166,40 +230,59 @@ export function LicensesHub({ initialTab }: { initialTab?: LicenseHubTab }) {
               />
             ))}
           </LicenseRequestList>
-          {pending.length > 0 && LICENSE_HUB_COPY.tabs.inbox.footnote ? (
-            <p className="text-xs text-neutral-600">{LICENSE_HUB_COPY.tabs.inbox.footnote}</p>
+          {LICENSE_HUB_COPY.tabs.inbox.footnote ? (
+            <InfoBanner>{LICENSE_HUB_COPY.tabs.inbox.footnote}</InfoBanner>
           ) : null}
         </div>
       ) : null}
 
       {!loading && activeTab === "active" ? (
-        <div className="space-y-4">
-          {LICENSE_HUB_COPY.tabs.active.hint ? (
-            <TabHint>{LICENSE_HUB_COPY.tabs.active.hint}</TabHint>
-          ) : null}
-          <LicenseRequestList empty={LICENSE_HUB_COPY.tabs.active.empty}>
-            {activeDeals.map((r) => (
-              <LicenseRequestCard key={r.id} request={r} variant="active" />
-            ))}
-          </LicenseRequestList>
-        </div>
+        <LicenseRequestList
+          empty={LICENSE_HUB_COPY.tabs.active.empty}
+          header={
+            activeDeals.length > 0 ? (
+              <PanelHeader
+                left={<span className="text-sm font-semibold text-neutral-950">Active deals</span>}
+                right={`${activeDeals.length} in progress`}
+              />
+            ) : undefined
+          }
+        >
+          {activeDeals.map((r) => (
+            <LicenseRequestCard key={r.id} request={r} variant="active" />
+          ))}
+        </LicenseRequestList>
       ) : null}
 
       {!loading && activeTab === "history" ? (
-        <div className="space-y-4">
-          {LICENSE_HUB_COPY.tabs.history.hint ? (
-            <TabHint>{LICENSE_HUB_COPY.tabs.history.hint}</TabHint>
-          ) : null}
-          <LicenseRequestList empty={LICENSE_HUB_COPY.tabs.history.empty}>
-            {historyOnly.map((r) => (
-              <LicenseRequestCard
-                key={r.id}
-                request={r}
-                variant={r.status === "withdrawn" ? "withdrawn" : "history"}
+        <LicenseRequestList
+          empty={LICENSE_HUB_COPY.tabs.history.empty}
+          header={
+            historyOnly.length > 0 ? (
+              <PanelHeader
+                left={
+                  <div>
+                    <p className="text-sm font-semibold text-neutral-950">Completed licenses</p>
+                    {lifetimeEarnings > 0 ? (
+                      <p className="mt-0.5 text-xs text-neutral-500">
+                        Lifetime earnings {formatLicenseBudget(lifetimeEarnings)} across {historyOnly.length}{" "}
+                        {historyOnly.length === 1 ? "license" : "licenses"}
+                      </p>
+                    ) : null}
+                  </div>
+                }
               />
-            ))}
-          </LicenseRequestList>
-        </div>
+            ) : undefined
+          }
+        >
+          {historyOnly.map((r) => (
+            <LicenseRequestCard
+              key={r.id}
+              request={r}
+              variant={r.status === "withdrawn" ? "withdrawn" : "history"}
+            />
+          ))}
+        </LicenseRequestList>
       ) : null}
 
       {!loading && activeTab === "rules-and-rates" ? <RulesAndRatesPanel /> : null}

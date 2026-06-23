@@ -10,6 +10,10 @@ import { CounterOfferForm } from "@/components/license/CounterOfferForm";
 import { CounterOffersList } from "@/components/license/CounterOffersList";
 import { AssetDeliveryZone } from "@/components/license/AssetDeliveryZone";
 import { OtherUsageNotesDisplay } from "@/components/license/OtherUsageNotesDisplay";
+import {
+  BrandLicensePaymentSection,
+  CreatorPayoutSection,
+} from "@/components/payments/LicensePaymentSections";
 import { cancellationReasonLabel } from "@/lib/license/cancellationReasons";
 import {
   dangerButtonVariants,
@@ -40,11 +44,6 @@ type CounterOfferRow = {
   created_at: string;
   responded_at: string | null;
 };
-
-function formatInr(n: number | null | undefined): string {
-  if (n == null) return "—";
-  return `₹${n.toLocaleString("en-IN")}`;
-}
 
 function StatusBadge({ status }: { status: LicenseRequestRow["status"] }) {
   if (status === "accepted") {
@@ -597,43 +596,19 @@ export function LicenseRequestWorkspace({
         </section>
       )}
 
-      {/* Brand: mock payment before contract unlock */}
+      {/* Brand: Razorpay payment before contract unlock */}
       {isBrand && request.status === "accepted" ? (
-        <section className="space-y-3">
-          <h2 className="text-lg font-medium">Payment</h2>
-          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-4")}>
-            {brandPaymentCleared ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
-                <span className="font-medium">Payment recorded</span>
-                <span className="text-emerald-900/80">
-                  {formatInr(licenseFeeInr)} · preview placeholder (Stripe coming soon)
-                </span>
-              </div>
-            ) : (
-              <>
-                <p className="text-sm text-neutral-800">Mock checkout — no card charged.</p>
-                <div className="flex flex-wrap items-end justify-between gap-4 rounded-lg border border-black/10 bg-neutral-50 px-4 py-3">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-                      Amount due
-                    </p>
-                    <p className="mt-1 text-2xl font-semibold tabular-nums text-neutral-950">
-                      {formatInr(licenseFeeInr)}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void patchWorkspaceState({ action: "brand_clear_payment" })}
-                    className={primaryButtonVariants()}
-                  >
-                    {busy ? "Processing…" : "Make payment"}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </section>
+        <BrandLicensePaymentSection
+          licenseRequestId={request.id}
+          amountInr={licenseFeeInr}
+          brandPaymentCleared={brandPaymentCleared}
+          brand={{
+            name: request.brand_name,
+            email: request.brand_email,
+          }}
+          onPaymentComplete={reloadRequest}
+          onMessage={setMessage}
+        />
       ) : null}
 
       {/* Contract — brand sees this only after payment is recorded */}
@@ -740,18 +715,14 @@ export function LicenseRequestWorkspace({
         </section>
       ) : null}
 
-      {/* Payment — Stripe etc. next; no longer gated on in-app signatures */}
-      {request.status === "accepted" && !isBrand && (
-        <section className="space-y-3">
-          <h2 className="text-lg font-medium">Payment</h2>
-          <div className={cx(surfaceCardVariants({ padding: "md", interactive: "none" }), "space-y-3")}>
-            <p className="text-sm text-neutral-700">In-app payouts coming soon (Stripe Connect).</p>
-            <button type="button" disabled className={primaryButtonVariants()}>
-              Accept payment (coming soon)
-            </button>
-          </div>
-        </section>
-      )}
+      {/* Creator payout status */}
+      {request.status === "accepted" && !isBrand ? (
+        <CreatorPayoutSection
+          licenseRequestId={request.id}
+          amountInr={licenseFeeInr}
+          brandPaymentCleared={brandPaymentCleared}
+        />
+      ) : null}
 
       {/* Email brand */}
       {canEmailBrand && (

@@ -4,6 +4,7 @@ import { getRouteHandlerUser } from "@/lib/auth/routeHandlerUser";
 import { toApiError } from "@/lib/errors/apiError";
 import { canSignContract, getLicenseWorkspaceAccess } from "@/lib/license/workspaceAccess";
 import { logger } from "@/lib/logger";
+import { isRazorpayConfigured } from "@/lib/razorpay/client";
 import { createRouteClient } from "@/lib/supabase/route";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import type { LicenseRequestRow } from "@/types/license";
@@ -75,6 +76,18 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     const row = access.row;
 
     if (body.action === "brand_clear_payment") {
+      if (isRazorpayConfigured()) {
+        return Response.json(
+          {
+            ok: false,
+            error: {
+              code: "use_checkout",
+              message: "Complete payment via Razorpay checkout on this page.",
+            },
+          },
+          { status: 400 }
+        );
+      }
       if (access.role !== "brand") {
         return Response.json(
           { ok: false, error: { code: "forbidden", message: "Only the brand can clear the payment step." } },
